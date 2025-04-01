@@ -1,0 +1,12 @@
+# ignore everything
+**/*
+# but not these ...
+!waldiez_runner/
+!scripts/start.sh
+!scripts/pre_start.py
+!scripts/initial_data.py
+!pyproject.toml
+!requirements/main.txt
+!LICENSE
+!README.md
+!NOTICE.md

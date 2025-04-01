@@ -1,0 +1,81 @@
+{
+    "name": "Python, PostgreSQL, Redis",
+    "dockerComposeFile": "compose.yaml",
+    "service": "runner",
+    "remoteUser": "vscode",
+    "containerUser": "vscode",
+    "remoteEnv": { "HOME": "/home/vscode" },
+    "containerEnv": {
+        "HOME": "/home/vscode",
+        "PYTEST_ADDOPTS": "--rootdir=/home/vscode/workspace --confcutdir=."
+    },
+    "workspaceFolder": "/home/vscode/workspace",
+    "init": true,
+    "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder} && mkdir -p ${containerWorkspaceFolder}/.devcontainer && touch ${containerWorkspaceFolder}/.devcontainer/.zsh_history",
+    "updateContentCommand": "bash  ${containerWorkspaceFolder}/.devcontainer/setup.sh",
+    "shutdownAction": "stopCompose",
+    "forwardPorts": [
+        "runner:8000",
+        "db:5432",
+        "redis:6379"
+    ],
+    "portsAttributes": {
+        "runner:8000": {
+            "label": "Runner",
+            "requireLocalPort": true
+        },
+        "db:5432": {
+            "label": "PostgreSQL",
+            "requireLocalPort": true
+        },
+        "redis:6379": {
+            "label": "Redis",
+            "requireLocalPort": true
+        }
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "files.eol": "\n",
+                "files.trimTrailingWhitespaceInRegexAndStrings": false,
+                "python.envFile": "",
+                "search.exclude": {
+                    "**/.venv": true,
+                    "**/dist": true,
+                    "**/out": true
+                },
+                "editor.formatOnSave": true,
+                "editor.codeActionsOnSave": {
+                    "source.organizeImports": "always"
+                },
+                "pylint.args": ["--rcfile=pyproject.toml"],
+                "pylint.importStrategy": "fromEnvironment",
+                "editor.defaultFormatter": "ms-python.black-formatter",
+                "black-formatter.args": ["--config=pyproject.toml"],
+                "ruff.configuration": "pyproject.toml",
+                "mypy.runUsingActiveInterpreter": true,
+                "mypy-type-checker.args": ["--config pyproject.toml"],
+                "python.pythonPath": "/usr/local/bin/python"
+            },
+            "extensions": [
+                "ms-python.python",
+                "ms-python.black-formatter",
+                "charliermarsh.ruff",
+                "be5invis.toml",
+                "pflannery.vscode-versionlens",
+                "ninoseki.vscode-mogami",
+                "markis.code-coverage",
+                "ms-python.pylint",
+                "ms-python.mypy-type-checker",
+                "waldiez.waldiez-vscode",
+                "streetsidesoftware.code-spell-checker",
+                "mtxr.sqltools",
+                "mtxr.sqltools-driver-sqlite",
+                "mtxr.sqltools-driver-pg",
+                "cweijan.vscode-redis-client",
+                "timonwong.shellcheck",
+                "fill-labs.dependi"
+            ]
+        }
+    }
+}

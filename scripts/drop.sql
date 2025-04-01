@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS alembic_version;
+DROP TABLE IF EXISTS tasks;
+DROP TABLE IF EXISTS clients;
+DROP TYPE IF EXISTS task_status;

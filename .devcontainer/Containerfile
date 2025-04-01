@@ -1,0 +1,58 @@
+FROM mcr.microsoft.com/vscode/devcontainers/python:3.12
+
+ENV PYTHONUNBUFFERED=1
+ENV DEBIAN_FRONTEND="noninteractive"
+ENV DEBCONF_NONINTERACTIVE_SEEN=true
+
+RUN sudo apt update && \
+    sudo apt upgrade -y && \
+    sudo apt install -y --no-install-recommends \
+    git \
+    curl \
+    build-essential \
+    bzip2 \
+    ca-certificates \
+    sqlite3 \
+    zsh \
+    zip \
+    cargo \
+    unzip \
+    gnupg2 \
+    graphviz && \
+    apt clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /var/cache/apt/archives/*
+
+# also install nodejs for pylance to work
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && \
+    sudo apt-get install -y nodejs && \
+    apt clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /var/cache/apt/archives/*
+
+USER vscode
+
+ENV HOME=/home/vscode
+ENV PATH=${HOME}/.local/bin:${PATH}
+
+# make zsh the default shell
+RUN sudo chsh -s /usr/bin/zsh vscode && touch ~/.zsh_history
+# install oh-my-zsh if needed
+RUN if [ ! -d "$HOME/.oh-my-zsh" ]; then \
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"; \
+fi
+
+RUN git clone https://github.com/zsh-users/zsh-autosuggestions "${ZSH_CUSTOM:-${HOME}/.oh-my-zsh/custom}/plugins/zsh-autosuggestions" && \
+    git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "${ZSH_CUSTOM:-${HOME}/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting" && \
+    sed -i 's/plugins=(git)/plugins=(git colorize history zsh-autosuggestions zsh-syntax-highlighting)/g' ~/.zshrc && \
+    echo "HISTFILE=${HOME}/workspace/.devcontainer/.zsh_history" >> ~/.zshrc && \
+    echo "HISTSIZE=10000" >> ~/.zshrc && \
+    echo "SAVEHIST=10000" >> ~/.zshrc && \
+    echo "setopt EXTENDED_HISTORY" >> ~/.zshrc && \
+    echo "setopt HIST_EXPIRE_DUPS_FIRST" >> ~/.zshrc && \
+    echo "setopt HIST_IGNORE_DUPS" >> ~/.zshrc && \
+    echo "setopt HIST_IGNORE_ALL_DUPS" >> ~/.zshrc && \
+    echo "setopt HIST_IGNORE_SPACE" >> ~/.zshrc && \
+    echo "setopt HIST_FIND_NO_DUPS" >> ~/.zshrc && \
+    echo "setopt HIST_SAVE_NO_DUPS" >> ~/.zshrc && \
+    echo "setopt HIST_BEEP" >> ~/.zshrc

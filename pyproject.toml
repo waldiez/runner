@@ -1,0 +1,353 @@
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "waldiez_runner"
+description = "waldiez runner"
+authors = [
+  { name = "Panagiotis Kasnesis", email = "pkasnesis@thingenious.io" },
+  { name= "Lazaros Toumanidis", email= "laztoum@protonmail.com" },
+  { name = "Stella Ioannidou", email = "stella@humancentered.gr"}
+]
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+dynamic = ["version"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Developers",
+]
+dependencies = [
+    "aiosqlite==0.21.0",
+    "aiofiles==24.1.0",
+    "aiohttp==3.11.15",
+    "alembic==1.15.2",
+    "anyio==4.9.0",
+    "bcrypt==4.3.0",
+    "fakeredis==2.28.0",
+    "fastapi[all]==0.115.12",
+    "fastapi-pagination==0.12.34",
+    "faststream[redis,cli]==0.5.37",
+    "hiredis==3.1.0",
+    "orjson==3.10.16",
+    "psycopg[binary]==3.2.6",
+    "pydantic-settings==2.8.1",
+    "pyJWT[crypto]==2.10.1",
+    "python_dotenv==1.1.0",
+    "puremagic==1.28",
+    "python-multipart==0.0.20",
+    "redis==5.2.1",
+    "slowapi",
+    "pydantic>=2.11.1",
+    "python-ulid==3.0.0",
+    "taskiq==0.11.16",
+    "taskiq-dependencies==1.5.7",
+    "taskiq-redis==1.0.3",
+    "tenacity<10.0.0",
+    "typer<1",
+    "uvicorn[standard]==0.34.0",
+    "uvloop==0.21.0; sys_platform != 'win32'",
+    "virtualenv==20.29.3",
+    "waldiez==0.4.2",
+    "zipstream==1.1.4",
+]
+
+[project.urls]
+homepage = "https://github.com/waldiez/runner.git"
+repository = "https://github.com/waldiez/runner.git"
+
+[project.scripts]
+waldiez-runner = "waldiez_runner.cli:app"
+
+[tool.hatch.build.targets.sdist]
+packages = ["waldiez_runner", "waldiez_runner.*"]
+exclude = [ ".gitignore", "**/examples/**", "**/tests/**", "waldiez_runner/storage/**", "**waldiez_out/**" ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["waldiez_runner", "waldiez_runner.*"]
+exclude = [ ".gitignore", "**/examples/**", "**/tests/**", "waldiez_runner/storage/**", "**waldiez_out/**" ]
+
+[project.optional-dependencies]
+dev = [
+    "autoflake==2.3.1",
+    "bandit==1.8.3",
+    "black==25.1.0",
+    "flake8==7.2.0",
+    "hatchling==1.27.0",
+    "isort==6.0.1",
+    "mypy==1.15.0",
+    "pre-commit==4.2.0",
+    "pydocstyle==6.3.0",
+    "pylint==3.3.6",
+    "ruff==0.11.2",
+    "taskiq[reload]==0.11.16",
+    "taskiq_fastapi==0.3.4",
+    "types-aiofiles==24.1.0.20250326",
+    "types-redis==4.6.0.20241004",
+    "types-requests==2.32.0.20250328",
+    "types-toml==0.10.8.20240310",
+    "types-PyYAML==6.0.12.20241230",
+    "yamllint==1.37.0",
+]
+test = [
+    "asgi-lifespan==2.1.0",
+    "greenlet==3.1.1",
+    "httpx<1",
+    "httpx_ws==0.7.2",
+    "moto[s3]==5.1.1",
+    "pytest==8.3.5",
+    "pytest-asyncio==0.26.0",
+    "pytest-cov==6.0.0",
+    "pytest-html==4.1.1",
+    "pytest-httpx",
+    "pytest-env==1.1.5",
+    "pytest-mock==3.14.0",
+    "pytest-sugar==1.0.0",
+    "pytest-timeout==2.3.1",
+    "pytest-xdist==3.6.1",
+]
+
+[tool.hatch.version]
+path = "waldiez_runner/_version.py"
+
+# black
+[tool.black]
+line-length = 80
+skip-string-normalization=true
+skip_magic_trailing_comma=false
+include = '''
+    \.pyi?$
+'''
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | .local
+  | _build
+  | __init__.py
+  | .local
+  | waldiez_out
+  | waldiez_runner/storage
+)/
+'''
+
+# mypy
+[tool.mypy]
+files = "."
+show_error_codes = true
+# xcode/dmypy: follow-imports=silent not supported
+# follow_imports = "skip"
+platform = "linux"
+check_untyped_defs = true
+disallow_any_generics = true
+disallow_incomplete_defs = true
+disallow_subclassing_any = false
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_untyped_defs = true
+ignore_missing_imports = false
+no_implicit_reexport = true
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_configs = true
+warn_unused_ignores = true
+plugins = [
+  "pydantic.mypy"
+]
+exclude = [
+    '.venv',
+    '.local',
+    'build',
+    'dist',
+    'waldiez_runner/storage',
+    'waldiez_out',
+    'migrations/versions',
+]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = false
+
+# isort
+[tool.isort]
+profile ="black"
+skip=[
+    ".venv",
+    ".local",
+    "build",
+    "dist",
+    "waldiez_out",
+    "waldiez_runner/storage",
+]
+include_trailing_comma=true
+force_grid_wrap=0
+use_parentheses=true
+line_length=80
+
+# pydocstyle
+[tool.pydocstyle]
+match-dir="([^!(.venv)].*)([^!(.local)].*)([^!(waldiez_out)].*)([^!(waldiez_runner/storage)].*)"
+
+# pylint
+[tool.pylint.master]
+load-plugins = [
+    "pylint.extensions.mccabe",
+    "pylint.extensions.redefined_variable_type",
+    "pylint.extensions.broad_try_clause",
+    "pylint.extensions.no_self_use",
+    "pylint.extensions.docparams",
+]
+extension-pkg-whitelist= []
+# reports=true
+recursive=true
+fail-under=8.0
+ignore=["CVS"]
+ignore-paths = [
+    ".venv",
+    ".local*",
+    "waldiez_out",
+    "waldiez_runner/storage",
+]
+unsafe-load-any-extension="no"
+
+[tool.pylint.messages_control]
+enable=["c-extension-no-member"]
+[tool.pylint.format]
+max-line-length=80
+[tool.pylint.similarities]
+ignore-imports="yes"
+ignore-signatures="yes"
+min-similarity-lines=10
+[tool.pylint.broad_try_clause]
+max-try-statements=3
+[tool.pylint.design]
+max-args=11
+max-attributes=11
+max-positional-arguments=11
+max-statements=50
+[tool.pylint.string]
+check-quote-consistency = true
+check-str-concat-over-line-jumps = true
+[tool.pylint.parameter_documentation]
+accept-no-param-doc=false
+accept-no-raise-doc=false
+accept-no-return-doc=false
+accept-no-yields-doc=false
+# Possible choices: ["sphinx", "epytext", "google", "numpy", "default"]
+default-docstring-type = "numpy"
+
+# bandit
+[tool.bandit]
+exclude_dirs = [
+    ".venv",
+    ".local",
+    "waldiez_out",
+]
+# B104: bind to all interfaces (0.0.0.0)
+# B110: allow pass on try/except
+# B404: allow import subprocess
+# B602, B603: allow shell=True (subprocess,popen)
+skips = ["B104", "B110", "B404", "B602", "B603" ]
+[tool.bandit.assert_used]
+skips = ["*/*_test.py", "*/test_*.py"]
+[tool.bandit.hardcoded_password_funcarg]
+skips = ["*/*_test.py", "*/test_*.py"]
+[tool.bandit.hardcoded_password_string]
+skips = ["*/*_test.py", "*/test_*.py"]
+# ruff
+[tool.ruff]
+line-length = 80
+extend-exclude = [
+    ".venv",
+    ".local",
+    "waldiez_out",
+]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "Q"]
+ignore = []
+# # Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# # Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.format]
+# exclude = ["*.pyi", "*.j2"]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+line-ending = "lf"
+
+# pytest
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope="session"
+filterwarnings = [
+    # DeprecationWarning: Type google._upb._message.MessageMapContainer \
+    # uses PyType_Spec with a metaclass that has custom tp_new. \
+    # This is deprecated and will no longer be allowed in Python 3.14.
+    "ignore:.*google.*:DeprecationWarning",
+    # UserWarning: Specifying 'lifespan_context' manually is no longer necessary with FastAPI >= 0.112.2.
+    "ignore:.*lifespan_context.*:UserWarning",
+    # ...._internal/_config.py:295: PydanticDeprecatedSince20: Support for class-based `config` is deprecated,
+    # use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0.
+    # See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+    # warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+    "ignore:.*ConfigDict*:pydantic.PydanticDeprecatedSince20",
+]
+python_files = [
+    "tests.py",
+    "test_*.py",
+    "*_tests.py",
+]
+env = [
+    "WALDIEZ_RUNNER_TESTING=1",
+]
+addopts = """
+    --exitfirst \
+    --durations=10 \
+    --color=yes \
+    --timeout=120
+"""
+
+
+# coverage
+[tool.coverage.run]
+# not needed, we use pytest-cov: --cov-context=test
+# dynamic_context = "test_function"
+omit = [
+    ".venv/*",
+    ".local/*",
+    "waldiez_out/*",
+    "waldiez_runner/storage/*",
+]
+branch = true
+concurrency = ["greenlet", "thread"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "except ImportError:",
+]
+# fail_under = 80  # not there yet :(
+precision = 2

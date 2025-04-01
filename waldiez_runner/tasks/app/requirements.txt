@@ -1,0 +1,2 @@
+waldiez==0.4.2
+faststream[redis,redis]==0.5.37
