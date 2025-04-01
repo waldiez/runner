@@ -342,7 +342,11 @@ async def soft_delete_client_tasks(
 
 
 async def update_task_status(
-    session: AsyncSession, task_id: str, new_status: TaskStatus
+    session: AsyncSession,
+    task_id: str,
+    status: TaskStatus,
+    skip_results: bool = False,
+    results: Dict[str, Any] | List[Dict[str, Any]] | None = None,
 ) -> None:
     """Update the status of a task.
 
@@ -352,42 +356,21 @@ async def update_task_status(
         SQLAlchemy async session.
     task_id : str
         Task ID.
-    new_status : TaskStatus
-        New status.
-    """
-    task = await get_task(session, task_id)
-    if task is None:
-        return
-    task.status = new_status
-    task.updated_at = datetime.now(timezone.utc)
-    await session.commit()
-    await session.refresh(task)
-
-
-async def update_task_results(
-    session: AsyncSession,
-    task_id: str,
-    results: Dict[str, Any] | List[Dict[str, Any]] | None,
-    status: TaskStatus,
-) -> None:
-    """Update the results of a task.
-
-    Parameters
-    ----------
-    session : AsyncSession
-        SQLAlchemy async session.
-    task_id : str
-        Task ID.
-    results : str
-        Task results.
     status : TaskStatus
-        Task status.
+        The task's status.
+    skip_results : bool
+        Skip updating the task's results.
+        Default is False.
+    results : Dict[str, Any] | List[Dict[str, Any]] | None
+        The task's results.
+        Default is None.
     """
     task = await get_task(session, task_id)
     if task is None:
         return
-    task.results = results
     task.status = status
+    if skip_results is False:
+        task.results = results
     task.updated_at = datetime.now(timezone.utc)
     await session.commit()
     await session.refresh(task)

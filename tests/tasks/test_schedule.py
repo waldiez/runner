@@ -166,25 +166,29 @@ async def test_check_stuck_tasks(
     mock_update_task_status.assert_any_await(
         mock_db_session,
         task_id="test_check_stuck_tasks1",
-        new_status=TaskStatus.FAILED,
+        status=TaskStatus.FAILED,
+        skip_results=True,
     )
     # results=None
     mock_update_task_status.assert_any_await(
         mock_db_session,
         task_id="test_check_stuck_tasks2",
-        new_status=TaskStatus.FAILED,
+        status=TaskStatus.FAILED,
+        skip_results=True,
     )
     # results dict, (no "error" key) and files
     mock_update_task_status.assert_any_await(
         mock_db_session,
         task_id="test_check_stuck_tasks3",
-        new_status=TaskStatus.COMPLETED,
+        status=TaskStatus.COMPLETED,
+        skip_results=True,
     )
     # results dict with "error" key
     mock_update_task_status.assert_any_await(
         mock_db_session,
         task_id="test_check_stuck_tasks4",
-        new_status=TaskStatus.FAILED,
+        status=TaskStatus.FAILED,
+        skip_results=True,
     )
 
 

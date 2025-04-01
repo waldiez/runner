@@ -114,7 +114,8 @@ async def check_stuck_tasks(
         await TaskService.update_task_status(
             db_session,
             task_id=task.id,
-            new_status=new_status,
+            status=new_status,
+            skip_results=True,
         )
     LOG.info("Checked stuck tasks.")
 

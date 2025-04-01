@@ -5,12 +5,7 @@
 
 from typing import Tuple
 
-from fastapi import (
-    Depends,
-    HTTPException,
-    WebSocket,
-    WebSocketException,
-)
+from fastapi import Depends, HTTPException, WebSocket, WebSocketException
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 

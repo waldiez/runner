@@ -8,11 +8,12 @@ import asyncio
 import logging
 import os
 import shutil
-import subprocess  # nosemgrep # nosec
 import tempfile
 import venv
 from pathlib import Path
+from typing import Any, Dict, List
 
+from aiofiles.os import wrap
 from sqlalchemy.ext.asyncio import AsyncSession
 from taskiq import TaskiqDepends
 
@@ -26,83 +27,6 @@ from .dependencies import get_db_session, get_redis, get_redis_url, get_storage
 LOG = logging.getLogger(__name__)
 HERE = Path(__file__).parent
 APP_DIR = HERE / "app"
-
-
-async def _update_task_status(
-    task_id: str,
-    new_status: TaskStatus,
-    db_session: AsyncSession,
-    redis: AsyncRedis,
-) -> None:
-    """Update the task status.
-
-    Parameters
-    ----------
-    task_id : str
-        Task ID.
-    new_status : TaskStatus
-        New task status.
-    db_session : AsyncSession
-        Database session dependency.
-    redis : AsyncRedis
-        Redis dependency.
-
-    Raises
-    ------
-    RuntimeError
-        If the task status could not be updated.
-    """
-    try:
-        await TaskService.update_task_status(
-            session=db_session, task_id=task_id, new_status=new_status
-        )
-    except BaseException as e:
-        raise RuntimeError(
-            "Failed to update task status in the database"
-        ) from e
-    try:
-        await redis.set(redis_status_key(task_id), new_status.value)
-    except BaseException as e:
-        if getattr(broker, "_is_smoke_testing", False) is True:
-            return
-        LOG.error("Failed to update task status in Redis: %s", e)
-        raise RuntimeError("Failed to update task status in Redis") from e
-
-
-async def _get_redis_status(redis: AsyncRedis, task_id: str) -> str:
-    """Get the task status from Redis.
-
-    Parameters
-    ----------
-    redis : AsyncRedis
-        Redis dependency.
-    task_id : str
-        Task ID.
-
-    Returns
-    -------
-    str
-        Task status.
-
-    Raises
-    ------
-    RuntimeError
-        If the task status could not be retrieved.
-    """
-    status = TaskStatus.RUNNING.value
-    try:
-        status_fetched = await redis.get(redis_status_key(task_id))
-    except BaseException as e:
-        if getattr(broker, "_is_smoke_testing", False) is True:
-            return status
-        LOG.error("Failed to get task status from Redis: %s", e)
-        raise RuntimeError("Failed to get task status from Redis") from e
-    status = (
-        str(status_fetched)
-        if status_fetched is not None and not isinstance(status_fetched, str)
-        else status
-    )
-    return status
 
 
 @broker.task
@@ -133,61 +57,63 @@ async def run_task(
     app_dir = temp_dir / task.client_id / task.id / "app"
     try:
         await _update_task_status(
-            task.id, TaskStatus.RUNNING, db_session, redis
+            task.id,
+            TaskStatus.RUNNING,
+            db_session,
+            redis,
+            results=None,
         )
     except BaseException as e:
         LOG.error("Failed to update task status: %s", e)
         return
     # pylint: disable=too-many-try-statements
     file_path = temp_dir / task.client_id / task.id / "app" / task.filename
+    # loop = asyncio.get_event_loop()
     try:
-        loop = asyncio.get_event_loop()
-        future = loop.run_in_executor(
-            None,
-            run_app_in_venv,
-            venv_dir,
-            app_dir,
-            task.id,
-            file_path,
-            redis_url,
-            task.input_timeout,
+        future = asyncio.create_task(
+            run_app_in_venv(
+                venv_dir,
+                app_dir,
+                task.id,
+                file_path,
+                redis_url,
+                task.input_timeout,
+            )
         )
-        while not future.done():
-            await asyncio.sleep(1)
-            try:
-                status = await _get_redis_status(redis, task.id)
-            except BaseException as e:
-                LOG.error("Failed to get task status: %s", e)
-                return
-            if status.upper() == "CANCELLED":
-                LOG.info("Cancelling task %s via Redis control", task.id)
-                future.cancel()
-                await TaskService.update_task_status(
-                    session=db_session,
-                    task_id=task.id,
-                    new_status=TaskStatus.CANCELLED,
-                )
-                return
-
+        await _check_task_status(
+            task=task,
+            future=future,
+            db_session=db_session,
+            redis=redis,
+        )
         exit_code = await future
-        new_status = (
-            TaskStatus.COMPLETED if exit_code == 0 else TaskStatus.FAILED
+        await _handle_task_completion(
+            exit_code,
+            task=task,
+            db_session=db_session,
+            redis=redis,
         )
-        await _update_task_status(task.id, new_status, db_session, redis)
     except asyncio.CancelledError:
         await _update_task_status(
-            task.id, TaskStatus.CANCELLED, db_session, redis
+            task.id,
+            TaskStatus.CANCELLED,
+            db_session,
+            redis,
+            results={"error": "Task cancelled"},
         )
     except BaseException as e:
         LOG.error("Task %s failed: %s", task.id, e)
-        await redis.set(redis_status_key(task.id), TaskStatus.FAILED.value)
+        await redis.set(
+            redis_status_key(task.id), TaskStatus.FAILED.value, ex=60
+        )
         await TaskService.update_task_status(
-            session=db_session, task_id=task.id, new_status=TaskStatus.FAILED
+            session=db_session,
+            task_id=task.id,
+            status=TaskStatus.FAILED,
+            results={"error": str(e)},
         )
     finally:
-        # TODO: copy the results to the storage
-        await copy_results_to_storage(temp_dir, task, storage)
-        shutil.rmtree(temp_dir)
+        await move_results_to_storage(temp_dir, task, storage)
     LOG.debug("Task %s completed", task.id)
 
 
@@ -231,34 +157,64 @@ async def prepare_app_env(
     -------
     Path
         Venv directory.
+
+    Raises
+    ------
+    RuntimeError
+        If the app environment could not be prepared.
     """
     task_dir = storage_root / task.client_id / task.id
     task_file_src = os.path.join(task.client_id, task.id, task.filename)
     app_dir = task_dir / "app"
     venv_dir = task_dir / "venv"
-
-    os.makedirs(app_dir, exist_ok=True)
-
     # Create venv
     venv.create(venv_dir, with_pip=True, system_site_packages=True)
 
     # Copy app
     if app_dir.exists():
-        shutil.rmtree(app_dir)
-    shutil.copytree(APP_DIR, app_dir, dirs_exist_ok=True)
+        rmtree = wrap(shutil.rmtree)
+        try:
+            await rmtree(str(app_dir), ignore_errors=True)
+        except BaseException:
+            LOG.warning("Failed to remove existing app directory %s", app_dir)
+    copytree = wrap(shutil.copytree)
+    try:
+        await copytree(str(APP_DIR), str(app_dir), dirs_exist_ok=True)
+    except BaseException as err:
+        LOG.warning("Failed to copy app directory %s", app_dir)
+        raise RuntimeError("Failed to copy app directory") from err
     await storage.copy_file(task_file_src, str(app_dir / task.filename))
     # Install dependencies
     python_exec = get_venv_python_executable(venv_dir)
-    subprocess.run(
-        [str(python_exec), "-m", "pip", "install", "-r", "requirements.txt"],
-        check=True,
+    async_proc = await asyncio.create_subprocess_exec(
+        str(python_exec),
+        "-m",
+        "pip",
+        "install",
+        "--upgrade",
+        "pip",
         cwd=app_dir,
+        env={**os.environ, "PYTHONUNBUFFERED": "1"},
     )
-
+    if await async_proc.wait() != 0:
+        raise RuntimeError("Failed to upgrade pip")
+    # Install requirements
+    async_proc = await asyncio.create_subprocess_exec(
+        str(python_exec),
+        "-m",
+        "pip",
+        "install",
+        "-r",
+        "requirements.txt",
+        cwd=app_dir,
+        env={**os.environ, "PYTHONUNBUFFERED": "1"},
+    )
+    if await async_proc.wait() != 0:
+        raise RuntimeError("Failed to install requirements")
     return venv_dir
 
 
-def run_app_in_venv(
+async def run_app_in_venv(
     venv_root: Path,
     app_dir: Path,
     task_id: str,
@@ -287,34 +243,28 @@ def run_app_in_venv(
     int
         Exit code.
     """
-    env = os.environ.copy()
-    env["PYTHONUNBUFFERED"] = "1"
-
     python_exec = get_venv_python_executable(venv_root)
     module_name = "main"
 
-    # pylint: disable=consider-using-with
-    process = subprocess.Popen(
-        [
-            str(python_exec),
-            "-m",
-            module_name,
-            "--task-id",
-            task_id,
-            "--redis-url",
-            redis_url,
-            "--input-timeout",
-            str(input_timeout),
-            str(file_path),
-        ],
+    process = await asyncio.create_subprocess_exec(
+        str(python_exec),
+        "-m",
+        module_name,
+        "--task-id",
+        task_id,
+        "--redis-url",
+        redis_url,
+        "--input-timeout",
+        str(input_timeout),
+        str(file_path),
         cwd=app_dir,
-        env=env,
+        env={**os.environ, "PYTHONUNBUFFERED": "1"},
     )
 
-    return process.wait()
+    return await process.wait()
 
 
-async def copy_results_to_storage(
+async def move_results_to_storage(
     temp_dir: Path,
     task: TaskResponse,
     storage: Storage,
@@ -329,4 +279,234 @@ async def copy_results_to_storage(
         TaskResponse object.
     storage : Storage
         Storage backend dependency.
+
+    Raises
+    ------
+    RuntimeError
+        If the results could not be copied to the storage.
     """
+    # results_dir = os.path.join(temp_dir, task_dir, "app")
+    results_dir = temp_dir / task.client_id / task.id / "app" / "waldiez_out"
+    if not results_dir.exists():
+        LOG.warning("No results directory found for task %s", task.id)
+        return
+    # Copy results to storage
+    results_dir_dst = os.path.join(task.client_id, task.id, "waldiez_out")
+    try:
+        await storage.copy_folder(str(results_dir), results_dir_dst)
+    except BaseException as e:
+        LOG.error("Failed to copy results to storage: %s", e)
+        raise RuntimeError("Failed to copy results to storage") from e
+    # Remove temporary directory
+    rmtree = wrap(shutil.rmtree)
+    try:
+        await rmtree(str(temp_dir), ignore_errors=True)
+    except FileNotFoundError:
+        LOG.warning("Temporary directory %s not found", temp_dir)
+    except PermissionError:
+        LOG.warning(
+            "Permission denied to remove temporary directory %s", temp_dir
+        )
+
+
+async def _check_task_status(
+    task: TaskResponse,
+    future: asyncio.Task[int],
+    db_session: AsyncSession,
+    redis: AsyncRedis,
+) -> None:
+    while not future.done():
+        await asyncio.sleep(1)
+
+        try:
+            status = await _get_redis_status(redis, task.id)
+        except BaseException as e:
+            LOG.error("Failed to get task status for %s: %s", task.id, e)
+            return
+
+        status_upper = status.upper()
+
+        if status_upper == "CANCELLED":
+            LOG.info("Task %s was cancelled via Redis", task.id)
+            await _handle_status_update(
+                future,
+                db_session,
+                task.id,
+                TaskStatus.CANCELLED,
+                "Task cancelled",
+            )
+            return
+
+        if status_upper == "FAILED":
+            LOG.warning("Task %s marked as FAILED in Redis", task.id)
+            await _handle_status_update(
+                future, db_session, task.id, TaskStatus.FAILED, "Task failed"
+            )
+            return
+
+        if status_upper in ("RUNNING", "WAITING_FOR_INPUT", "PENDING"):
+            LOG.debug("Task %s is in progress: %s", task.id, status_upper)
+            continue
+
+        # Unexpected status
+        LOG.warning("Unexpected task status for %s: '%s'", task.id, status)
+        await _handle_status_update(
+            future,
+            db_session,
+            task.id,
+            TaskStatus.FAILED,
+            f"Unexpected status: {status}",
+        )
+        return
+
+
+async def _handle_status_update(
+    future: asyncio.Future[int],
+    db_session: AsyncSession,
+    task_id: str,
+    status: TaskStatus,
+    error_message: str,
+) -> None:
+    _cancel_future_if_running(future)
+    await TaskService.update_task_status(
+        session=db_session,
+        task_id=task_id,
+        status=status,
+        results={"error": error_message},
+    )
+
+
+def _cancel_future_if_running(future: asyncio.Future[int]) -> None:
+    """Cancel the future if it is running.
+
+    Parameters
+    ----------
+    future : asyncio.Future[int]
+        Future object.
+    """
+    if not future.cancelled() and not future.done():
+        future.cancel()
+
+
+async def _handle_task_completion(
+    exit_code: int,
+    task: TaskResponse,
+    db_session: AsyncSession,
+    redis: AsyncRedis,
+) -> None:
+    status = await _get_redis_status(redis, task.id)
+    if exit_code != 0 and status not in (
+        TaskStatus.CANCELLED.value,
+        TaskStatus.FAILED.value,
+    ):
+        LOG.error("Task %s failed with exit code %s", task.id, exit_code)
+        await TaskService.update_task_status(
+            session=db_session,
+            task_id=task.id,
+            status=TaskStatus.FAILED,
+            results={"error": "Task failed"},
+        )
+        return
+    task_status: TaskStatus = TaskStatus(status)
+    if getattr(broker, "_is_smoke_testing", False) is True:
+        task_status = (
+            TaskStatus.COMPLETED if exit_code == 0 else TaskStatus.FAILED
+        )
+    # TODO: get the results from redis (tasks:{task.id}:results)
+    await _update_task_status(
+        task.id,
+        task_status,
+        db_session,
+        redis,
+        {"exit_code": exit_code},
+    )
+
+
+async def _update_task_status(
+    task_id: str,
+    new_status: TaskStatus,
+    db_session: AsyncSession,
+    redis: AsyncRedis,
+    results: Dict[str, Any] | List[Dict[str, Any]] | None,
+) -> None:
+    """Update the task status.
+
+    Parameters
+    ----------
+    task_id : str
+        Task ID.
+    new_status : TaskStatus
+        New task status.
+    db_session : AsyncSession
+        Database session dependency.
+    redis : AsyncRedis
+        Redis dependency.
+
+    Raises
+    ------
+    RuntimeError
+        If the task status could not be updated.
+    """
+    try:
+        await TaskService.update_task_status(
+            session=db_session,
+            task_id=task_id,
+            status=new_status,
+            results=results,
+        )
+    except BaseException as e:
+        raise RuntimeError(
+            "Failed to update task status in the database"
+        ) from e
+    try:
+        await redis.set(redis_status_key(task_id), new_status.value, ex=60)
+    except BaseException as e:
+        if getattr(broker, "_is_smoke_testing", False) is True:
+            return
+        LOG.error("Failed to update task status in Redis: %s", e)
+        raise RuntimeError("Failed to update task status in Redis") from e
+
+
+async def _get_redis_status(redis: AsyncRedis, task_id: str) -> str:
+    """Get the task status from Redis.
+
+    Parameters
+    ----------
+    redis : AsyncRedis
+        Redis dependency.
+    task_id : str
+        Task ID.
+
+    Returns
+    -------
+    str
+        Task status.
+
+    Raises
+    ------
+    RuntimeError
+        If the task status could not be retrieved.
+    """
+    status = TaskStatus.RUNNING.value
+    try:
+        status_fetched = await redis.get(redis_status_key(task_id))
+    except BaseException as e:
+        if getattr(broker, "_is_smoke_testing", False) is True:
+            return status
+        LOG.error("Failed to get task status from Redis: %s", e)
+        raise RuntimeError("Failed to get task status from Redis") from e
+    if isinstance(status_fetched, bytes):
+        status = status_fetched.decode()
+    elif isinstance(status_fetched, str):
+        status = status_fetched
+    else:
+        LOG.warning(
+            "Unexpected task status type from Redis: %s", type(status_fetched)
+        )
+        return status
+    try:
+        TaskStatus(status.upper())
+    except ValueError:
+        LOG.warning("Unexpected task status from Redis: %s", status)
+        status = TaskStatus.RUNNING.value
+    return status

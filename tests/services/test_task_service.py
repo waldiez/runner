@@ -106,11 +106,11 @@ async def test_update_task_results(async_session: AsyncSession) -> None:
         flow_id="Sample Flow",
         filename="file1",
     )
-    await TaskService.update_task_results(
+    await TaskService.update_task_status(
         async_session,
         task.id,
-        {"results": "Test Results"},
         status=TaskStatus.COMPLETED,
+        results={"results": "Test Results"},
     )
     await async_session.refresh(task)
     updated_task = await TaskService.get_task(async_session, task.id)
@@ -126,7 +126,7 @@ async def test_update_nonexistent_task_results(
 ) -> None:
     """Test updating results of a non-existent task."""
     task_id = "nonexistent-id"
-    await TaskService.update_task_results(
+    await TaskService.update_task_status(
         async_session,
         task_id=task_id,
         results={"results": "Test Results"},

@@ -313,7 +313,8 @@ async def cancel_task(
     await TaskService.update_task_status(
         session,
         task_id=task_id,
-        new_status=TaskStatus.CANCELLED,
+        status=TaskStatus.CANCELLED,
+        results={"error": "Task cancelled"},
     )
     await _trigger_cancel_task(
         task_id=task_id,

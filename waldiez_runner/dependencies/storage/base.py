@@ -101,6 +101,22 @@ class Storage(Protocol):
             If an error occurs.
         """
 
+    async def copy_folder(self, src_path: str, dest_path: str) -> None:
+        """Copy a folder from `src_path` to `dest_path`.
+
+        Parameters
+        ----------
+        src_path : str
+            Source path.
+        dest_path : str
+            Destination path.
+
+        Raises
+        ------
+        HTTPException
+            If an error occurs.
+        """
+
     async def delete_file(self, path: str) -> None:
         """Delete a file.
 

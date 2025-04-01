@@ -73,9 +73,14 @@ async def cancel_task(
         Database session dependency.
     """
     LOG.debug("Cancelling task %s for client %s", task_id, client_id)
-    await TaskService.update_task_status(
-        db_session, task_id, new_status=TaskStatus.CANCELLED
+    await redis.set(
+        redis_status_key(task_id), TaskStatus.CANCELLED.value, ex=120
     )
-    # let's just set the status in Redis to CANCELLED
-    # and let the subscriber do the actual cancelling (stop processing)
-    await redis.set(redis_status_key(task_id), TaskStatus.CANCELLED.value)
+    await TaskService.update_task_status(
+        db_session,
+        task_id,
+        status=TaskStatus.CANCELLED,
+        results={
+            "error": "Task Cancelled",
+        },
+    )
