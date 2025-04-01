@@ -265,6 +265,42 @@ class LocalStorage:
                 detail=f"Failed to copy file: {str(error)}",
             ) from error
 
+    async def copy_folder(self, src_path: str, dest_path: str) -> None:
+        """Copy a folder from `src_path` to `dest_path`.
+
+        Parameters
+        ----------
+        src_path : str
+            Source path.
+        dest_path : str
+            Destination path.
+        Raises
+        ------
+        HTTPException
+            If an error occurs.
+        """
+        full_src_path = self.root_dir / src_path
+        full_dest_path = self.root_dir / dest_path
+        src = Path(full_src_path).resolve()
+        dest = Path(full_dest_path).resolve()
+        if not await os.path.exists(src) or not await os.path.isdir(src):
+            raise HTTPException(
+                status_code=404, detail="Source folder not found"
+            )
+        if await os.path.exists(dest) and await os.path.isdir(dest):
+            raise HTTPException(
+                status_code=400, detail="Destination folder already exists"
+            )
+        copytree = os.wrap(shutil.copytree)
+        # pylint: disable=too-many-try-statements, broad-exception-caught
+        try:
+            await copytree(str(src), str(dest))
+        except Exception as error:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to copy folder: {str(error)}",
+            ) from error
+
     async def delete_file(self, path: str) -> None:
         """Delete a file.
 
