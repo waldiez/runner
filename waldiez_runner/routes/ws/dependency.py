@@ -8,6 +8,7 @@ from typing import Tuple
 from fastapi import Depends, HTTPException, WebSocket, WebSocketException
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
+from typing_extensions import Annotated
 
 from waldiez_runner.config import (
     MAX_ACTIVE_TASKS,
@@ -30,8 +31,8 @@ ws_task_registry = WsTaskRegistry(
 async def validate_websocket_connection(
     task_id: str,
     websocket: WebSocket,
-    session: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    session: Annotated[AsyncSession, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> Tuple[Task, WsTaskManager, str | None]:
     """Dependency to validate WebSocket before accepting the connection.
 

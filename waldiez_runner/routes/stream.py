@@ -14,6 +14,7 @@ from fastapi import Depends, WebSocket, WebSocketDisconnect, WebSocketException
 from faststream import Path
 from faststream.redis.fastapi import RedisBroker, RedisRouter
 from starlette import status
+from typing_extensions import Annotated
 
 from waldiez_runner.config import SettingsManager
 from waldiez_runner.dependencies import (
@@ -161,15 +162,16 @@ async def on_ws_input_request(
         LOG.warning("Failed to publish task input response message: %s", e)
 
 
-@stream_router.websocket_route("/ws/{task_id}")
+@stream_router.websocket("/ws/{task_id}")
 async def websocket_endpoint(
     websocket: WebSocket,
-    task_id: str = Path(),
-    validated_data: Tuple[Task, WsTaskManager, str | None] = Depends(
-        validate_websocket_connection
-    ),
-    broker: RedisBroker = Depends(get_broker),
-    redis_client: AsyncRedis = Depends(get_redis),
+    broker: Annotated[RedisBroker, Depends(get_broker)],
+    redis_client: Annotated[AsyncRedis, Depends(get_redis)],
+    validated_data: Annotated[
+        Tuple[Task, WsTaskManager, str | None],
+        Depends(validate_websocket_connection),
+    ],
+    task_id: Annotated[str, Path()],
 ) -> None:
     """WebSocket endpoint for the Faststream router.
 
