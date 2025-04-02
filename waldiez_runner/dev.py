@@ -92,6 +92,8 @@ def start_broker(reload: bool, log_level: LogLevel, skip_redis: bool) -> None:
         "worker",
         "--log-level",
         log_level.upper(),
+        "--max-tasks-per-child",
+        "3",
         f"{module_name}.worker:broker",
     ]
     if reload:  # pragma: no-branch
