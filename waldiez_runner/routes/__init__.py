@@ -12,6 +12,7 @@ from .other import router as common_router
 from .stream import stream_router
 from .v1 import client_router as v1_client_router
 from .v1 import task_router as v1_task_router
+from .ws import ws_router
 
 
 # pylint: disable=unused-argument
@@ -31,6 +32,7 @@ def add_routes(app: FastAPI) -> None:
     app.include_router(common_router)
     app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
     app.include_router(api_router)
+    app.include_router(ws_router)
     app.include_router(stream_router)
 
     @app.get("/{full_path:path}", include_in_schema=False)
