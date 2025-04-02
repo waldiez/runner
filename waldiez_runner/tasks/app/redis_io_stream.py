@@ -318,11 +318,9 @@ class RedisIOStream(IOStream):
         LOG.debug("Requesting input via Pub/Sub: %s", payload)
         self._print(payload)
         RedisIOStream.try_do(
-            self.redis.xadd,
+            self.redis.publish,
             self.input_request_channel,
-            payload,
-            maxlen=self.max_stream_size,
-            approximate=True,
+            json.dumps(payload),
         )
         if self.on_input_request:
             self.on_input_request(prompt, request_id, self.task_id)
