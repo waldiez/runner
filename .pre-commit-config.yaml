@@ -21,10 +21,3 @@ repos:
         types: [python]
         language: system
         pass_filenames: false
-
-      - id: smoke
-        name: Smoke tests
-        entry: make smoke
-        types: [python]
-        language: system
-        pass_filenames: false

@@ -87,7 +87,7 @@ def redis_status_key(task_id: str) -> str:
     str
         The Redis status key.
     """
-    return f"tasks:{task_id}:status"
+    return f"task:{task_id}:status"
 
 
 broker = get_broker()

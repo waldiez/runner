@@ -47,7 +47,7 @@ async def run(params: TaskParams) -> None:
 
     # Run the Faststream app
 
-    status_channel = f"tasks:{params.task_id}:status"
+    status_channel = f"task:{params.task_id}:status"
     await app.start()
     # Load the task file
     try:

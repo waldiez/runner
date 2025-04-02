@@ -17,6 +17,7 @@ from aiofiles.os import wrap
 from sqlalchemy.ext.asyncio import AsyncSession
 from taskiq import TaskiqDepends
 
+from waldiez_runner.config import SettingsManager
 from waldiez_runner.dependencies import AsyncRedis, Storage
 from waldiez_runner.models import TaskResponse, TaskStatus
 from waldiez_runner.services import TaskService
@@ -63,21 +64,28 @@ async def run_task(
             redis,
             results=None,
         )
+        await redis.set(
+            f"task:{task.id}:status",
+            TaskStatus.RUNNING.value,
+            ex=60,
+        )
     except BaseException as e:
         LOG.error("Failed to update task status: %s", e)
         return
     # pylint: disable=too-many-try-statements
     file_path = temp_dir / task.client_id / task.id / "app" / task.filename
-    # loop = asyncio.get_event_loop()
+    settings = SettingsManager.load_settings()
+    debug = settings.log_level.upper() == "DEBUG"
     try:
         future = asyncio.create_task(
             run_app_in_venv(
-                venv_dir,
-                app_dir,
-                task.id,
-                file_path,
-                redis_url,
-                task.input_timeout,
+                venv_root=venv_dir,
+                app_dir=app_dir,
+                task_id=task.id,
+                file_path=file_path,
+                redis_url=redis_url,
+                input_timeout=task.input_timeout,
+                debug=debug,
             )
         )
         await _check_task_status(
@@ -221,6 +229,7 @@ async def run_app_in_venv(
     file_path: Path,
     redis_url: str,
     input_timeout: int,
+    debug: bool,
 ) -> int:
     """Run the app in the venv.
 
@@ -238,6 +247,9 @@ async def run_app_in_venv(
         Path to the task file.
     input_timeout : int
         Input timeout.
+    debug : bool, optional
+        Whether to run in debug mode.
+
     Returns
     -------
     int
@@ -245,8 +257,7 @@ async def run_app_in_venv(
     """
     python_exec = get_venv_python_executable(venv_root)
     module_name = "main"
-
-    process = await asyncio.create_subprocess_exec(
+    args = [
         str(python_exec),
         "-m",
         module_name,
@@ -257,6 +268,11 @@ async def run_app_in_venv(
         "--input-timeout",
         str(input_timeout),
         str(file_path),
+    ]
+    if debug is True:
+        args.append("--debug")
+    process = await asyncio.create_subprocess_exec(
+        *args,
         cwd=app_dir,
         env={**os.environ, "PYTHONUNBUFFERED": "1"},
     )
@@ -347,7 +363,9 @@ async def _check_task_status(
         if status_upper in ("RUNNING", "WAITING_FOR_INPUT", "PENDING"):
             LOG.debug("Task %s is in progress: %s", task.id, status_upper)
             continue
-
+        if status_upper == "COMPLETED":
+            LOG.info("Task %s completed successfully", task.id)
+            return
         # Unexpected status
         LOG.warning("Unexpected task status for %s: '%s'", task.id, status)
         await _handle_status_update(
@@ -495,13 +513,17 @@ async def _get_redis_status(redis: AsyncRedis, task_id: str) -> str:
             return status
         LOG.error("Failed to get task status from Redis: %s", e)
         raise RuntimeError("Failed to get task status from Redis") from e
+    if status_fetched is None:
+        return status
     if isinstance(status_fetched, bytes):
         status = status_fetched.decode()
     elif isinstance(status_fetched, str):
         status = status_fetched
     else:
         LOG.warning(
-            "Unexpected task status type from Redis: %s", type(status_fetched)
+            "Unexpected task status type: %s, from Redis for task: %s",
+            type(status_fetched),
+            task_id,
         )
         return status
     try:

@@ -93,6 +93,7 @@ async def create_task(
     session: Annotated[AsyncSession, Depends(get_db)],
     storage: Annotated[Storage, Depends(get_storage)],
     redis_url: Annotated[str, Depends(get_redis_url)],
+    redis: Annotated[AsyncRedis, Depends(get_redis)],
     file: Annotated[UploadFile, File(...)],
     input_timeout: int = 180,
 ) -> TaskResponse:
@@ -106,6 +107,8 @@ async def create_task(
         The database session dependency.
     storage : Storage
         The storage service dependency.
+    redis : AsyncRedis
+        The Redis client dependency.
     redis_url : str
         The Redis URL dependency.
     file : UploadFile
@@ -123,27 +126,12 @@ async def create_task(
     HTTPException
         If the task cannot be created.
     """
-    active_tasks = await TaskService.get_active_client_tasks(
-        session,
+    file_hash, filename, save_path = await validate_file(
+        session=session,
+        file=file,
         client_id=client_id,
+        storage=storage,
     )
-    if len(active_tasks.items) >= MAX_TASKS_PER_CLIENT:
-        raise HTTPException(status_code=400, detail=MAX_TASKS_ERROR)
-    filename = validate_file(file)
-    file_hash, saved_path = await storage.save_file(client_id, file)
-    active_task = next(
-        (task for task in active_tasks.items if task.flow_id == file_hash), None
-    )
-    if active_task:
-        await storage.delete_file(saved_path)
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"A task with the same file already exists. "
-                f"Task ID: {active_task.id}, "
-                f"status: {active_task.get_status()}"
-            ),
-        )
     try:
         task = await TaskService.create_task(
             session,
@@ -154,9 +142,9 @@ async def create_task(
         )
         # relative to root if local, or "bucket" if other (e.g. S3, GCS)
         dst = os.path.join(client_id, str(task.id), filename)
-        await storage.move_file(saved_path, dst)
+        await storage.move_file(save_path, dst)
     except BaseException as error:  # pragma: no cover
-        await storage.delete_file(saved_path)
+        await storage.delete_file(save_path)
         await TaskService.delete_client_flow_task(
             session,
             client_id=client_id,
@@ -171,7 +159,7 @@ async def create_task(
             status_code=500, detail="Internal server error"
         ) from error
     task_response = TaskResponse.model_validate(task, from_attributes=True)
-    await _trigger_run_task(task_response, session, storage, redis_url)
+    await _trigger_run_task(task_response, session, storage, redis, redis_url)
     return task_response
 
 
@@ -430,35 +418,11 @@ async def delete_all_tasks(
     return Response(status_code=204)
 
 
-def validate_file(file: UploadFile) -> str:
-    """Validate an uploaded file.
-
-    Parameters
-    ----------
-    file : UploadFile
-        The file to validate.
-
-    Returns
-    -------
-    str
-        The filename.
-
-    Raises
-    ------
-    HTTPException
-        If the file is invalid.
-    """
-    if not file.filename:  # pragma: no cover
-        raise HTTPException(status_code=400, detail="Invalid file")
-    if not file.filename.endswith(ALLOWED_EXTENSIONS):
-        raise HTTPException(status_code=400, detail="Invalid file type")
-    return file.filename
-
-
 async def _trigger_run_task(
     task: TaskResponse,
     session: AsyncSession,
     storage: Storage,
+    redis: AsyncRedis,
     redis_url: str,
 ) -> None:
     """Trigger a task."""
@@ -469,6 +433,7 @@ async def _trigger_run_task(
                 task=task,
                 db_session=session,
                 storage=storage,
+                redis=redis,
                 redis_url=redis_url,
             )
         )
@@ -543,3 +508,82 @@ async def _trigger_delete_task(
             task_id=task_id,
             client_id=client_id,
         )
+
+
+def _validate_uploaded_file(file: UploadFile) -> str:
+    """Validate an uploaded file.
+
+    Parameters
+    ----------
+    file : UploadFile
+        The file to validate.
+
+    Returns
+    -------
+    str
+        The filename.
+
+    Raises
+    ------
+    HTTPException
+        If the file is invalid.
+    """
+    if not file.filename:  # pragma: no cover
+        raise HTTPException(status_code=400, detail="Invalid file")
+    if not file.filename.endswith(ALLOWED_EXTENSIONS):
+        raise HTTPException(status_code=400, detail="Invalid file type")
+    return file.filename
+
+
+async def validate_file(
+    session: AsyncSession,
+    file: UploadFile,
+    client_id: str,
+    storage: Storage,
+) -> tuple[str, str, str]:
+    """Validate the uploaded file.
+
+    Parameters
+    ----------
+    session : AsyncSession
+        The database session.
+    file : UploadFile
+        The file to validate.
+    client_id : str
+        The client ID.
+    storage : Storage
+        The storage service.
+
+    Returns
+    -------
+    tuple[str, str, str]
+        The file hash, filename, and saved path.
+
+    Raises
+    ------
+    HTTPException
+        If the file is invalid or
+        if the maximum number of tasks per client is reached.
+    """
+    active_tasks = await TaskService.get_active_client_tasks(
+        session,
+        client_id=client_id,
+    )
+    if len(active_tasks.items) >= MAX_TASKS_PER_CLIENT:
+        raise HTTPException(status_code=400, detail=MAX_TASKS_ERROR)
+    filename = _validate_uploaded_file(file)
+    file_hash, saved_path = await storage.save_file(client_id, file)
+    active_task = next(
+        (task for task in active_tasks.items if task.flow_id == file_hash), None
+    )
+    if active_task:
+        await storage.delete_file(saved_path)
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"A task with the same file already exists. "
+                f"Task ID: {active_task.id}, "
+                f"status: {active_task.get_status()}"
+            ),
+        )
+    return file_hash, filename, saved_path

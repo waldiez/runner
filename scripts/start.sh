@@ -57,7 +57,7 @@ start_worker() {
     # --log-level {INFO,WARNING,DEBUG,ERROR,FATAL}
     #       worker log level (default: INFO)
     LOG_LEVEL="$(get_log_level)"
-    taskiq worker app.worker:broker --workers 1 --log-level "$LOG_LEVEL"
+    taskiq worker app.worker:broker --workers 1 --max-tasks-per-child 3 --log-level "$LOG_LEVEL"
 }
 
 start_scheduler() {

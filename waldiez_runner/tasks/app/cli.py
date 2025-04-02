@@ -3,9 +3,19 @@
 """The command line arguments for the app."""
 
 import argparse
+import logging
+import logging.config
 import os
+import sys
 
 DEFAULT_INPUT_TIMEOUT = 180
+
+LOG_LEVEL = logging.DEBUG if "--debug" in sys.argv else logging.INFO
+logging.basicConfig(
+    level=LOG_LEVEL,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    stream=sys.stderr,
+)
 
 
 def get_parser() -> argparse.ArgumentParser:
@@ -40,6 +50,12 @@ def get_parser() -> argparse.ArgumentParser:
         required=True,
         help="The timeout for input requests.",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug mode.",
+        default=False,
+    )
     return parser
 
 
@@ -62,11 +78,13 @@ class TaskParams:
         task_id: str,
         redis_url: str,
         input_timeout: int,
+        debug: bool = False,
     ) -> None:
         self.file_path = file_path
         self.task_id = task_id
         self.redis_url = redis_url
         self.input_timeout = input_timeout
+        self.debug = debug
         self.validate()
 
     def validate(self) -> None:
@@ -106,11 +124,13 @@ class TaskParams:
         input_timeout = DEFAULT_INPUT_TIMEOUT
         if args.input_timeout is not None:
             input_timeout = int(args.input_timeout)
+
         return TaskParams(
             file_path=args.file,
             task_id=args.task_id,
             redis_url=args.redis_url,
             input_timeout=input_timeout,
+            debug=args.debug,
         )
 
 
