@@ -47,7 +47,7 @@ class DatabaseManager:
             "pool_recycle": 1800,
             "pool_pre_ping": True,
             "json_serializer": lambda obj: json.dumps(obj, ensure_ascii=False),
-            "echo": self.settings.log_level.upper() == "DEBUG",
+            "echo": False,
         }
         if "sqlite" not in self._db_url:  # pragma: no cover
             engine_creation_args.update(
