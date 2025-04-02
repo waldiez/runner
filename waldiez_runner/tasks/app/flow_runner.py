@@ -3,10 +3,12 @@
 """FlowRunner class for running Waldiez flows with Redis I/O stream."""
 
 import asyncio
+import json
 import logging
 from typing import TYPE_CHECKING, Any, Dict, List
 
 import redis
+import redis.asyncio as a_redis
 from waldiez import Waldiez, WaldiezRunner
 
 from .redis_io_stream import RedisIOStream
@@ -14,8 +16,10 @@ from .results_serialization import serialize_results
 
 if TYPE_CHECKING:
     Redis = redis.Redis[bytes]
+    AsyncRedis = a_redis.Redis[bytes]
 else:
     Redis = redis.Redis
+    AsyncRedis = a_redis.Redis
 
 LOG = logging.getLogger(__name__)
 
@@ -50,7 +54,8 @@ class FlowRunner:
         self.waldiez = waldiez
         self.output_path = output_path
         self.input_timeout = input_timeout
-        self.status_channel = f"tasks:{task_id}:status"
+        self.status_channel = f"task:{task_id}:status"
+        self.results_channel = f"task:{task_id}:results"
         self.io_stream = RedisIOStream(
             redis_url=self.redis_url,
             task_id=self.task_id,
@@ -59,6 +64,7 @@ class FlowRunner:
             input_timeout=self.input_timeout,
         )
         self.redis: Redis | None = None
+        self.a_redis: AsyncRedis | None = None
 
     async def run(self) -> List[Dict[str, Any]]:
         """Run the Waldiez flow and return the results.
@@ -69,18 +75,41 @@ class FlowRunner:
             The results of the flow execution.
         """
         self.redis = Redis.from_url(self.redis_url)
-        RedisIOStream.set_global_default(self.io_stream)
-        try:
+        self.a_redis = AsyncRedis.from_url(self.redis_url)
+        if not self.waldiez.is_async:
+            results = await asyncio.to_thread(self.run_sync)
+            serialized_results = serialize_results(results)
+            await self.a_redis.publish(
+                self.results_channel, json.dumps(serialized_results)
+            )
+            return serialized_results
+        with RedisIOStream.set_default(self.io_stream):
             runner = WaldiezRunner(self.waldiez)
-            if self.waldiez.is_async:
-                results = await runner.a_run(output_path=self.output_path)
-            else:
-                results = await asyncio.to_thread(
-                    runner.run, output_path=self.output_path
-                )
-        finally:
-            self.io_stream.close()
-            self.redis.close()
+            results = await runner.a_run(output_path=self.output_path)
+        serialized_results = serialize_results(results)
+        await self.a_redis.publish(
+            self.results_channel, json.dumps(serialized_results)
+        )
+        self.io_stream.close()
+        await self.a_redis.close()
+        return serialized_results
+
+    def run_sync(self) -> List[Dict[str, Any]]:
+        """Run the Waldiez flow synchronously and return the results.
+
+        Returns
+        -------
+        List[Dict[str, Any]]
+            The results of the flow execution.
+        """
+        self.redis = Redis.from_url(self.redis_url)
+        with RedisIOStream.set_default(self.io_stream):
+            try:
+                runner = WaldiezRunner(self.waldiez)
+                results = runner.run(output_path=self.output_path)
+            finally:
+                self.io_stream.close()
+                self.redis.close()
 
         return serialize_results(results)
 
@@ -112,7 +141,7 @@ class FlowRunner:
         if not self.redis:
             LOG.error("Redis connection is not initialized.")
             return
-        self.redis.publish(self.status_channel, "WAITING_FOR_INPUT")
+        self.redis.set(self.status_channel, "WAITING_FOR_INPUT", ex=60)
 
     def on_input_received(self, user_input: str, task_id: str) -> None:
         """Callback for input received.
@@ -131,7 +160,7 @@ class FlowRunner:
         if not self.redis:
             LOG.error("Redis connection is not initialized.")
             return
-        self.redis.publish(self.status_channel, "RUNNING")
+        self.redis.set(self.status_channel, "RUNNING", ex=60)
 
     @staticmethod
     def validate_flow(flow_path: str) -> Waldiez:
