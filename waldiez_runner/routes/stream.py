@@ -10,26 +10,39 @@ import logging
 import time
 from typing import Any, Dict, Tuple
 
-from fastapi import Depends, WebSocket, WebSocketDisconnect, WebSocketException
+from fastapi import (
+    Depends,
+    HTTPException,
+    WebSocket,
+    WebSocketDisconnect,
+    WebSocketException,
+)
 from faststream import Path
 from faststream.redis.fastapi import RedisBroker, RedisRouter
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 from typing_extensions import Annotated
 
 from waldiez_runner.config import SettingsManager
 from waldiez_runner.dependencies import (
     REDIS_MANAGER,
+    TASK_API_AUDIENCE,
     AsyncRedis,
     RedisManager,
+    get_client_id,
+    get_db,
     get_redis,
     skip_redis,
 )
 from waldiez_runner.models import Task
+from waldiez_runner.services import TaskService
 from waldiez_runner.tasks import broker as taskiq_broker
 
 from .ws import WsTaskManager, validate_websocket_connection, ws_task_registry
 
 LOG = logging.getLogger(__name__)
+REQUIRED_AUDIENCES = [TASK_API_AUDIENCE]
+validate_tasks_audience = get_client_id(*REQUIRED_AUDIENCES)
 
 
 def get_stream_router() -> RedisRouter:
@@ -135,25 +148,68 @@ else:
     LOG.warning("Not including task status subscription")
 
 
+# in addition to ws input, one can make a simple POST request to
+# /api/v1/tasks/{task_id}/input
+# to send input to the task
 @stream_router.post("/api/v1/tasks/{task_id}/input")
 async def on_ws_input_request(
     message: str,
-    task_id: str = Path(),
+    task_id: Annotated[str, Path()],
+    db_session: Annotated[AsyncSession, Depends(get_db)],
+    client_id: Annotated[str, Depends(validate_tasks_audience)],
 ) -> None:
     """Task input
 
     Parameters
     ----------
-    task_id : str
-        The task ID.
     message : str
         The message
+    task_id : str
+        The task ID.
+    db_session : AsyncSession
+        The database session.
+    client_id : str
+        The client ID.
+
+    Raises
+    ------
+    HTTPException
+        If the message or the task_id is invalid.
+
     """
     try:
-        json.loads(message)
+        task = await TaskService.get_task(db_session, task_id=task_id)
+    except BaseException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Task {task_id} not found",
+        ) from e
+    if task is None or task.client_id != client_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Task {task_id} not found",
+        )
+    try:
+        payload = json.loads(message)
     except (json.JSONDecodeError, TypeError, ValueError) as e:
         LOG.warning("Failed to decode task input message: %s", e)
-        return
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid input message format",
+        ) from e
+    if not isinstance(payload, dict):
+        LOG.warning("Received invalid input message: %s", payload)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid input message format",
+        )
+    if not valid_user_input(payload):
+        LOG.warning("Invalid input payload: %s", payload)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid input payload",
+        )
+
     try:
         await stream_router.broker.publish(
             message=message, channel=f"tasks:{task_id}:input_response"
@@ -321,7 +377,7 @@ async def listen_for_ws_input(
                 payload = json.loads(data)
                 if valid_user_input(payload):
                     await broker.publish(
-                        message=json.dumps(payload),
+                        message=data,
                         channel=output_channel,
                     )
                 else:
