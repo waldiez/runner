@@ -31,7 +31,7 @@ help:
 	@echo " secrets              Make sure the secrets are set"
 	@echo " smoke                Run a smoke test"
 	@echo " toggle               Toggle between containerized and local development"
-	@echo " some                 Some of the above: requirements, forlint, test, toggle, smoke"
+	@echo " some                 Some (not all) of the above: requirements, forlint, test, toggle, smoke"
 	@echo ""
 
 .PHONY: format
