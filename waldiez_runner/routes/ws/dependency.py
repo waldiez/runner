@@ -3,6 +3,7 @@
 
 """WebSocket connection validation."""
 
+import logging
 from typing import Tuple
 
 from fastapi import Depends, HTTPException, WebSocket, WebSocketException
@@ -26,6 +27,8 @@ from .task_registry import TooManyTasksException, WsTaskRegistry
 ws_task_registry = WsTaskRegistry(
     max_active_tasks=MAX_ACTIVE_TASKS, max_clients_per_task=MAX_CLIENTS_PER_TASK
 )
+
+LOG = logging.getLogger(__name__)
 
 
 async def validate_websocket_connection(
@@ -63,6 +66,7 @@ async def validate_websocket_connection(
     )
 
     if client_id is None:
+        LOG.debug("Client ID is None")
         raise WebSocketException(
             code=status.WS_1008_POLICY_VIOLATION, reason="Invalid client ID"
         )
@@ -72,12 +76,14 @@ async def validate_websocket_connection(
             websocket, session, task_id
         )
     except HTTPException as err:
+        LOG.debug("Task not found: %s", err)
         # pylint: disable=raise-missing-from
         raise WebSocketException(
             code=status.WS_1008_POLICY_VIOLATION, reason=str(err)
         )
 
-    if not task.is_active():
+    if not task.is_active() and task.status.value.lower() != "pending":
+        LOG.debug("Task is not active: %s", task.status.value)
         raise WebSocketException(
             code=status.WS_1008_POLICY_VIOLATION, reason="Task is not active"
         )

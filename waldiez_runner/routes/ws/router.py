@@ -1,13 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
+# pylint: disable=too-many-try-statements
+
 """WebSocket route utilities."""
 
 import asyncio
 import json
 import logging
 import time
-from typing import Any, Tuple
+from typing import Any, Dict, Tuple
 
 from fastapi import (
     APIRouter,
@@ -33,14 +35,14 @@ LOG = logging.getLogger(__name__)
 @ws_router.websocket("/ws/{task_id}")
 async def websocket_endpoint(
     websocket: WebSocket,
-    redis_client: Annotated[AsyncRedis, Depends(get_redis)],
+    task_id: str,
     validated_data: Annotated[
         Tuple[Task, WsTaskManager, str | None],
         Depends(validate_websocket_connection),
     ],
-    task_id: str,
+    redis_client: Annotated[AsyncRedis, Depends(get_redis)],
 ) -> None:
-    """WebSocket endpoint for the Faststream router.
+    """WebSocket endpoint for the ws router.
 
     Parameters
     ----------
@@ -51,7 +53,7 @@ async def websocket_endpoint(
     validated_data : Tuple[Task, WsTaskManager, str | None]
         The validated data for the WebSocket connection after
         authentication.
-    redis_client : Redis
+    redis_client : AsyncRedis
         The Redis client dependency.
     Raises
     ------
@@ -75,208 +77,41 @@ async def websocket_endpoint(
     # so an HTTPException might not work as expected
     # we try to raise a WebSocketException instead
     task, task_manager, subprotocol = validated_data
-    await websocket.accept(subprotocol)
+
     try:
+        await websocket.accept(subprotocol)
         await send_task_status(websocket, task)
-    except BaseException as err:
-        LOG.error("Error sending task status: %s", err)
+    except WebSocketException as err:
+        LOG.error("WebSocket accept/status failed: %s", err)
+        cleanup_ws_client(task_id, websocket, task_manager)
         raise WebSocketException(
             code=status.WS_1011_INTERNAL_ERROR, reason="Internal error"
         ) from err
 
-    try:
-        replay_count = int(websocket.query_params.get("replay", 100))
-    except ValueError:
-        replay_count = 100
+    stream_key = f"task:{task_id}:output"
+    input_channel = f"task:{task_id}:input_response"
 
-    input_task: asyncio.Task[Any] | None = None
+    input_task = asyncio.create_task(
+        listen_for_ws_input(websocket, input_channel, task_id),
+        name=f"input-listener:{task_id}",
+    )
+    output_task = asyncio.create_task(
+        stream_history_and_live(redis_client, stream_key, task_manager),
+        name=f"output-streamer:{task_id}",
+    )
+
     try:
-        await stream_history(redis_client, task_id, task_manager, replay_count)
-        input_task = asyncio.create_task(
-            listen_for_ws_input(websocket, task_id, redis_client),
-            name=f"input_task for {task_id}",
+        _, pending = await asyncio.wait(
+            [input_task, output_task], return_when=asyncio.FIRST_COMPLETED
         )
-        await input_task
-    except asyncio.CancelledError:
-        LOG.debug("WebSocket task cancelled for %s", task_id)
-        raise
-    except BaseException as err:  # pylint: disable=broad-exception-caught
-        LOG.exception("WS exception: %s for %s", err, task_id)
+        for a_task in pending:
+            a_task.cancel()
+            try:
+                await a_task
+            except asyncio.CancelledError:
+                pass
     finally:
         cleanup_ws_client(task_id, websocket, task_manager)
-        if input_task:
-            await cancel_task(input_task, task_name=f"input_task for {task_id}")
-
-
-async def stream_history(
-    redis_client: AsyncRedis,
-    task_id: str,
-    task_manager: WsTaskManager,
-    replay_count: int = 50,
-) -> None:
-    """Replay recent task output from Redis stream to WebSocket clients.
-
-    Parameters
-    ----------
-    redis_client : AsyncRedis
-        The Redis client.
-    task_id : str
-        The task ID.
-    task_manager : WsTaskManager
-        The WebSocket task manager.
-    replay_count : int, optional
-        Number of messages to replay, by default 50.
-    """
-    stream_key = f"task:{task_id}:output"
-
-    # pylint: disable=too-many-try-statements
-    try:
-        entries = await redis_client.xrevrange(
-            stream_key, "+", "-", count=replay_count
-        )
-        entries.reverse()  # From oldest to newest
-
-        for entry_id, raw_msg in entries:
-            if not isinstance(raw_msg, dict):
-                continue
-
-            decoded = {
-                k.decode() if isinstance(k, bytes) else k: (
-                    v.decode() if isinstance(v, bytes) else v
-                )
-                for k, v in raw_msg.items()
-            }
-            decoded["id"] = entry_id
-            await task_manager.broadcast(decoded, skip_queue=True)
-
-    except BaseException as e:  # pylint: disable=broad-exception-caught
-        LOG.warning("Error replaying Redis stream for task %s: %s", task_id, e)
-
-
-async def listen_for_ws_input(
-    websocket: WebSocket,
-    task_id: str,
-    redis_client: AsyncRedis,
-) -> None:
-    """Listen for user input from WebSocket and publish to FastStream Redis.
-
-    Parameters
-    ----------
-    websocket : WebSocket
-        The WebSocket connection.
-    task_id : str
-        The task ID.
-    redis_client : AsyncRedis
-        The Redis client.
-
-    Raises
-    ------
-    asyncio.CancelledError
-        If the task is cancelled.
-    WebSocketDisconnect
-        If the WebSocket is disconnected
-    """
-    output_channel = f"task:{task_id}:input_response"
-    # pylint: disable=too-many-try-statements
-    try:
-        while True:
-            data = await websocket.receive_text()
-            LOG.debug("Received input from WebSocket: %s", data)
-
-            try:
-                payload = json.loads(data)
-                if valid_user_input(payload):
-                    await redis_client.publish(
-                        output_channel, json.dumps(payload)
-                    )
-                else:
-                    LOG.warning("Invalid input payload: %s", payload)
-                    await websocket.send_json(
-                        {"error": "Invalid input payload"}
-                    )
-            except json.JSONDecodeError:
-                await websocket.send_json({"error": "Invalid JSON format"})
-            except WebSocketDisconnect:
-                LOG.debug("WebSocket disconnected for task_id=%s", task_id)
-                break
-
-    except asyncio.CancelledError:
-        LOG.debug("Input listener task cancelled for task_id=%s", task_id)
-        raise
-    except WebSocketDisconnect:
-        LOG.debug("WebSocket disconnected for task_id=%s", task_id)
-    except BaseException as err:  # pylint: disable=broad-exception-caught
-        LOG.error("Input listener error for task_id=%s: %s", task_id, err)
-
-
-async def cancel_task(
-    task: asyncio.Task[Any],
-    timeout: float = 1.0,
-    task_name: str = "background task",
-) -> None:
-    """Cancel an asyncio task and await it safely, with optional timeout.
-
-    Parameters
-    ----------
-    task : asyncio.Task[Any]
-        The asyncio task to cancel.
-    timeout : float, optional
-        How long to wait for task cancellation before logging a warning.
-    task_name : str, optional
-        Friendly name for logging/debugging.
-    """
-    if task.done():
-        return
-    task.cancel()
-    try:
-        await asyncio.wait_for(task, timeout=timeout)
-    except asyncio.TimeoutError:
-        LOG.warning("Timeout while cancelling %s", task_name)
-    except asyncio.CancelledError:
-        pass
-    except BaseException as e:  # pylint: disable=broad-exception-caught
-        LOG.exception("Error while cancelling %s: %s", task_name, e)
-
-
-def cleanup_ws_client(
-    task_id: str,
-    websocket: WebSocket,
-    task_manager: WsTaskManager,
-) -> None:
-    """Cleanup WebSocket client.
-
-    Parameters
-    ----------
-    task_id : str
-        The task ID.
-    websocket : WebSocket
-        The WebSocket connection.
-    task_manager : WsTaskManager
-        The WebSocket task manager.
-    """
-    if websocket in task_manager.clients:
-        task_manager.remove_client(websocket)
-    ws_task_registry.remove_task_if_empty(task_id)
-
-
-def valid_user_input(payload: Any) -> bool:
-    """Validate the structure of user input payload.
-
-    Parameters
-    ----------
-    payload : Any
-        The payload.
-
-    Returns
-    -------
-    bool
-        True if the payload is valid, False otherwise.
-    """
-    if not isinstance(payload, dict):
-        return False
-    return isinstance(payload.get("request_id"), str) and isinstance(
-        payload.get("data"), str
-    )
 
 
 async def send_task_status(
@@ -311,3 +146,432 @@ async def send_task_status(
         },
     }
     await websocket.send_json(payload)
+
+
+async def stream_history_and_live(
+    redis: AsyncRedis,
+    stream_key: str,
+    manager: WsTaskManager,
+) -> None:
+    """Stream history and live updates from Redis to WebSocket clients.
+
+    Parameters
+    ----------
+    redis : AsyncRedis
+        The Redis client.
+    stream_key : str
+        The Redis stream key.
+    manager : WsTaskManager
+        The WebSocket task manager.
+
+    Raises
+    ------
+    asyncio.CancelledError
+        If the task is cancelled.
+    WebSocketException
+        If the WebSocket connection is invalid.
+    """
+    try:
+        history = await redis.xrevrange(stream_key, "+", "-", count=50)
+        history.reverse()
+
+        last_id = "0"
+        for entry_id, raw in history:
+            last_id = entry_id
+            msg = decode_stream_msg(raw, entry_id)
+            await manager.broadcast(msg, skip_queue=True)
+
+        # Live stream
+        while True:
+            response = await redis.xread(
+                {stream_key: last_id}, block=5000, count=10
+            )
+            if not response:
+                await asyncio.sleep(0.5)
+                continue
+
+            for _, entries in response:
+                for entry_id, raw in entries:
+                    if entry_id == last_id:
+                        continue
+                    msg = decode_stream_msg(raw, entry_id)
+                    await manager.broadcast(msg)
+                    last_id = entry_id
+
+    except asyncio.CancelledError:
+        LOG.debug("Output stream cancelled for %s", stream_key)
+        raise
+
+
+async def listen_for_ws_input(
+    websocket: WebSocket, channel: str, task_id: str
+) -> None:
+    """Listen for user input from WebSocket and publish to Redis.
+
+    Parameters
+    ----------
+    websocket : WebSocket
+        The WebSocket connection.
+    channel : str
+        The Redis channel to publish to.
+    task_id : str
+        The task ID.
+    Raises
+    ------
+    WebSocketDisconnect
+        If the WebSocket is disconnected.
+    asyncio.CancelledError
+        If the task is cancelled.
+    """
+    try:
+        while True:
+            msg = await websocket.receive_text()
+            payload = json.loads(msg)
+
+            if not valid_user_input(payload):
+                await websocket.send_json({"error": "Invalid input payload"})
+                continue
+
+            await websocket.app.state.redis.publish(
+                channel, json.dumps(payload)
+            )
+    except WebSocketDisconnect:
+        LOG.info("WS disconnected: %s", task_id)
+    except asyncio.CancelledError:
+        raise
+    except BaseException as err:  # pylint: disable=broad-exception-caught
+        LOG.error("Input listener error: %s", err)
+
+
+def valid_user_input(payload: Any) -> bool:
+    """Validate the structure of user input payload.
+
+    Parameters
+    ----------
+    payload : Any
+        The payload.
+
+    Returns
+    -------
+    bool
+        True if the payload is valid, False otherwise.
+    """
+    if not isinstance(payload, dict):
+        return False
+    return isinstance(payload.get("request_id"), str) and isinstance(
+        payload.get("data"), str
+    )
+
+
+def decode_stream_msg(raw: Dict[str, Any], msg_id: str) -> Dict[str, Any]:
+    """Decode the raw message from Redis stream.
+
+    Parameters
+    ----------
+    raw : dict
+        The raw message from Redis stream.
+    msg_id : str
+        The message ID.
+    Returns
+    -------
+    Dict[str, Any]
+        The decoded message.
+    """
+    if not isinstance(raw, dict):
+        return {}
+    decoded = {
+        k.decode() if isinstance(k, bytes) else k: (
+            v.decode() if isinstance(v, bytes) else v
+        )
+        for k, v in raw.items()
+    }
+    decoded["id"] = msg_id
+    return decoded
+
+
+def cleanup_ws_client(
+    task_id: str,
+    websocket: WebSocket,
+    task_manager: WsTaskManager,
+) -> None:
+    """Cleanup WebSocket client.
+
+    Parameters
+    ----------
+    task_id : str
+        The task ID.
+    websocket : WebSocket
+        The WebSocket connection.
+    task_manager : WsTaskManager
+        The WebSocket task manager.
+    """
+    if websocket in task_manager.clients:
+        task_manager.remove_client(websocket)
+    ws_task_registry.remove_task_if_empty(task_id)
+
+
+# @ws_router.websocket("/ws/{task_id}")
+# async def websocket_endpoint(
+#     websocket: WebSocket,
+#     redis_client: Annotated[AsyncRedis, Depends(get_redis)],
+#     validated_data: Annotated[
+#         Tuple[Task, WsTaskManager, str | None],
+#         Depends(validate_websocket_connection),
+#     ],
+#     task_id: str,
+# ) -> None:
+#     """WebSocket endpoint for the Faststream router.
+
+#     Parameters
+#     ----------
+#     websocket : WebSocket
+#         The WebSocket connection.
+#     task_id : str
+#         The task ID.
+#     validated_data : Tuple[Task, WsTaskManager, str | None]
+#         The validated data for the WebSocket connection after
+#         authentication.
+#     redis_client : Redis
+#         The Redis client dependency.
+#     Raises
+#     ------
+#     WebSocketException
+#         If there is an error with the WebSocket connection.
+#     asyncio.CancelledError
+#         If the task is cancelled.
+#     """
+#     # regarding `validated_data`:
+#     # from starlette docs:
+#     # You can use an HTTPException on a WebSocket endpoint.
+#     # In case it's raised before websocket.accept()
+#     # the connection is not upgraded to a WebSocket connection,
+#     #  and the proper HTTP response is returned.
+#     # BUT this might not work with all the middlewares
+#     # we might get:
+#     # https://github.com/MagicStack/uvloop/issues/506#issuecomment\
+#     # -2404171195
+#     # and:
+#     # https://github.com/python-websockets/websockets/issues/1396
+#     # so an HTTPException might not work as expected
+#     # we try to raise a WebSocketException instead
+#     task, task_manager, subprotocol = validated_data
+#     try:
+#         await websocket.accept(subprotocol)
+#     except WebSocketException as err:
+#         LOG.error("WebSocket accept error: %s", err)
+#         on_ws_close(
+#             websocket=websocket,
+#             task_id=task_id,
+#             task_manager=task_manager,
+#             input_task=None,
+#             do_raise=True,
+#         )
+#     try:
+#         await send_task_status(websocket, task)
+#     except BaseException as err:  # pylint: disable=broad-exception-caught
+#         LOG.error("Error sending task status: %s", err)
+#         on_ws_close(
+#             websocket=websocket,
+#             task_id=task_id,
+#             task_manager=task_manager,
+#             input_task=None,
+#             do_raise=True,
+#         )
+
+#     try:
+#         replay_count = int(websocket.query_params.get("replay", 100))
+#     except ValueError:
+#         replay_count = 100
+
+#     input_task: asyncio.Task[Any] | None = None
+#     try:
+#         await stream_history(redis_client, task_id,
+#  task_manager, replay_count)
+#         input_task = asyncio.create_task(
+#             listen_for_ws_input(websocket, task_id, redis_client),
+#             name=f"input_task for {task_id}",
+#         )
+#         await input_task
+#     except asyncio.CancelledError:
+#         LOG.debug("WebSocket task cancelled for %s", task_id)
+#         raise
+#     except BaseException as err:  # pylint: disable=broad-exception-caught
+#         LOG.exception("WS exception: %s for %s", err, task_id)
+#     finally:
+#         # Cleanup
+#         on_ws_close(
+#             websocket=websocket,
+#             task_id=task_id,
+#             task_manager=task_manager,
+#             input_task=input_task,
+#         )
+
+
+# async def stream_history(
+#     redis_client: AsyncRedis,
+#     task_id: str,
+#     task_manager: WsTaskManager,
+#     replay_count: int = 50,
+# ) -> None:
+#     """Replay recent task output from Redis stream to WebSocket clients.
+
+#     Parameters
+#     ----------
+#     redis_client : AsyncRedis
+#         The Redis client.
+#     task_id : str
+#         The task ID.
+#     task_manager : WsTaskManager
+#         The WebSocket task manager.
+#     replay_count : int, optional
+#         Number of messages to replay, by default 50.
+#     """
+#     stream_key = f"task:{task_id}:output"
+
+#     # pylint: disable=too-many-try-statements
+#     try:
+#         entries = await redis_client.xrevrange(
+#             stream_key, "+", "-", count=replay_count
+#         )
+#         entries.reverse()  # From oldest to newest
+
+#         for entry_id, raw_msg in entries:
+#             if not isinstance(raw_msg, dict):
+#                 continue
+
+#             decoded = {
+#                 k.decode() if isinstance(k, bytes) else k: (
+#                     v.decode() if isinstance(v, bytes) else v
+#                 )
+#                 for k, v in raw_msg.items()
+#             }
+#             decoded["id"] = entry_id
+#             await task_manager.broadcast(decoded, skip_queue=True)
+
+#     except BaseException as e:  # pylint: disable=broad-exception-caught
+#         LOG.warning("Error replaying
+# Redis stream for task %s: %s", task_id, e)
+
+
+# async def listen_for_ws_input(
+#     websocket: WebSocket,
+#     task_id: str,
+#     redis_client: AsyncRedis,
+# ) -> None:
+#     """Listen for user input from WebSocket and publish to FastStream Redis.
+
+#     Parameters
+#     ----------
+#     websocket : WebSocket
+#         The WebSocket connection.
+#     task_id : str
+#         The task ID.
+#     redis_client : AsyncRedis
+#         The Redis client.
+
+#     Raises
+#     ------
+#     asyncio.CancelledError
+#         If the task is cancelled.
+#     WebSocketDisconnect
+#         If the WebSocket is disconnected
+#     """
+#     output_channel = f"task:{task_id}:input_response"
+#     # pylint: disable=too-many-try-statements
+#     try:
+#         while True:
+#             data = await websocket.receive_text()
+#             LOG.debug("Received input from WebSocket: %s", data)
+
+#             try:
+#                 payload = json.loads(data)
+#                 if valid_user_input(payload):
+#                     await redis_client.publish(
+#                         output_channel, json.dumps(payload)
+#                     )
+#                 else:
+#                     LOG.warning("Invalid input payload: %s", payload)
+#                     await websocket.send_json(
+#                         {"error": "Invalid input payload"}
+#                     )
+#             except json.JSONDecodeError:
+#                 await websocket.send_json({"error": "Invalid JSON format"})
+#             except WebSocketDisconnect:
+#                 LOG.debug("WebSocket disconnected for task_id=%s", task_id)
+#                 break
+
+#     except asyncio.CancelledError:
+#         LOG.debug("Input listener task cancelled for task_id=%s", task_id)
+#         raise
+#     except WebSocketDisconnect:
+#         LOG.debug("WebSocket disconnected for task_id=%s", task_id)
+#     except BaseException as err:  # pylint: disable=broad-exception-caught
+#         LOG.error("Input listener error for task_id=%s: %s", task_id, err)
+
+
+# async def cancel_task(
+#     task: asyncio.Task[Any],
+#     timeout: float = 1.0,
+#     task_name: str = "background task",
+# ) -> None:
+#     """Cancel an asyncio task and await it safely, with optional timeout.
+
+#     Parameters
+#     ----------
+#     task : asyncio.Task[Any]
+#         The asyncio task to cancel.
+#     timeout : float, optional
+#         How long to wait for task cancellation before logging a warning.
+#     task_name : str, optional
+#         Friendly name for logging/debugging.
+#     """
+#     if task.done():
+#         return
+#     task.cancel()
+#     try:
+#         await asyncio.wait_for(task, timeout=timeout)
+#     except asyncio.TimeoutError:
+#         LOG.warning("Timeout while cancelling %s", task_name)
+#     except asyncio.CancelledError:
+#         pass
+#     except BaseException as e:  # pylint: disable=broad-exception-caught
+#         LOG.exception("Error while cancelling %s: %s", task_name, e)
+
+
+# def on_ws_close(
+#     websocket: WebSocket,
+#     task_id: str,
+#     task_manager: WsTaskManager,
+#     input_task: asyncio.Task[Any] | None,
+#     do_raise: bool = False,
+# ) -> None:
+#     """Handle WebSocket closure.
+#     Parameters
+#     ----------
+#     websocket : WebSocket
+#         The WebSocket connection.
+#     task_id : str
+#         The task ID.
+#     task_manager : WsTaskManager
+#         The WebSocket task manager.
+#     input_task : asyncio.Task[Any] | None
+#         The input task.
+#     do_raise : bool
+#         Also raise the exception if True.
+#     Raises
+#     ------
+#     WebSocketException
+#         If the WebSocket connection is invalid.
+#     """
+#     cleanup_ws_client(task_id, websocket, task_manager)
+#     if input_task:
+#         try:
+#             input_task.cancel()
+#         except asyncio.CancelledError:
+#             pass
+#         except BaseException as e:  # pylint: disable=broad-exception-caught
+#             LOG.error("Error while cancelling input task: %s", e)
+#     if do_raise:
+#         raise WebSocketException(
+#             code=status.WS_1011_INTERNAL_ERROR, reason="Internal error"
+#         )

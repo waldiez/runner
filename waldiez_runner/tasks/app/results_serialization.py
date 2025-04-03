@@ -26,7 +26,7 @@ def serialize_dict(data: Dict[Any, Any]) -> List[Dict[str, Any]]:
     for key, value in data.items():
         # If value is a dataclass, recursively serialize it
         if is_dataclass_instance(value):  # Check if it's a dataclass
-            serialized[key] = serialize_results(
+            serialized[key] = make_serializable_results(
                 asdict(value)
             )  # Serialize dataclass object
         elif isinstance(value, dict):  # If it's a nested dict, serialize it
@@ -60,7 +60,7 @@ def serialize_list(data: List[Any]) -> List[Dict[str, Any]]:
             item
         ):  # If the item is a dataclass, serialize it
             serialized.extend(
-                serialize_results(asdict(item))
+                make_serializable_results(asdict(item))
             )  # Flatten the result
         elif isinstance(
             item, dict
@@ -76,8 +76,8 @@ def serialize_list(data: List[Any]) -> List[Dict[str, Any]]:
     return serialized
 
 
-def serialize_results(results: Any) -> List[Dict[str, Any]]:
-    """Serialize the results.
+def make_serializable_results(results: Any) -> List[Dict[str, Any]]:
+    """Make the results JSON serializable.
 
     Parameters
     ----------
@@ -90,12 +90,12 @@ def serialize_results(results: Any) -> List[Dict[str, Any]]:
         The json serializable results.
     """
     if isinstance(results, dict):
-        return serialize_dict(results)  # Directly return the serialized dict
+        return serialize_dict(results)
     if isinstance(results, list):
         return serialize_list(results)
-    if is_dataclass_instance(results):  # Handle a single dataclass object
-        return serialize_dict(asdict(results))  # Serialize it as a dictionary
-    return serialize_results([results])  # Default to serializing a list
+    if is_dataclass_instance(results):
+        return serialize_dict(asdict(results))
+    return make_serializable_results([results])
 
 
 def is_dataclass_instance(obj: Any) -> bool:

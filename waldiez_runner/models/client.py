@@ -3,7 +3,6 @@
 """Client model."""
 
 import secrets
-import uuid
 
 import bcrypt
 from pydantic import BaseModel, Field
@@ -21,7 +20,7 @@ def generate_client_id() -> str:
     str
         The generated client ID.
     """
-    return uuid.uuid4().hex
+    return secrets.token_hex(32)
 
 
 def generate_client_secret() -> str:
