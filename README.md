@@ -1,6 +1,6 @@
 # Waldiez runner (server)
 
-WIP/RFC
+WIP
 
 ## Overview
 
@@ -260,10 +260,11 @@ The script will:
 - Ensure we cannot delete the client with the tasks access token.
 - Ensure we can delete the client with the clients access token.
 - Send Task input via HTTP.
+- Run two parallel tasks (with input).
 
 Not covered (yet?) in this script:
 
-- Run two parallel tasks (with input).
+- Use the client in the package for the reuests
 - WebSocket connection for task input/output.
 
 ### Formatting, Linting and Testing

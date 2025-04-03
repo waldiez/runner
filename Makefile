@@ -128,10 +128,6 @@ dev-no-reload-local:
 	python scripts/initial_data.py --no-force-ssl --no-redis --no-postgres --dev
 	python -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --debug --no-force-ssl --no-redis --no-postgres --dev
 
-.PHONY: smoke
-smoke:
-	python scripts/test.py --smoke
-
 .PHONY: toggle
 toggle:
 	python scripts/toggle.py
@@ -139,5 +135,10 @@ toggle:
 	@echo "or use: \`python -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --reload --debug --no-force-ssl --redis --postgres --dev\`"
 	@echo "or use: \`python -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --debug --no-force-ssl --no-redis --no-postgres --dev\`"
 
+
+.PHONY: smoke
+smoke: toggle
+	python scripts/test.py --smoke
+
 .PHONY: some
-some: requirements forlint test toggle smoke
+some: requirements forlint test smoke

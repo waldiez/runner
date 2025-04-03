@@ -2,7 +2,7 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 """Simple checks after startup with no extra data.
 
-- Use the client_id/client_secret to get an access token.
+- Use the initial client_id/client_secret pair to get an access token.
 - Ensure it cannot be used to list tasks (it is for clients only).
 - Ensure it can be used to list and create clients.
 - Generate one client and ensure it can be used to list tasks.
@@ -14,16 +14,19 @@
 - If the task is completed, download the archive.
 - Ensure we cannot delete the client with the tasks access token.
 - Ensure we can delete the client with the clients access token.
+- Send Task input via HTTP.
+- Run two parallel tasks (with input).
 
 This script is a simple smoke test to ensure the API is working as expected.
 
 Not covered (yet?):
-- Send user's input using websockets or HTTP.
+- WebSocket connection for task input/output.
 """
 
 import asyncio
 import json
 import os
+import secrets
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
@@ -46,9 +49,22 @@ TOKEN_URL = f"http://localhost:{PORT}/auth/token"
 CLIENTS_URL = f"http://localhost:{PORT}/api/v1/clients"
 TASKS_URL = f"http://localhost:{PORT}/api/v1/tasks"
 EXAMPLE_FLOW_PATH = ROOT_DIR / "examples" / "dummy_with_input.waldiez"
-# EXAMPLE_FLOW_PATH = ROOT_DIR / "examples" / "dummy.waldiez"
+EXAMPLE_2_FLOW_PATH = ROOT_DIR / "examples" / "dummy_with_input2.waldiez"
 
 HTTPX_CLIENT = httpx.AsyncClient(timeout=30)
+
+
+async def random_sleep(smaller_than: int) -> None:
+    """Sleep for a random time.
+
+    Parameters
+    ----------
+    smaller_than : int
+        The maximum time to sleep.
+    """
+    sleep_duration = secrets.randbelow(smaller_than)
+    print(f"Sleeping for {sleep_duration} seconds.")
+    await asyncio.sleep(sleep_duration)
 
 
 async def get_access_token(client_id: str, client_secret: str) -> str:
@@ -146,25 +162,34 @@ async def list_tasks(access_token: str) -> Dict[str, Any]:
     return response.json()
 
 
-async def create_task(access_token: str) -> Dict[str, Any]:
+async def create_task(
+    access_token: str,
+    example_flow_path: Path,
+    input_timeout: int,
+) -> Dict[str, Any]:
     """Create a task.
 
     Parameters
     ----------
     access_token : str
         The access token.
+    example_flow_path : Path
+        The example flow path.
+    input_timeout : int
+        The input timeout.
+
     Returns
     -------
     Dict[str, Any]
         The response.
     """
     response = await HTTPX_CLIENT.post(
-        TASKS_URL + "?input_timeout=5",
+        TASKS_URL + f"?input_timeout={input_timeout}",
         headers={"Authorization": f"Bearer {access_token}"},
         files={
             "file": (
-                EXAMPLE_FLOW_PATH.name,
-                EXAMPLE_FLOW_PATH.open("rb"),
+                example_flow_path.name,
+                example_flow_path.open("rb"),
                 "application/json",
             )
         },
@@ -336,7 +361,11 @@ async def tasks_check(client: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
         raise AssertionError("The task client should list tasks.") from e
 
     try:
-        task = await create_task(tasks_access_token)
+        task = await create_task(
+            tasks_access_token,
+            EXAMPLE_FLOW_PATH,
+            input_timeout=5,
+        )
     except httpx.HTTPStatusError as e:
         print(e.response.json())
         raise AssertionError("The task client should create tasks.") from e
@@ -501,6 +530,146 @@ async def delete_client(
     return
 
 
+async def handle_one_task(
+    tasks_access_token: str,
+    example_flow_path: Path,
+    input_timeout: int,
+) -> Dict[str, Any]:
+    """Handle one task.
+    Parameters
+    ----------
+    tasks_access_token : str
+        The tasks access token.
+    example_flow_path : Path
+        The example flow path.
+    input_timeout : int
+        The input timeout.
+
+    Returns
+    -------
+    Dict[str, Any]
+        The task.
+
+    Raises
+    ------
+    AssertionError
+        If a check fails
+    """
+    # create a task
+    task = await create_task(
+        access_token=tasks_access_token,
+        example_flow_path=example_flow_path,
+        input_timeout=input_timeout,
+    )
+    print("New task:")
+    print(json.dumps(task, indent=2))
+    # get the task id
+    task_id = task["id"]
+    # get the task url
+    task_url = f"{TASKS_URL}/{task_id}"
+    # get the task by id
+    response = await HTTPX_CLIENT.get(
+        task_url,
+        headers={"Authorization": f"Bearer {tasks_access_token}"},
+    )
+    response.raise_for_status()
+    task = response.json()
+    print("Task by id:")
+    print(json.dumps(task, indent=2))
+    # check the task status (in a loop)
+    # it should change from pending to running to completed
+
+    max_retries = 100
+    retries = 0
+    user_inputs = 0
+
+    while retries < max_retries:
+        response = await HTTPX_CLIENT.get(
+            task_url,
+            headers={"Authorization": f"Bearer {tasks_access_token}"},
+        )
+        response.raise_for_status()
+        task = response.json()
+        print("Task by id:")
+        print(json.dumps(task, indent=2))
+        if task["status"] == "COMPLETED":
+            break
+        if task["status"] == "FAILED":
+            raise AssertionError("The task should not fail.")
+        if task["status"] == "CANCELLED":
+            raise AssertionError("The task should not be cancelled.")
+        retries += 1
+        time_to_sleep = (
+            2 * (retries + 1) if task["status"] != "WAITING_FOR_INPUT" else 5
+        )
+        await asyncio.sleep(time_to_sleep)
+        if task["status"] == "WAITING_FOR_INPUT":
+            # random small delay
+            await random_sleep(input_timeout // 2 - 2)
+            await send_user_input(
+                task["id"],
+                task["input_request_id"],
+                tasks_access_token,
+                f"Input for {example_flow_path.name} #{user_inputs + 1}",
+            )
+            print(f"Sent user input #{retries + 1}")
+            await asyncio.sleep(2)
+    if task["status"] == "COMPLETED":
+        print("The task is completed.")
+        archive = await download_task_archive(task_id, tasks_access_token)
+        print("Task archive downloaded.")
+        print(f"Task archive size: {len(archive)}")
+    # delete the task
+    await delete_task(task_id, tasks_access_token)
+    print("Task deleted.")
+    return task
+
+
+async def test_running_two_parallel_tasks(tasks_access_token: str) -> None:
+    """Test running two parallel tasks that both require user input.
+
+    Parameters
+    ----------
+    tasks_access_token : str
+        The tasks access token.
+
+    Raises
+    ------
+    AssertionError
+        If a check fails
+    """
+    timeout1 = 10
+    timeout2 = 20
+
+    # Run both tasks in parallel
+    result1_task = handle_one_task(
+        tasks_access_token=tasks_access_token,
+        example_flow_path=EXAMPLE_FLOW_PATH,
+        input_timeout=timeout1,
+    )
+
+    result2_task = handle_one_task(
+        tasks_access_token=tasks_access_token,
+        example_flow_path=EXAMPLE_2_FLOW_PATH,
+        input_timeout=timeout2,
+    )
+
+    results = await asyncio.gather(result1_task, result2_task)
+
+    result1, result2 = results
+    print("First task result:")
+    print(json.dumps(result1, indent=2))
+    print("Second task result:")
+    print(json.dumps(result2, indent=2))
+    # Check if both tasks completed successfully
+    if result1["status"] != "COMPLETED":
+        raise AssertionError("The first task should be completed.")
+    if result2["status"] != "COMPLETED":
+        raise AssertionError("The second task should be completed.")
+
+    print("Both parallel tasks completed successfully.")
+
+
 async def main() -> None:
     """Run the checks.
 
@@ -512,6 +681,7 @@ async def main() -> None:
     client, clients_access_token = await clients_check()
     task, tasks_access_token = await tasks_check(client)
     await task_status_check(task, tasks_access_token)
+    await test_running_two_parallel_tasks(tasks_access_token)
     await delete_client(
         client["client_id"], tasks_access_token, clients_access_token
     )
