@@ -202,8 +202,8 @@ The script in [scripts/smoke.py](./scripts/smoke.py) is a simple smoke test to e
 
 > [!TIP]
 > It is recommended to run the server while a db and a redis container instance running (or using the .devcontainer in the project).
-> Running the example in the host without redis and postgres will probably also work (we use FakeRedis and SQLite for testing),
-> but real container instances are closer to the environment where the server will run.
+> Running the example in the host without redis and postgres might also work (we use FakeRedis and SQLite for testing),
+> but pub/sub will probably trigger issues and real container instances are closer to the environment where the server will run.
 
 All-in-one:
 
@@ -259,11 +259,12 @@ The script will:
 - If the task is completed, download the archive.
 - Ensure we cannot delete the client with the tasks access token.
 - Ensure we can delete the client with the clients access token.
+- Send Task input via HTTP.
 
 Not covered (yet?) in this script:
 
+- Run two parallel tasks (with input).
 - WebSocket connection for task input/output.
-- Task input via HTTP.
 
 ### Formatting, Linting and Testing
 

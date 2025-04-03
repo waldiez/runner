@@ -5,13 +5,17 @@
 """Handle running tasks."""
 
 import asyncio
+import contextlib
+import json
 import logging
 import os
 import shutil
+import signal
 import tempfile
 import venv
+from asyncio.subprocess import Process
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, TypedDict
 
 from aiofiles.os import wrap
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,6 +32,27 @@ from .dependencies import get_db_session, get_redis, get_redis_url, get_storage
 LOG = logging.getLogger(__name__)
 HERE = Path(__file__).parent
 APP_DIR = HERE / "app"
+
+
+class ParsedStatus(TypedDict, total=False):
+    """Parsed task status message.
+
+    Attributes
+    ----------
+    status : TaskStatus
+        The task status.
+    input_request_id : str | None
+        The input request ID, if applicable.
+    results : dict | list[dict] | None
+        The results of the task, if applicable.
+    should_terminate : bool
+        Whether the task should be terminated.
+    """
+
+    status: TaskStatus
+    input_request_id: str | None
+    results: Dict[str, Any] | List[Dict[str, Any]] | None
+    should_terminate: bool
 
 
 @broker.task
@@ -56,51 +81,31 @@ async def run_task(
     temp_dir = Path(tempfile.mkdtemp())
     venv_dir = await prepare_app_env(storage, task, temp_dir)
     app_dir = temp_dir / task.client_id / task.id / "app"
-    try:
-        await _update_task_status(
-            task.id,
-            TaskStatus.RUNNING,
-            db_session,
-            redis,
-            results=None,
-        )
-        await redis.set(
-            f"task:{task.id}:status",
-            TaskStatus.RUNNING.value,
-            ex=60,
-        )
-    except BaseException as e:
-        LOG.error("Failed to update task status: %s", e)
-        return
-    # pylint: disable=too-many-try-statements
     file_path = temp_dir / task.client_id / task.id / "app" / task.filename
     settings = SettingsManager.load_settings()
     debug = settings.log_level.upper() == "DEBUG"
+    # pylint: disable=too-many-try-statements, broad-exception-caught
     try:
-        future = asyncio.create_task(
-            run_app_in_venv(
-                venv_root=venv_dir,
-                app_dir=app_dir,
-                task_id=task.id,
-                file_path=file_path,
-                redis_url=redis_url,
-                input_timeout=task.input_timeout,
-                debug=debug,
+        exit_code = await run_app_in_venv(
+            venv_root=venv_dir,
+            app_dir=app_dir,
+            task_id=task.id,
+            file_path=file_path,
+            redis_url=redis_url,
+            input_timeout=task.input_timeout,
+            redis=redis,
+            db_session=db_session,
+            debug=debug,
+        )
+        if exit_code != 0:
+            await _update_task_status(
+                task.id,
+                TaskStatus.FAILED,
+                db_session,
+                redis,
+                results={"error": "Task failed"},
             )
-        )
-        await _check_task_status(
-            task=task,
-            future=future,
-            db_session=db_session,
-            redis=redis,
-        )
-        exit_code = await future
-        await _handle_task_completion(
-            exit_code,
-            task=task,
-            db_session=db_session,
-            redis=redis,
-        )
+            return
     except asyncio.CancelledError:
         await _update_task_status(
             task.id,
@@ -110,19 +115,18 @@ async def run_task(
             results={"error": "Task cancelled"},
         )
     except BaseException as e:
-        LOG.error("Task %s failed: %s", task.id, e)
-        await redis.set(
-            redis_status_key(task.id), TaskStatus.FAILED.value, ex=60
-        )
-        await TaskService.update_task_status(
-            session=db_session,
-            task_id=task.id,
-            status=TaskStatus.FAILED,
+        LOG.exception("Task %s failed", task.id)
+        await redis.publish(redis_status_key(task.id), TaskStatus.FAILED.value)
+        await _update_task_status(
+            task.id,
+            TaskStatus.FAILED,
+            db_session,
+            redis,
             results={"error": str(e)},
         )
     finally:
         await move_results_to_storage(temp_dir, task, storage)
-    LOG.debug("Task %s completed", task.id)
+        LOG.debug("Task %s completed", task.id)
 
 
 def get_venv_python_executable(venv_root: Path) -> Path:
@@ -229,6 +233,8 @@ async def run_app_in_venv(
     file_path: Path,
     redis_url: str,
     input_timeout: int,
+    redis: AsyncRedis,
+    db_session: AsyncSession,
     debug: bool,
 ) -> int:
     """Run the app in the venv.
@@ -239,15 +245,19 @@ async def run_app_in_venv(
         Venv root directory.
     app_dir : Path
         App directory.
-    redis_url : str
-        Redis URL.
     task_id : str
         Task ID.
     file_path : Path
         Path to the task file.
+    redis_url : str
+        Redis URL.
     input_timeout : int
         Input timeout.
-    debug : bool, optional
+    redis : AsyncRedis
+        Redis client dependency.
+    db_session : AsyncSession
+        Database session dependency.
+    debug : bool
         Whether to run in debug mode.
 
     Returns
@@ -256,11 +266,10 @@ async def run_app_in_venv(
         Exit code.
     """
     python_exec = get_venv_python_executable(venv_root)
-    module_name = "main"
     args = [
         str(python_exec),
         "-m",
-        module_name,
+        "main",
         "--task-id",
         task_id,
         "--redis-url",
@@ -269,15 +278,34 @@ async def run_app_in_venv(
         str(input_timeout),
         str(file_path),
     ]
-    if debug is True:
+    if debug:
         args.append("--debug")
+
     process = await asyncio.create_subprocess_exec(
         *args,
         cwd=app_dir,
         env={**os.environ, "PYTHONUNBUFFERED": "1"},
+        start_new_session=True,
     )
 
-    return await process.wait()
+    watcher_task = asyncio.create_task(
+        _watch_status_and_cancel_if_needed(
+            task_id=task_id,
+            process=process,
+            redis=redis,
+            db_session=db_session,
+        )
+    )
+
+    try:
+        return_code = await process.wait()
+        return return_code
+    finally:
+        # Clean up watcher
+        if not watcher_task.done():
+            watcher_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await watcher_task
 
 
 async def move_results_to_storage(
@@ -325,119 +353,132 @@ async def move_results_to_storage(
         )
 
 
-async def _check_task_status(
-    task: TaskResponse,
-    future: asyncio.Task[int],
-    db_session: AsyncSession,
-    redis: AsyncRedis,
-) -> None:
-    while not future.done():
-        await asyncio.sleep(1)
-
-        try:
-            status = await _get_redis_status(redis, task.id)
-        except BaseException as e:
-            LOG.error("Failed to get task status for %s: %s", task.id, e)
-            return
-
-        status_upper = status.upper()
-
-        if status_upper == "CANCELLED":
-            LOG.info("Task %s was cancelled via Redis", task.id)
-            await _handle_status_update(
-                future,
-                db_session,
-                task.id,
-                TaskStatus.CANCELLED,
-                "Task cancelled",
-            )
-            return
-
-        if status_upper == "FAILED":
-            LOG.warning("Task %s marked as FAILED in Redis", task.id)
-            await _handle_status_update(
-                future, db_session, task.id, TaskStatus.FAILED, "Task failed"
-            )
-            return
-
-        if status_upper in ("RUNNING", "WAITING_FOR_INPUT", "PENDING"):
-            LOG.debug("Task %s is in progress: %s", task.id, status_upper)
-            continue
-        if status_upper == "COMPLETED":
-            LOG.info("Task %s completed successfully", task.id)
-            return
-        # Unexpected status
-        LOG.warning("Unexpected task status for %s: '%s'", task.id, status)
-        await _handle_status_update(
-            future,
-            db_session,
-            task.id,
-            TaskStatus.FAILED,
-            f"Unexpected status: {status}",
-        )
-        return
-
-
-async def _handle_status_update(
-    future: asyncio.Future[int],
-    db_session: AsyncSession,
+async def _watch_status_and_cancel_if_needed(
     task_id: str,
-    status: TaskStatus,
-    error_message: str,
+    process: Process,
+    redis: AsyncRedis,
+    db_session: AsyncSession,
 ) -> None:
-    _cancel_future_if_running(future)
-    await TaskService.update_task_status(
-        session=db_session,
-        task_id=task_id,
-        status=status,
-        results={"error": error_message},
-    )
+    channel = f"task:{task_id}:status"
+    pubsub = redis.pubsub()
+    await pubsub.subscribe(channel)
+    # pylint: disable=too-many-try-statements
+    try:
+        async for message in pubsub.listen():
+            if process.returncode is not None:
+                break  # Process exited
+
+            LOG.debug("Received message: %s", message)
+            if (
+                not isinstance(message, dict)
+                or message.get("type") != "message"
+            ):
+                LOG.warning("Invalid message type: %s", message.get("type"))
+                continue
+            parsed = parse_status_message(message.get("data", ""))
+            if not parsed:
+                continue
+            try:
+                await TaskService.update_task_status(
+                    session=db_session,
+                    task_id=task_id,
+                    status=parsed["status"],
+                    input_request_id=parsed.get("input_request_id"),
+                    results=parsed.get("results"),
+                )
+            except Exception as e:
+                LOG.warning("Failed to update task %s in DB: %s", task_id, e)
+
+            if parsed.get("should_terminate"):
+                await _terminate_process(process)
+                break
+
+            if parsed["status"] in {TaskStatus.COMPLETED, TaskStatus.FAILED}:
+                break
+
+    finally:
+        await pubsub.unsubscribe(channel)
+        await pubsub.close()
 
 
-def _cancel_future_if_running(future: asyncio.Future[int]) -> None:
-    """Cancel the future if it is running.
+def load_redis_message_dict(raw_data: str | bytes) -> Dict[str, Any] | None:
+    """Load the message we received from redis.
 
     Parameters
     ----------
-    future : asyncio.Future[int]
-        Future object.
+    raw_data: str | bytes
+        The raw redis data.
+
+    Returns
+    -------
+    Dict[str, Any] | None
+        The loaded message.
     """
-    if not future.cancelled() and not future.done():
-        future.cancel()
+    try:
+        message = json.loads(raw_data)
+        if isinstance(message, str):
+            message = json.loads(message)  # Handle double-encoding
+    except BaseException as e:
+        LOG.warning("Invalid task status JSON: %s", e)
+        return None
+    if not isinstance(message, dict):
+        return None
+    if "data" in message and "status" not in message:
+        message = message["data"]
+    if isinstance(message, str):  # Handle double-encoding
+        try:
+            message = json.loads(message)
+        except BaseException:
+            LOG.warning("Invalid task status JSON: %s", message)
+            return None
+    if not isinstance(message, dict):
+        return None
+    return message
 
 
-async def _handle_task_completion(
-    exit_code: int,
-    task: TaskResponse,
-    db_session: AsyncSession,
-    redis: AsyncRedis,
-) -> None:
-    status = await _get_redis_status(redis, task.id)
-    if exit_code != 0 and status not in (
-        TaskStatus.CANCELLED.value,
-        TaskStatus.FAILED.value,
-    ):
-        LOG.error("Task %s failed with exit code %s", task.id, exit_code)
-        await TaskService.update_task_status(
-            session=db_session,
-            task_id=task.id,
-            status=TaskStatus.FAILED,
-            results={"error": "Task failed"},
+def parse_status_message(raw_data: str | bytes) -> ParsedStatus | None:
+    """Parses and validates a task status message from Redis.
+
+    Parameters
+    ----------
+    raw_data : str | bytes
+        The raw data received from Redis.
+    Returns
+    -------
+    ParsedStatus | None
+        The parsed status message or None if invalid.
+    """
+    message = load_redis_message_dict(raw_data=raw_data)
+    if not message:
+        return None
+    status_str = message.get("status")
+    if not status_str:
+        return None
+    try:
+        status = TaskStatus(status_str)
+    except ValueError:
+        LOG.warning("Unknown task status: %s", status_str)
+        return None
+
+    parsed: ParsedStatus = {"status": status}
+
+    if status == TaskStatus.WAITING_FOR_INPUT:
+        parsed["input_request_id"] = message.get("data", {}).get(
+            "request_id"
+        )  # data: {"request_id": ..., "prompt": ...}
+    elif status == TaskStatus.COMPLETED:
+        parsed["results"] = message.get("data")
+    elif status == TaskStatus.FAILED:
+        parsed["results"] = {"error": message.get("data")}
+    elif status == TaskStatus.CANCELLED:
+        # cast to dict (might be a string)
+        error = message.get("data", {"data": message.get("data", "")}).get(
+            "data"
         )
-        return
-    task_status: TaskStatus = TaskStatus(status)
-    if getattr(broker, "_is_smoke_testing", False) is True:
-        task_status = (
-            TaskStatus.COMPLETED if exit_code == 0 else TaskStatus.FAILED
-        )
-        await _update_task_status(
-            task.id,
-            task_status,
-            db_session,
-            redis,
-            {"exit_code": exit_code},
-        )
-    # else, we handled the results in the subscriber
+        parsed["results"] = {"error": error} if error else None
+        parsed["should_terminate"] = True
+
+    return parsed
 
 
 async def _update_task_status(
@@ -477,7 +518,7 @@ async def _update_task_status(
             "Failed to update task status in the database"
         ) from e
     try:
-        await redis.set(redis_status_key(task_id), new_status.value, ex=60)
+        await redis.publish(redis_status_key(task_id), new_status.value)
     except BaseException as e:
         if getattr(broker, "_is_smoke_testing", False) is True:
             return
@@ -485,50 +526,29 @@ async def _update_task_status(
         raise RuntimeError("Failed to update task status in Redis") from e
 
 
-async def _get_redis_status(redis: AsyncRedis, task_id: str) -> str:
-    """Get the task status from Redis.
+async def _terminate_process(process: Process) -> None:
+    """Terminate the process.
 
     Parameters
     ----------
-    redis : AsyncRedis
-        Redis dependency.
-    task_id : str
-        Task ID.
-
-    Returns
-    -------
-    str
-        Task status.
-
-    Raises
-    ------
-    RuntimeError
-        If the task status could not be retrieved.
+    process : Process
+        Process object.
     """
-    status = TaskStatus.RUNNING.value
+    if process.returncode is not None:
+        return
+    LOG.info("Terminating process %s", process.pid)
     try:
-        status_fetched = await redis.get(redis_status_key(task_id))
-    except BaseException as e:
-        if getattr(broker, "_is_smoke_testing", False) is True:
-            return status
-        LOG.error("Failed to get task status from Redis: %s", e)
-        raise RuntimeError("Failed to get task status from Redis") from e
-    if status_fetched is None:
-        return status
-    if isinstance(status_fetched, bytes):
-        status = status_fetched.decode()
-    elif isinstance(status_fetched, str):
-        status = status_fetched
-    else:
-        LOG.warning(
-            "Unexpected task status type: %s, from Redis for task: %s",
-            type(status_fetched),
-            task_id,
-        )
-        return status
-    try:
-        TaskStatus(status.upper())
-    except ValueError:
-        LOG.warning("Unexpected task status from Redis: %s", status)
-        status = TaskStatus.RUNNING.value
-    return status
+        if os.name == "nt":
+            process.terminate()
+        else:
+            os.killpg(process.pid, signal.SIGTERM)
+        await asyncio.wait_for(process.wait(), timeout=5)
+    except asyncio.TimeoutError:
+        try:
+            if os.name == "nt":
+                process.kill()
+            else:
+                os.killpg(process.pid, signal.SIGKILL)
+            await process.wait()
+        except Exception as e:
+            LOG.warning("Failed to force kill process: %s", e)

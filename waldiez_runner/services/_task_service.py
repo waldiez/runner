@@ -138,35 +138,6 @@ async def get_client_tasks(
     return page
 
 
-# async def get_client_flow_task(
-#     session: AsyncSession, client_id: str, flow_id: str
-# ) -> Task | None:
-#     """Retrieve a task by client and flow ID.
-
-#     Parameters
-#     ----------
-#     session : AsyncSession
-#         SQLAlchemy async session.
-#     client_id : str
-#         Client ID.
-#     flow_id : str
-#         Flow ID.
-
-#     Returns
-#     -------
-#     Task | None
-#         Task instance or None if not found.
-#     """
-#     result = await session.execute(
-#         select(Task).where(
-#             Task.client_id == client_id,
-#             Task.flow_id == flow_id,
-#             cast(Task.deleted_at, DateTime).is_(None),
-#         )
-#     )
-#     return result.scalar_one_or_none()
-
-
 async def get_active_client_tasks(
     async_session: AsyncSession,
     client_id: str,
@@ -345,6 +316,7 @@ async def update_task_status(
     session: AsyncSession,
     task_id: str,
     status: TaskStatus,
+    input_request_id: str | None = None,
     skip_results: bool = False,
     results: Dict[str, Any] | List[Dict[str, Any]] | None = None,
 ) -> None:
@@ -358,6 +330,8 @@ async def update_task_status(
         Task ID.
     status : TaskStatus
         The task's status.
+    input_request_id : str | None
+        The task's input request ID if the status is WAITING_FOR_INPUT.
     skip_results : bool
         Skip updating the task's results.
         Default is False.
@@ -371,6 +345,10 @@ async def update_task_status(
     task.status = status
     if skip_results is False:
         task.results = results
+    if status == TaskStatus.WAITING_FOR_INPUT:
+        task.input_request_id = input_request_id
+    else:
+        task.input_request_id = None
     task.updated_at = datetime.now(timezone.utc)
     await session.commit()
     await session.refresh(task)

@@ -4,6 +4,7 @@
 # pylint: disable=broad-exception-caught
 """Cleanup stale tasks."""
 
+import json
 import logging
 import os
 
@@ -73,8 +74,14 @@ async def cancel_task(
         Database session dependency.
     """
     LOG.debug("Cancelling task %s for client %s", task_id, client_id)
-    await redis.set(
-        redis_status_key(task_id), TaskStatus.CANCELLED.value, ex=120
+    task_status = {
+        "task_id": task_id,
+        "status": TaskStatus.CANCELLED.value,
+        "data": {"error": "Task Cancelled"},
+    }
+    await redis.publish(
+        json.dumps(task_status),
+        redis_status_key(task_id),
     )
     await TaskService.update_task_status(
         db_session,

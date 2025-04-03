@@ -345,7 +345,43 @@ async def tasks_check(client: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
     return task, tasks_access_token
 
 
-async def task_status_check(
+async def send_user_input(
+    task_id: str,
+    input_request_id: str,
+    tasks_access_token: str,
+    user_input: str,
+) -> None:
+    """Send user input.
+
+    Parameters
+    ----------
+    task_id : str
+        The task ID.
+    input_request_id : str
+        The input request ID.
+    tasks_access_token : str
+        The tasks access token.
+    user_input : str
+        The user input.
+
+    Raises
+    ------
+    AssertionError
+        If the task is not deleted.
+    """
+    response = await HTTPX_CLIENT.post(
+        f"{TASKS_URL}/{task_id}/input",
+        headers={"Authorization": f"Bearer {tasks_access_token}"},
+        json={"request_id": input_request_id, "data": user_input},
+    )
+    response.raise_for_status()
+    if response.status_code != 204:
+        raise AssertionError("The task should be cancelled.")
+    return
+
+
+# pylint: disable=too-complex
+async def task_status_check(  # noqa
     task: Dict[str, Any], tasks_access_token: str
 ) -> None:
     """Check the task status.
@@ -364,6 +400,7 @@ async def task_status_check(
     """
     # it should change from pending to running to completed
     reties = 0
+    user_inputs = 0
     task_id = task["id"]
     task_url = f"{TASKS_URL}/{task_id}"
     # get the task by id
@@ -382,9 +419,9 @@ async def task_status_check(
         await asyncio.sleep(2)
     if task["status"] == "PENDING":
         raise AssertionError("The task should change status.")
-    if task["status"] == "RUNNING":
+    if task["status"] in ("RUNNING", "WAITING_FOR_INPUT"):
         print("The task is running.")
-        for index in range(20):
+        for index in range(30):
             response = await HTTPX_CLIENT.get(
                 task_url,
                 headers={"Authorization": f"Bearer {tasks_access_token}"},
@@ -393,11 +430,24 @@ async def task_status_check(
             task = response.json()
             print("Task by id:")
             print(json.dumps(task, indent=2))
+            sleep_duration = (
+                2 * (index + 1) if task["status"] == "RUNNING" else 2
+            )
             if task["status"] == "COMPLETED":
                 break
             if task["status"] == "FAILED":
                 raise AssertionError("The task should not fail.")
-            await asyncio.sleep(2 * (index + 1))
+            if task["status"] == "CANCELLED":
+                raise AssertionError("The task should not be cancelled.")
+            if task["status"] == "WAITING_FOR_INPUT":
+                await send_user_input(
+                    task["id"],
+                    task["input_request_id"],
+                    tasks_access_token,
+                    f"This is a test input #{user_inputs + 1}",
+                )
+                user_inputs += 1
+            await asyncio.sleep(sleep_duration)
     if task["status"] == "COMPLETED":
         print("The task is completed.")
         archive = await download_task_archive(task_id, tasks_access_token)

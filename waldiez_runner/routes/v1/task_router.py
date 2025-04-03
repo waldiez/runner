@@ -3,6 +3,7 @@
 """Task routes."""
 
 import asyncio
+import json
 import logging
 import os
 from typing import Annotated
@@ -18,7 +19,9 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi_pagination import Page
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette import status
 
 from waldiez_runner.dependencies import (
     ALLOWED_EXTENSIONS,
@@ -199,6 +202,81 @@ async def get_task(
     if task is None or task.client_id != client_id:
         raise HTTPException(status_code=404, detail="Task not found")
     return TaskResponse.model_validate(task)
+
+
+class InputResponse(BaseModel):
+    """Input response model."""
+
+    request_id: str
+    data: str
+
+
+@task_router.post("/tasks/{task_id}/input")
+async def on_input_request(
+    task_id: str,
+    message: InputResponse,
+    redis: Annotated[AsyncRedis, Depends(get_redis)],
+    db_session: Annotated[AsyncSession, Depends(get_db)],
+    client_id: Annotated[str, Depends(validate_tasks_audience)],
+) -> Response:
+    """Task input
+
+    Parameters
+    ----------
+    task_id : str
+        The task ID.
+    message : InputResponse
+        The input response message.
+    redis : AsyncRedis
+        The Redis client dependency.
+    db_session : AsyncSession
+        The database session.
+    client_id : str
+        The client ID.
+
+    Returns
+    -------
+    Response
+        The response (status code 204).
+
+    Raises
+    ------
+    HTTPException
+        If the message or the task_id is invalid.
+
+    """
+    try:
+        task = await TaskService.get_task(db_session, task_id=task_id)
+    except BaseException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Task {task_id} not found",
+        ) from e
+    if task is None or task.client_id != client_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Task {task_id} not found",
+        )
+    if message.request_id != task.input_request_id:
+        LOG.warning("Received invalid input request: %s", message.request_id)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid input request",
+        )
+    try:
+        await redis.publish(
+            channel=f"task:{task_id}:input_response",
+            message=json.dumps(
+                {"request_id": message.request_id, "data": message.data}
+            ),
+        )
+    except BaseException as e:  # pylint: disable=broad-exception-caught
+        LOG.warning("Failed to publish task input response message: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to publish task input response message",
+        ) from e
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @task_router.get(

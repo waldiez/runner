@@ -180,17 +180,12 @@ class RedisManager:
         scheme = "redis"
         host = "127.0.0.1"
         redis_db = self.settings.redis_db
-        # password = (
-        #     self.settings.redis_password.get_secret_value()
-        #     if self.settings.redis_password
-        #     else None
-        # )
         new_url = self.settings.generate_redis_url(
             scheme=scheme,
             host=host,
             port=port,
             db=redis_db,
-            # on taskiq and FastStream broker we get:
+            # on taskiq and / or FastStream broker we get:
             # invalid username-password pair or user is disabled
             password=None,
         )
