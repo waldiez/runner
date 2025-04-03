@@ -430,14 +430,14 @@ async def _handle_task_completion(
         task_status = (
             TaskStatus.COMPLETED if exit_code == 0 else TaskStatus.FAILED
         )
-    # TODO: get the results from redis (tasks:{task.id}:results)
-    await _update_task_status(
-        task.id,
-        task_status,
-        db_session,
-        redis,
-        {"exit_code": exit_code},
-    )
+        await _update_task_status(
+            task.id,
+            task_status,
+            db_session,
+            redis,
+            {"exit_code": exit_code},
+        )
+    # else, we handled the results in the subscriber
 
 
 async def _update_task_status(

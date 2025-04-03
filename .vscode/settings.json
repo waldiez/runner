@@ -21,6 +21,7 @@
     "cSpell.words": [
         "aconnect",
         "addopts",
+        "aiocsv",
         "aiofiles",
         "aiohttp",
         "aiosqlite",

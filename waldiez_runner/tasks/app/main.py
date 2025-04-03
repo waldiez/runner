@@ -72,7 +72,6 @@ async def run(params: TaskParams) -> None:
         await broker.publish("FAILED", status_channel)
         await app.stop()
         return
-    # TODO: something with the results
     await broker.publish("COMPLETED", status_channel)
     await app.stop()
 

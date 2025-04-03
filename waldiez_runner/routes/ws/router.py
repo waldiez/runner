@@ -19,10 +19,7 @@ from fastapi import (
 from starlette import status
 from typing_extensions import Annotated
 
-from waldiez_runner.dependencies import (
-    AsyncRedis,
-    get_redis,
-)
+from waldiez_runner.dependencies import AsyncRedis, get_redis
 from waldiez_runner.models import Task
 
 from .dependency import validate_websocket_connection, ws_task_registry

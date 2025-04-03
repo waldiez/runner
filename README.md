@@ -83,7 +83,7 @@ sequenceDiagram
 - [ ] Support other storage backends (e.g., S3, GCS, etc.)
 - [ ] Support other authentication methods (e.g., OIDC)
 - [x] [Dev] work on any platform (Linux, MacOS, Windows) and in any environment (containerized or not)
-- [ ] [Dev] Comprehensive tests for all components, reach coverage > 90%
+- [ ] [Dev] Comprehensive tests for everything, reach coverage >= 80%
 
 ### Authentication
 
