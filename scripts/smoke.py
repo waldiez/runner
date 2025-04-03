@@ -605,14 +605,15 @@ async def handle_one_task(
         await asyncio.sleep(time_to_sleep)
         if task["status"] == "WAITING_FOR_INPUT":
             # random small delay
-            await random_sleep(input_timeout // 2 - 2)
+            await random_sleep(max(input_timeout // 2 - 2, 1))
             await send_user_input(
                 task["id"],
                 task["input_request_id"],
                 tasks_access_token,
                 f"Input for {example_flow_path.name} #{user_inputs + 1}",
             )
-            print(f"Sent user input #{retries + 1}")
+            user_inputs += 1
+            print(f"Sent user input #{user_inputs + 1}")
             await asyncio.sleep(2)
     if task["status"] == "COMPLETED":
         print("The task is completed.")
