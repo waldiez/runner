@@ -43,6 +43,7 @@ def get_stream_router() -> RedisRouter:
     RedisRouter
         The Faststream router instance.
     """
+    settings = SettingsManager.load_settings()
     if skip_redis():
         is_running = REDIS_MANAGER.is_using_fake_redis()
         if is_running:
@@ -50,12 +51,15 @@ def get_stream_router() -> RedisRouter:
         else:
             redis_url = REDIS_MANAGER.start_fake_redis_server(new_port=True)
     else:
-        settings = SettingsManager.load_settings()
         redis_manager = RedisManager(settings)
         redis_url = redis_manager.redis_url
+    log_level_str = settings.log_level.upper()
+    log_levels_map = logging.getLevelNamesMapping()
+    log_level = log_levels_map.get(log_level_str, logging.INFO)
     router = RedisRouter(
         url=redis_url,
         include_in_schema=False,
+        log_level=log_level,
     )
     return router
 
@@ -224,7 +228,7 @@ if (
         session : AsyncSession
             The database session.
         """
-        LOG.error(
+        LOG.debug(
             "Received task results message: %s for task: %s", message, task_id
         )
         results, failed = parse_task_results(message)
