@@ -613,7 +613,7 @@ async def handle_one_task(
                 f"Input for {example_flow_path.name} #{user_inputs + 1}",
             )
             user_inputs += 1
-            print(f"Sent user input #{user_inputs + 1}")
+            print(f"Sent user input #{user_inputs}")
             await asyncio.sleep(2)
     if task["status"] == "COMPLETED":
         print("The task is completed.")
