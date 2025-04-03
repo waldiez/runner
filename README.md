@@ -264,7 +264,7 @@ The script will:
 
 Not covered (yet?) in this script:
 
-- Use the client in the package for the reuests
+- Use the client in the package for the requests
 - WebSocket connection for task input/output.
 
 ### Formatting, Linting and Testing
