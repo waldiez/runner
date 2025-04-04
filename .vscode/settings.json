@@ -160,6 +160,7 @@
         "setopt",
         "shellcheck",
         "shutil",
+        "signum",
         "slowapi",
         "sqlalchemy",
         "sqltools",
