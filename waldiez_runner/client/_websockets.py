@@ -29,7 +29,17 @@ class SyncWebSocketClient:
         reconnect: bool = True,
         max_retries: int = 5,
     ) -> None:
-        """Initialize the synchronous WebSocket client."""
+        """Initialize the synchronous WebSocket client.
+
+        Parameters
+        ----------
+        auth : CustomAuth
+            The authentication object
+        reconnect : bool, optional
+            Whether to reconnect on error, by default True
+        max_retries : int, optional
+            The maximum number of retries on error, by default 5
+        """
         self.auth = auth
         self.reconnect = reconnect
         self.max_retries = max_retries
@@ -42,20 +52,25 @@ class SyncWebSocketClient:
         self.listener_thread: threading.Thread | None = None
 
     def _get_headers(self) -> Dict[str, str]:
-        """Get the headers to use for the WebSocket connection."""
+        """Get the headers to use for the WebSocket connection.
+
+        Returns
+        -------
+        Dict[str, str]
+            The headers to use for the WebSocket connection
+        """
         return {"Authorization": f"Bearer {self.auth.sync_get_token()}"}
 
     def is_listening(self) -> bool:
         """Check if the WebSocket listener is running.
-
         Returns
         -------
         bool
             True if the listener is running, False otherwise
         """
-        if self.listener_thread is not None and self.listener_thread.is_alive():
-            return True
-        return not self.stop_event.is_set()
+        return (
+            self.listener_thread is not None and self.listener_thread.is_alive()
+        )
 
     def listen(
         self,
@@ -66,97 +81,150 @@ class SyncWebSocketClient:
     ) -> None:
         """Start listening to the WebSocket and store messages in the queue.
 
-        If `in_thread` is True, runs in a separate thread.
-
         Parameters
         ----------
         task_id : str
-            The task ID to use for the WebSocket connection
+            The task ID to listen to
         on_message : Callable[[str], None]
             The function to call when a message is received
-        on_error : Callable[[str], None], optional
+        on_error : Callable[[str], None] | None, optional
             The function to call on error, by default None
         in_thread : bool, optional
             Whether to run the listener in a separate thread, by default True
         """
-        if self.is_listening():
+        if in_thread and self.is_listening():
             return
         self.stop_event.clear()
-        if not in_thread:
-            self._listen(task_id, on_message, on_error)
-        else:
+        if in_thread:
             self.listener_thread = threading.Thread(
                 target=self._listen,
                 args=(task_id, on_message, on_error),
                 daemon=True,
             )
             self.listener_thread.start()
+        else:
+            self._listen(task_id, on_message, on_error)
 
-    # pylint: disable=too-complex,too-many-branches
-    # maybe refactor this method to reduce complexity
     def _listen(
         self,
         task_id: str,
         on_message: Callable[[str], None],
         on_error: Callable[[str], None] | None,
     ) -> None:
-        """Internal method to listen for messages and store them in the queue."""
+        """Internal method to listen for messages.
+
+        Parameters
+        ----------
+        task_id : str
+            The task ID to listen to
+        on_message : Callable[[str], None]
+            The function to call when a message is received
+        on_error : Callable[[str], None] | None
+            The function to call on error
+        """
         retries = 0
         while not self.stop_event.is_set():
             try:
-                additional_headers = self._get_headers()
-                with websockets.sync.client.connect(
-                    f"{self.ws_url}/{task_id}",
-                    additional_headers=additional_headers,
-                ) as websocket:
-                    retries = 0
-                    while not self.stop_event.is_set():
-                        try:
-                            message = websocket.recv(timeout=1, decode=True)
-                            message_str = (
-                                str(message)
-                                if not isinstance(message, str)
-                                else message
-                            )
-                            on_message(message_str)
-                        except ConnectionClosed:
-                            break
-                        except TimeoutError:
-                            pass
-                        except BaseException as e:
-                            LOG.error("WebSocket Error (sync): %s", e)
+                self._connect_and_receive(task_id, on_message)
+                retries = 0  # Reset after success
             except InvalidStatus as e:
-                status_code = e.response.status_code
-                if status_code == 404:
-                    LOG.error(
-                        "WebSocket task not found, please check the task ID."
-                    )
-                    if on_error:
-                        on_error(str(e))
+                if self._handle_status_error(e, task_id, on_error):
                     self.stop_event.set()
-                    break
-                if status_code == 400:
-                    # bad request: either too-many-clients or too-many-tasks for client
-                    LOG.error("Too many clients or tasks for task %s", task_id)
-                    if on_error:
-                        on_error(str(e))
-                    self.stop_event.set()
-                    break
-                if status_code in (401, 403):
-                    LOG.warning(
-                        "Could not connect to WebSocket, refreshing token..."
-                    )
-                    LOG.warning(e.response.reason_phrase)
-                    LOG.warning(e.response)
-                    # self.auth.sync_get_token(force=True)
-                    continue
             except BaseException as e:
                 retries += 1
-                if not self.reconnect or retries >= self.max_retries:
+                if not self.reconnect or retries > self.max_retries:
                     if on_error:
                         on_error(str(e))
+                    self.stop_event.set()
+                if not self.stop_event.is_set():
+                    delay = exponential_backoff(retries)
+                    LOG.warning(
+                        "WebSocket Error (sync): %s, reconnecting in %d seconds...",
+                        e,
+                        delay,
+                    )
+                    time.sleep(delay)
+                else:
+                    LOG.warning("Stopping listener due to stop event.")
                     break
-                time.sleep(min(2**retries, 30))
+        self.stop_event.set()
+
+    def _connect_and_receive(
+        self,
+        task_id: str,
+        on_message: Callable[[str], None],
+    ) -> None:
+        """Connect to the WebSocket server and receive messages.
+
+        Parameters
+        ----------
+        task_id : str
+            The task ID to listen to
+        on_message : Callable[[str], None]
+            The function to call when a message is received
+        """
+        headers = self._get_headers()
+        with websockets.sync.client.connect(
+            f"{self.ws_url}/{task_id}",
+            additional_headers=headers,
+        ) as websocket:
+            while not self.stop_event.is_set():
+                try:
+                    message = websocket.recv(timeout=1, decode=True)
+                    message_str = ensure_str(message)
+                    on_message(message_str)
+                except ConnectionClosed:
+                    break
+                except TimeoutError:
+                    continue
+                except BaseException as e:
+                    LOG.error("Ws error on connect and rcv (sync): %s", e)
+                    break
+
+    def _handle_status_error(
+        self,
+        e: InvalidStatus,
+        task_id: str,
+        on_error: Callable[[str], None] | None,
+    ) -> bool:
+        """Handle specific status errors.
+
+        Parameters
+        ----------
+        e : InvalidStatus
+            The exception raised
+        task_id : str
+            The task ID that caused the error
+        on_error : Callable[[str], None] | None
+            The function to call on error
+        Returns
+        -------
+        bool
+            True if the listener should stop, False otherwise
+        """
+        code = getattr(e.response, "status_code", None)  # fallback
+
+        if hasattr(e, "code"):  # pragma: no cover
+            code = e.code
+
+        if code == 1008:  # Policy Violation # pragma: no cover
+            LOG.warning("Unauthorized (1008): Token likely invalid.")
+            self.auth.sync_get_token(force=True)
+            return False
+
+        if code == 1003:  # Unsupported data # pragma: no cover
+            LOG.error("Unsupported data type for task %s", task_id)
+            if on_error:
+                on_error(str(e))
+            return True
+
+        if code == 1000:
+            LOG.info("Normal closure from server.")
+            return True
+
+        if on_error:
+            on_error(str(e))
+        return True
 
     def send(self, task_id: str, message: str) -> None:
         """Send a message to the WebSocket server.
@@ -164,7 +232,7 @@ class SyncWebSocketClient:
         Parameters
         ----------
         task_id : str
-            The task ID to use for the WebSocket connection
+            The task ID to send the message to
         message : str
             The message to send
         """
@@ -176,7 +244,7 @@ class SyncWebSocketClient:
                     f"{self.ws_url}/{task_id}", additional_headers=headers
                 ) as websocket:
                     websocket.send(message)
-            except BaseException as e:  # pylint: disable=broad-exception-caught
+            except BaseException as e:
                 LOG.error("WebSocket Error (sync): %s", e)
 
         threading.Thread(target=send_func, daemon=True).start()
@@ -234,17 +302,17 @@ class AsyncWebSocketClient:
         in_task : bool, optional
             Whether to run the listener in a separate task, by default True
         """
-        if await self.is_listening():
+        if self.is_listening():
             return
         self.stop_event.clear()
-        if not in_task:
-            await self._listen(task_id, on_message, on_error)
-        else:
+        if in_task:
             self.listener_task = asyncio.create_task(
                 self._listen(task_id, on_message, on_error)
             )
+        else:
+            await self._listen(task_id, on_message, on_error)
 
-    async def is_listening(self) -> bool:
+    def is_listening(self) -> bool:
         """Check if the WebSocket listener is running.
 
         Returns
@@ -252,58 +320,121 @@ class AsyncWebSocketClient:
         bool
             True if the listener is running, False otherwise
         """
-        if self.listener_task is not None and not self.listener_task.done():
-            return True
-        return not self.stop_event.is_set()
+        return self.listener_task is not None and not self.listener_task.done()
 
-    # pylint: disable=too-complex
     async def _listen(
         self,
         task_id: str,
         on_message: Callable[[str], Coroutine[Any, Any, None]],
         on_error: Callable[[str], Coroutine[Any, Any, None]] | None,
     ) -> None:
-        """Internal async method to listen for messages."""
+        """Internal method to listen for messages.
+
+        Parameters
+        ----------
+        task_id : str
+            The task ID to listen to
+        on_message : Callable[[str], Coroutine[Any, Any, None]]
+            The function to call when a message is received
+        on_error : Callable[[str], Coroutine[Any, Any, None]] | None
+            The function to call on error
+        """
         retries = 0
-        while not self.stop_event.is_set():
-            try:
-                async with websockets.asyncio.client.connect(
-                    f"{self.ws_url}/{task_id}",
-                    extra_headers=self._get_headers(),
-                ) as websocket:
-                    retries = 0
-                    while not self.stop_event.is_set():
-                        try:
-                            message = await asyncio.wait_for(
-                                websocket.recv(), timeout=1
-                            )
-                            if message:
-                                message_str = (
-                                    str(message)
-                                    if not isinstance(message, str)
-                                    else message
-                                )
-                                await on_message(message_str)
-                        except ConnectionClosed:
-                            break
-                        except asyncio.TimeoutError:
-                            pass
-                        except BaseException as e:
-                            LOG.error("WebSocket Error (async): %s", e)
-            except InvalidStatus as e:
-                if e.response.status_code in (401, 403):
-                    LOG.warning("Invalid token detected, refreshing token...")
-                    await self.auth.async_get_token(force=True)
+        try:
+            while not self.stop_event.is_set():
+                try:
+                    await self._connect_and_receive(task_id, on_message)
+                    retries = 0  # reset on success
+                except InvalidStatus as e:
+                    if await self._handle_status_error(e, task_id, on_error):
+                        break
+                except BaseException as e:
+                    LOG.error("WebSocket Error (async): %s", e)
+                    retries += 1
+                    if not self.reconnect or retries > self.max_retries:
+                        if on_error:
+                            await on_error(str(e))
+                        break
+                    if not self.stop_event.is_set():
+                        delay = exponential_backoff(retries)
+                        LOG.warning("Reconnecting in %d seconds...", delay)
+                        await asyncio.sleep(delay)
+                    else:
+                        break
+        finally:
+            self.stop_event.set()
+
+    async def _connect_and_receive(
+        self,
+        task_id: str,
+        on_message: Callable[[str], Coroutine[Any, Any, None]],
+    ) -> None:
+        """Connect to the WebSocket server and receive messages.
+
+        Parameters
+        ----------
+        task_id : str
+            The task ID to listen to
+        on_message : Callable[[str], Coroutine[Any, Any, None]]
+            The function to call when a message is received
+        """
+        headers = await self._get_headers()
+        async with websockets.asyncio.client.connect(
+            f"{self.ws_url}/{task_id}",
+            extra_headers=headers,
+        ) as websocket:
+            while not self.stop_event.is_set():
+                try:
+                    message = await asyncio.wait_for(
+                        websocket.recv(), timeout=1
+                    )
+                    if message:
+                        await on_message(ensure_str(message))
+                except ConnectionClosed:
+                    self.stop_event.set()
+                except asyncio.TimeoutError:
                     continue
-                LOG.error("WebSocket Error (async): %s", e)
-            except BaseException as e:
-                LOG.error("WebSocket Error (async): %s", e)
-                retries += 1
-                if not self.reconnect or retries >= self.max_retries:
-                    if on_error:
-                        await on_error(str(e))
-                    break
-                await asyncio.sleep(min(2**retries, 30))
+                except asyncio.CancelledError:
+                    self.stop_event.set()
+                except BaseException as e:
+                    LOG.error("WebSocket Error (recv async): %s", e)
+                    self.stop_event.set()
+
+    async def _handle_status_error(
+        self,
+        e: InvalidStatus,
+        task_id: str,
+        on_error: Callable[[str], Coroutine[Any, Any, None]] | None,
+    ) -> bool:
+        """Handle specific status errors.
+
+        Parameters
+        ----------
+        e : InvalidStatus
+            The exception raised
+        task_id : str
+            The task ID that caused the error
+        on_error : Callable[[str], Coroutine[Any, Any, None]] | None
+            The function to call on error
+        Returns
+        -------
+        bool
+            True if the listener should stop, False otherwise
+        """
+        code = getattr(e, "code", None) or getattr(
+            e.response, "status_code", None
+        )
+
+        if code == 1008:
+            LOG.warning("Unauthorized (1008): refreshing token...")
+            await self.auth.async_get_token(force=True)
+            return False
+        if code == 1000:
+            LOG.info("Normal closure for task %s", task_id)
+            return True
+        if on_error:
+            await on_error(str(e))
+        return True
 
     async def send(self, task_id: str, message: str) -> None:
         """Send a message to the WebSocket server.
@@ -316,24 +447,50 @@ class AsyncWebSocketClient:
             The message to send
         """
         try:
-            extra_headers = await self._get_headers()
+            headers = await self._get_headers()
             async with websockets.asyncio.client.connect(
-                f"{self.ws_url}/{task_id}", extra_headers=extra_headers
+                f"{self.ws_url}/{task_id}", extra_headers=headers
             ) as websocket:
                 await websocket.send(message)
         except BaseException as e:
-            LOG.error("WebSocket Error (async): %s", e)
+            LOG.error("WebSocket Error (async send): %s", e)
 
     async def stop(self) -> None:
-        """Stop the async WebSocket listener."""
+        """Stop the WebSocket listener."""
         self.stop_event.set()
         if self.listener_task:
             self.listener_task.cancel()
             try:
-                await asyncio.wait_for(self.listener_task, timeout=2)
-            except asyncio.TimeoutError:
+                await asyncio.wait_for(self.listener_task, timeout=1)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
                 pass
-            except asyncio.CancelledError:
-                pass
-            finally:
-                self.listener_task = None
+            self.listener_task = None
+
+
+def exponential_backoff(retries: int) -> float:
+    """Calculate the exponential backoff time.
+    Parameters
+    ----------
+    retries : int
+        The number of retries
+    Returns
+    -------
+    float
+        The backoff time in seconds
+    """
+    return min(2**retries, 30)
+
+
+def ensure_str(msg: str | bytes) -> str:
+    """Ensure the message is a string.
+
+    Parameters
+    ----------
+    msg : str | bytes
+        The message to format
+    Returns
+    -------
+    str
+        The formatted message
+    """
+    return str(msg) if not isinstance(msg, str) else msg

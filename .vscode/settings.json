@@ -89,6 +89,7 @@
         "isnot",
         "isort",
         "isready",
+        "jsonschema",
         "junitxml",
         "Kasnesis",
         "keepalive",

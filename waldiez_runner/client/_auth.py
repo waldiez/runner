@@ -292,7 +292,7 @@ class CustomAuth(httpx.Auth):
             .replace("+00:00", "Z")
         )
         value = self._tokens_response.get(key, now_str)
-        if not value or not isinstance(value, str):
+        if not value or not isinstance(value, str):  # pragma: no cover
             LOG.error("Invalid value for key '%s': '%s'", key, value)
             return True
         try:
@@ -300,7 +300,7 @@ class CustomAuth(httpx.Auth):
                 value,
                 "%Y-%m-%dT%H:%M:%S.%fZ",
             ).replace(tzinfo=timezone.utc)
-        except ValueError:
+        except ValueError:  # pragma: no cover
             LOG.error("Invalid datetime format for key '%s': '%s'", key, value)
             self._tokens_response[key] = now_str  # type: ignore
             return True

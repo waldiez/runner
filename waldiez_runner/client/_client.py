@@ -8,6 +8,7 @@
 
 import asyncio
 import inspect
+import json
 from io import BytesIO
 from types import TracebackType
 from typing import Any, Callable, Coroutine, Dict, Type
@@ -17,6 +18,7 @@ from ._tasks_api import TasksAPIClient
 from ._websockets import AsyncWebSocketClient, SyncWebSocketClient
 
 
+# pylint: disable=too-many-public-methods
 class Client:
     """Waldiez serve client."""
 
@@ -54,6 +56,60 @@ class Client:
                 on_auth_error=on_auth_error,
                 on_tasks_error=on_tasks_error,
             )
+
+    def __enter__(self) -> "Client":
+        """Enter context for sync usage."""
+        self._ensure_configured()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        """Exit context for sync usage, ensuring cleanup.
+
+        Parameters
+        ----------
+        exc_type : Type[BaseException] | None
+            The exception type
+        exc_value : BaseException | None
+            The exception value
+        traceback : TracebackType | None
+            The traceback
+        """
+        self.close()
+
+    async def __aenter__(self) -> "Client":
+        """Enter context for async usage.
+
+        Returns
+        -------
+        Client
+            The client instance
+        """
+        self._ensure_configured()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: Type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        """Exit context for async usage, ensuring cleanup.
+
+        Parameters
+        ----------
+        exc_type : Type[BaseException] | None
+            The exception type
+        exc_value : BaseException | None
+            The exception value
+        traceback : TracebackType | None
+            The traceback
+        """
+        await self.aclose()
 
     def configure(
         self,
@@ -191,7 +247,9 @@ class Client:
                 "Client is not configured. Call `configure()` first."
             )
 
-    def trigger_task(self, file_data: bytes, file_name: str) -> Dict[str, Any]:
+    def trigger_task(
+        self, file_data: bytes, file_name: str, input_timeout: int = 180
+    ) -> Dict[str, Any]:
         """Trigger a new task synchronously.
 
         Parameters
@@ -200,6 +258,8 @@ class Client:
             The file data
         file_name : str
             The file name
+        input_timeout : int, optional
+            The input timeout in seconds, by default 180
 
         Returns
         -------
@@ -212,7 +272,11 @@ class Client:
             If the client is not configured
         """
         self._ensure_configured()
-        return self.tasks.trigger_task(file_data, file_name)  # type: ignore
+        return self.tasks.trigger_task(  # type: ignore
+            file_data,
+            file_name,
+            input_timeout=input_timeout,
+        )
 
     def get_task_status(self, task_id: str) -> Dict[str, Any]:
         """Retrieve the status of a task synchronously.
@@ -234,6 +298,54 @@ class Client:
         """
         self._ensure_configured()
         return self.tasks.get_task_status(task_id)  # type: ignore
+
+    def send_user_input(
+        self,
+        task_id: str,
+        user_input: str,
+        request_id: str,
+        use_rest: bool = False,
+    ) -> None:
+        """Send user input to a task synchronously.
+
+        Parameters
+        ----------
+        task_id : str
+            The task ID
+        user_input : str
+            The user input
+        request_id : str
+            The request ID
+        use_rest : bool, optional
+            Whether to use REST API, by default False
+
+        Raises
+        ------
+        ValueError
+            If the client is not configured
+        """
+        self._ensure_configured()
+        sent = False
+        if use_rest is False:
+            # first check/try using websockets
+            if self.ws_sync and self.ws_sync.is_listening():
+                message = {
+                    "data": user_input,
+                    "request_id": request_id,
+                }
+                try:
+                    self.ws_sync.send(task_id, json.dumps(message))
+                    sent = True
+                except BaseException as e:
+                    self._handle_tasks_error(
+                        f"Error sending user input via WebSocket: {e}"
+                    )
+        if not sent:
+            self.tasks.send_user_input(  # type: ignore
+                task_id=task_id,
+                user_input=user_input,
+                request_id=request_id,
+            )
 
     def download_task_results(self, task_id: str) -> bytes:
         """Download a completed task's results archive.
@@ -278,7 +390,10 @@ class Client:
         return self.tasks.cancel_task(task_id)  # type: ignore
 
     async def a_trigger_task(
-        self, file_data: BytesIO, file_name: str
+        self,
+        file_data: BytesIO,
+        file_name: str,
+        input_timeout: int = 180,
     ) -> Dict[str, Any]:
         """Trigger a new task asynchronously.
 
@@ -288,6 +403,8 @@ class Client:
             The file data
         file_name : str
             The file name
+        input_timeout : int, optional
+            The input timeout in seconds, by default 180
 
         Returns
         -------
@@ -300,7 +417,11 @@ class Client:
             If the client is not configured
         """
         self._ensure_configured()
-        return await self.tasks.a_trigger_task(file_data, file_name)  # type: ignore
+        return await self.tasks.a_trigger_task(  # type: ignore
+            file_data,  # type: ignore
+            file_name,
+            input_timeout=input_timeout,
+        )
 
     async def a_get_task_status(self, task_id: str) -> Dict[str, Any]:
         """Retrieve the status of a task asynchronously.
@@ -322,6 +443,54 @@ class Client:
         """
         self._ensure_configured()
         return await self.tasks.a_get_task_status(task_id)  # type: ignore
+
+    async def a_send_user_input(
+        self,
+        task_id: str,
+        user_input: str,
+        request_id: str,
+        use_rest: bool = False,
+    ) -> None:
+        """Send user input to a task asynchronously.
+
+        Parameters
+        ----------
+        task_id : str
+            The task ID
+        user_input : str
+            The user input
+        request_id : str
+            The request ID
+        use_rest : bool, optional
+            Whether to use REST API, by default False
+
+        Raises
+        ------
+        ValueError
+            If the client is not configured
+        """
+        self._ensure_configured()
+        sent = False
+        if use_rest is False:
+            # first check/try using websockets
+            if self.ws_async and self.ws_async.is_listening():
+                try:
+                    message = {
+                        "data": user_input,
+                        "request_id": request_id,
+                    }
+                    await self.ws_async.send(task_id, json.dumps(message))
+                    sent = True
+                except BaseException as e:
+                    self._handle_tasks_error(
+                        f"Error sending user input via WebSocket: {e}"
+                    )
+        if not sent:
+            await self.tasks.a_send_user_input(  # type: ignore
+                task_id=task_id,
+                user_input=user_input,
+                request_id=request_id,
+            )
 
     async def a_download_task_results(self, task_id: str) -> BytesIO:
         """Download a completed task's result archive asynchronously as BytesIO.
@@ -424,7 +593,7 @@ class Client:
             Whether the WebSocket listener is running
         """
         if self.ws_async:
-            return await self.ws_async.is_listening()
+            return self.ws_async.is_listening()
         return False
 
     async def start_ws_async_listener(
@@ -492,57 +661,3 @@ class Client:
             await self.ws_async.stop()
         if self.ws_sync:
             self.ws_sync.stop()
-
-    def __enter__(self) -> "Client":
-        """Enter context for sync usage."""
-        self._ensure_configured()
-        return self
-
-    def __exit__(
-        self,
-        exc_type: Type[BaseException] | None,
-        exc_value: BaseException | None,
-        traceback: TracebackType | None,
-    ) -> None:
-        """Exit context for sync usage, ensuring cleanup.
-
-        Parameters
-        ----------
-        exc_type : Type[BaseException] | None
-            The exception type
-        exc_value : BaseException | None
-            The exception value
-        traceback : TracebackType | None
-            The traceback
-        """
-        self.close()
-
-    async def __aenter__(self) -> "Client":
-        """Enter context for async usage.
-
-        Returns
-        -------
-        Client
-            The client instance
-        """
-        self._ensure_configured()
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: Type[BaseException] | None,
-        exc_value: BaseException | None,
-        traceback: TracebackType | None,
-    ) -> None:
-        """Exit context for async usage, ensuring cleanup.
-
-        Parameters
-        ----------
-        exc_type : Type[BaseException] | None
-            The exception type
-        exc_value : BaseException | None
-            The exception value
-        traceback : TracebackType | None
-            The traceback
-        """
-        await self.aclose()

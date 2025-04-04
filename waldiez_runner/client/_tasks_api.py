@@ -72,7 +72,9 @@ class TasksAPIClient:
         if not self._auth or not self._auth.base_url:
             raise ValueError("Client is not configured")
 
-    def trigger_task(self, file_data: bytes, file_name: str) -> Dict[str, Any]:
+    def trigger_task(
+        self, file_data: bytes, file_name: str, input_timeout: int = 180
+    ) -> Dict[str, Any]:
         """Trigger a task.
         Parameters
         ----------
@@ -80,6 +82,8 @@ class TasksAPIClient:
             The file data
         file_name : str
             The file name
+        input_timeout : int
+            The input timeout in seconds (default: 180)
 
         Returns
         -------
@@ -93,7 +97,7 @@ class TasksAPIClient:
         """
         self._ensure_configured()
         files = {"file": (file_name, file_data)}
-        url = self.url_prefix
+        url = f"{self.url_prefix}?input_timeout={input_timeout}"
         try:
             with httpx.Client(
                 auth=self._auth,
@@ -104,7 +108,7 @@ class TasksAPIClient:
         except httpx.HTTPStatusError as e:
             self._handle_error(e.response.text)
             raise e
-        except httpx.HTTPError as e:
+        except httpx.HTTPError as e:  # pragma: no cover
             self._handle_error(str(e))
             raise e
         return response.json()
@@ -139,10 +143,49 @@ class TasksAPIClient:
         except httpx.HTTPStatusError as e:
             self._handle_error(e.response.text)
             raise e
-        except httpx.HTTPError as e:
+        except httpx.HTTPError as e:  # pragma: no cover
             self._handle_error(str(e))
             raise e
         return response.json()
+
+    def send_user_input(
+        self,
+        task_id: str,
+        user_input: str,
+        request_id: str,
+    ) -> None:
+        """Send user input to a task.
+
+        Parameters
+        ----------
+        task_id : str
+            The task ID
+        user_input : str
+            The user input
+        request_id : str
+            The request ID
+
+        Raises
+        ------
+        httpx.HTTPError
+            If the request fails
+        """
+        self._ensure_configured()
+        url = f"{self.url_prefix}/{task_id}/input"
+        data = {"data": user_input, "request_id": request_id}
+        try:
+            with httpx.Client(
+                auth=self._auth,
+                base_url=self._auth.base_url,  # type: ignore
+            ) as client:
+                response = client.post(url, json=data)
+                response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            self._handle_error(e.response.text)
+            raise e
+        except httpx.HTTPError as e:  # pragma: no cover
+            self._handle_error(str(e))
+            raise e
 
     def download_task_results(self, task_id: str) -> bytes:
         """Download a completed task's results archive.
@@ -174,7 +217,7 @@ class TasksAPIClient:
         except httpx.HTTPStatusError as e:
             self._handle_error(e.response.text)
             raise e
-        except httpx.HTTPError as e:
+        except httpx.HTTPError as e:  # pragma: no cover
             self._handle_error(str(e))
             raise e
         return response.content
@@ -209,13 +252,16 @@ class TasksAPIClient:
         except httpx.HTTPStatusError as e:
             self._handle_error(e.response.text)
             raise e
-        except httpx.HTTPError as e:
+        except httpx.HTTPError as e:  # pragma: no cover
             self._handle_error(str(e))
             raise e
         return response.json()
 
     async def a_trigger_task(
-        self, file_data: bytes, file_name: str
+        self,
+        file_data: bytes,
+        file_name: str,
+        input_timeout: int = 180,
     ) -> Dict[str, Any]:
         """Trigger a task asynchronously.
 
@@ -225,6 +271,8 @@ class TasksAPIClient:
             The file data
         file_name : str
             The file name
+        input_timeout : int
+            The input timeout in seconds (default: 180)
 
         Returns
         -------
@@ -238,7 +286,7 @@ class TasksAPIClient:
         """
         self._ensure_configured()
         files = {"file": (file_name, file_data)}
-        url = self.url_prefix
+        url = f"{self.url_prefix}?input_timeout={input_timeout}"
         try:
             async with httpx.AsyncClient(
                 auth=self._auth,
@@ -249,7 +297,7 @@ class TasksAPIClient:
         except httpx.HTTPStatusError as e:
             self._handle_error(e.response.text)
             raise e
-        except httpx.HTTPError as e:
+        except httpx.HTTPError as e:  # pragma: no cover
             self._handle_error(str(e))
             raise e
         return response.json()
@@ -284,10 +332,49 @@ class TasksAPIClient:
         except httpx.HTTPStatusError as e:
             self._handle_error(e.response.text)
             raise e
-        except httpx.HTTPError as e:
+        except httpx.HTTPError as e:  # pragma: no cover
             self._handle_error(str(e))
             raise e
         return response.json()
+
+    async def a_send_user_input(
+        self,
+        task_id: str,
+        user_input: str,
+        request_id: str,
+    ) -> None:
+        """Send user input to a task asynchronously.
+
+        Parameters
+        ----------
+        task_id : str
+            The task ID
+        user_input : str
+            The user input
+        request_id : str
+            The request ID
+
+        Raises
+        ------
+        httpx.HTTPError
+            If the request fails
+        """
+        self._ensure_configured()
+        url = f"{self.url_prefix}/{task_id}/input"
+        data = {"data": user_input, "request_id": request_id}
+        try:
+            async with httpx.AsyncClient(
+                auth=self._auth,
+                base_url=self._auth.base_url,  # type: ignore
+            ) as client:
+                response = await client.post(url, json=data)
+                response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            self._handle_error(e.response.text)
+            raise e
+        except httpx.HTTPError as e:  # pragma: no cover
+            self._handle_error(str(e))
+            raise e
 
     async def a_download_task_results(self, task_id: str) -> bytes:
         """Download a completed task's results archive asynchronously.
@@ -319,7 +406,7 @@ class TasksAPIClient:
         except httpx.HTTPStatusError as e:
             self._handle_error(e.response.text)
             raise e
-        except httpx.HTTPError as e:
+        except httpx.HTTPError as e:  # pragma: no cover
             self._handle_error(str(e))
             raise e
         return response.content
@@ -354,7 +441,7 @@ class TasksAPIClient:
         except httpx.HTTPStatusError as e:
             self._handle_error(e.response.text)
             raise e
-        except httpx.HTTPError as e:
+        except httpx.HTTPError as e:  # pragma: no cover
             self._handle_error(str(e))
             raise e
         return response.json()

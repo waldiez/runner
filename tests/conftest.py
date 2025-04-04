@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 import fakeredis
 import pytest
+from pytest_httpx import HTTPXMock
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -20,6 +21,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from waldiez_runner.client._auth import CustomAuth
 from waldiez_runner.config import Settings, SettingsManager
 from waldiez_runner.models import (
     Base,
@@ -120,9 +122,6 @@ async def db_tables_fixture() -> AsyncGenerator[None, None]:
         except OperationalError:  # tables already exist
             pass
     yield
-    # "dropping" might not work well with parallel tests :(
-    # async with engine.begin() as conn:
-    #     await conn.run_sync(Base.metadata.drop_all)
 
 
 @pytest.fixture(name="async_session")
@@ -201,3 +200,27 @@ def fake_redis_fixture() -> fakeredis.FakeRedis:
 def a_fake_redis_fixture() -> fakeredis.aioredis.FakeRedis:
     """Fake async Redis client fixture."""
     return fakeredis.aioredis.FakeRedis(decode_responses=True)
+
+
+@pytest.fixture(name="auth")
+def auth_fixture(httpx_mock: HTTPXMock) -> CustomAuth:
+    """Return a new CustomAuth instance."""
+    auth = CustomAuth()
+    auth.configure(
+        "client_id", "client_secret", base_url="http://localhost:8000"
+    )
+    httpx_mock.add_response(
+        method="POST",
+        url="http://localhost:8000/auth/token",
+        json={
+            "access_token": "valid_access_token",
+            "token_type": "bearer",
+            "expires_in": 3600,
+            "refresh_token": "valid_refresh_token",
+            "refresh_expires_in": 86400,
+        },
+        status_code=200,
+        is_optional=True,
+        is_reusable=True,
+    )
+    return auth

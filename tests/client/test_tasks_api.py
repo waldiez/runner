@@ -13,29 +13,6 @@ from waldiez_runner.client._auth import CustomAuth
 from waldiez_runner.client._tasks_api import TasksAPIClient
 
 
-@pytest.fixture(name="auth")
-def auth_fixture(httpx_mock: HTTPXMock) -> CustomAuth:
-    """Return a new CustomAuth instance."""
-    auth = CustomAuth()
-    auth.configure(
-        "client_id", "client_secret", base_url="http://localhost:8000"
-    )
-    httpx_mock.add_response(
-        method="POST",
-        url="http://localhost:8000/auth/token",
-        json={
-            "access_token": "valid_access_token",
-            "token_type": "bearer",
-            "expires_in": 3600,
-            "refresh_token": "valid_refresh_token",
-            "refresh_expires_in": 86400,
-        },
-        status_code=200,
-        is_optional=True,
-    )
-    return auth
-
-
 @pytest.fixture(name="client")
 def client_fixture(auth: CustomAuth) -> TasksAPIClient:
     """Return a new TasksAPIClient instance."""
@@ -52,11 +29,11 @@ def test_trigger_task(client: TasksAPIClient, httpx_mock: HTTPXMock) -> None:
     """Test triggering a task."""
     httpx_mock.add_response(
         method="POST",
-        url="http://localhost:8000/api/v1/tasks",
+        url="http://localhost:8000/api/v1/tasks?input_timeout=10",
         json={"task_id": "12345"},
         status_code=200,
     )
-    response = client.trigger_task(b"file_data", "test.txt")
+    response = client.trigger_task(b"file_data", "test.txt", input_timeout=10)
     assert response == {"task_id": "12345"}
 
 
@@ -71,6 +48,17 @@ def test_get_task_status(client: TasksAPIClient, httpx_mock: HTTPXMock) -> None:
 
     response = client.get_task_status("12345")
     assert response == {"status": "completed"}
+
+
+def test_send_user_input(client: TasksAPIClient, httpx_mock: HTTPXMock) -> None:
+    """Test sending user input to a task."""
+    httpx_mock.add_response(
+        method="POST",
+        url="http://localhost:8000/api/v1/tasks/12345/input",
+        status_code=204,
+    )
+
+    client.send_user_input("12345", "input_data", "request-1")
 
 
 def test_download_task_results(
@@ -108,12 +96,14 @@ async def test_a_trigger_task(
     """Test triggering a task asynchronously."""
     httpx_mock.add_response(
         method="POST",
-        url="http://localhost:8000/api/v1/tasks",
+        url="http://localhost:8000/api/v1/tasks?input_timeout=10",
         json={"task_id": "12345"},
         status_code=200,
     )
 
-    response = await client.a_trigger_task(b"file_data", "test.txt")
+    response = await client.a_trigger_task(
+        b"file_data", "test.txt", input_timeout=10
+    )
     assert response == {"task_id": "12345"}
 
 
@@ -131,6 +121,21 @@ async def test_a_get_task_status(
 
     response = await client.a_get_task_status("12345")
     assert response == {"status": "completed"}
+
+
+@pytest.mark.anyio
+async def test_a_send_user_input(
+    client: TasksAPIClient, httpx_mock: HTTPXMock
+) -> None:
+    """Test sending user input to a task asynchronously."""
+    httpx_mock.add_response(
+        method="POST",
+        url="http://localhost:8000/api/v1/tasks/12345/input",
+        status_code=204,
+    )
+
+    await client.a_send_user_input("12345", "input_data", "request-1")
+    # No assertion needed, just check if it raises an exception
 
 
 @pytest.mark.anyio
@@ -178,7 +183,7 @@ def test_http_error_handling(
     """Test handling of HTTP errors."""
     httpx_mock.add_response(
         method="POST",
-        url="http://localhost:8000/api/v1/tasks",
+        url="http://localhost:8000/api/v1/tasks?input_timeout=180",
         status_code=500,
         text="Internal Server Error",
     )
@@ -194,7 +199,7 @@ async def test_async_http_error_handling(
     """Test handling of HTTP errors in async methods."""
     httpx_mock.add_response(
         method="POST",
-        url="http://localhost:8000/api/v1/tasks",
+        url="http://localhost:8000/api/v1/tasks?input_timeout=180",
         status_code=500,
         text="Internal Server Error",
     )
