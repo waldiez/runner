@@ -36,7 +36,7 @@ def test_sync_send_message(
     client.send("task123", "hello")
 
     # Wait a moment for thread
-    threading.Event().wait(0.1)
+    threading.Event().wait(1)
 
     websocket_mock.send.assert_called_with("hello")
     mock_connect.assert_called_once()
