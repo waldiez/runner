@@ -85,9 +85,9 @@ async def websocket_endpoint(
     except BaseException as err:
         LOG.error("WebSocket accept failed: %s", err)
         cleanup_ws_client(task_id, websocket, task_manager)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error",
+        raise WebSocketException(
+            code=status.WS_1011_INTERNAL_ERROR,
+            reason="Internal server error",
         ) from err
     try:
         await send_task_status(websocket, task)
