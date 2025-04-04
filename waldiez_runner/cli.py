@@ -299,7 +299,14 @@ def run(
     settings.save()
     skip_redis = settings.redis is False
     if dev:
-        start_all(host, port, reload, log_level, skip_redis=skip_redis)
+        start_all(
+            host,
+            port,
+            reload,
+            log_level,
+            logging_config=logging_config,
+            skip_redis=skip_redis,
+        )
     elif worker or (broker and scheduler):
         start_broker_and_scheduler(reload, log_level, skip_redis=skip_redis)
     elif broker:

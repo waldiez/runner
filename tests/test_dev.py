@@ -87,13 +87,13 @@ def test_start_broker_and_scheduler(mock_run_process: MagicMock) -> None:
     mock_scheduler_process.wait.assert_called_once()
 
 
-@patch(f"{MODULE_TO_PATCH}.run_process")
-def test_start_all(mock_run_process: MagicMock) -> None:
+@patch(f"{MODULE_TO_PATCH}.Process")
+def test_start_all(mock_process_class: MagicMock) -> None:
     """Test start_all."""
     mock_uvicorn_process = MagicMock()
     mock_worker_process = MagicMock()
     mock_scheduler_process = MagicMock()
-    mock_run_process.side_effect = [
+    mock_process_class.side_effect = [
         mock_uvicorn_process,
         mock_worker_process,
         mock_scheduler_process,
@@ -105,12 +105,13 @@ def test_start_all(mock_run_process: MagicMock) -> None:
         reload=True,
         log_level=LogLevel.INFO,
         skip_redis=True,
+        logging_config={},
     )
 
-    assert mock_run_process.call_count == 3
-    mock_uvicorn_process.wait.assert_called_once()
-    mock_worker_process.wait.assert_called_once()
-    mock_scheduler_process.wait.assert_called_once()
+    assert mock_process_class.call_count == 3
+    mock_uvicorn_process.start.assert_called_once()
+    mock_worker_process.start.assert_called_once()
+    mock_scheduler_process.start.assert_called_once()
 
 
 @patch(f"{MODULE_TO_PATCH}.uvicorn.run")
