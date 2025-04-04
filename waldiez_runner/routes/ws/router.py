@@ -82,8 +82,15 @@ async def websocket_endpoint(
 
     try:
         await websocket.accept(subprotocol)
-    except Exception as err:
-        LOG.error("WebSocket accept failed: %s", err)
+    except WebSocketDisconnect as err:
+        LOG.error("WebSocket disconnect: %s", err)
+        cleanup_ws_client(task_id, websocket, task_manager)
+        raise WebSocketException(
+            code=status.WS_1000_NORMAL_CLOSURE,
+            reason="WebSocket disconnected",
+        ) from err
+    except WebSocketException as err:
+        LOG.error("WebSocket exception: %s", err)
         cleanup_ws_client(task_id, websocket, task_manager)
         raise WebSocketException(
             code=status.WS_1011_INTERNAL_ERROR,
