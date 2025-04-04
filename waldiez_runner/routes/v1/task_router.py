@@ -215,6 +215,7 @@ class InputResponse(BaseModel):
 async def on_input_request(
     task_id: str,
     message: InputResponse,
+    background_tasks: BackgroundTasks,
     redis: Annotated[AsyncRedis, Depends(get_redis)],
     db_session: Annotated[AsyncSession, Depends(get_db)],
     client_id: Annotated[str, Depends(validate_tasks_audience)],
@@ -227,6 +228,8 @@ async def on_input_request(
         The task ID.
     message : InputResponse
         The input response message.
+    background_tasks : BackgroundTasks
+        The background tasks.
     redis : AsyncRedis
         The Redis client dependency.
     db_session : AsyncSession
@@ -245,6 +248,7 @@ async def on_input_request(
         If the message or the task_id is invalid.
 
     """
+    LOG.debug("Received input request: %s", message)
     try:
         task = await TaskService.get_task(db_session, task_id=task_id)
     except BaseException as e:
@@ -257,12 +261,46 @@ async def on_input_request(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Task {task_id} not found",
         )
-    if message.request_id != task.input_request_id:
-        LOG.warning("Received invalid input request: %s", message.request_id)
+    if task.status != TaskStatus.WAITING_FOR_INPUT:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid input request",
         )
+    if message.request_id != task.input_request_id:
+        LOG.warning(
+            "Received invalid input request: %s vs %s",
+            message.request_id,
+            task.input_request_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid input request",
+        )
+    background_tasks.add_task(
+        publish_task_input_response,
+        redis=redis,
+        task_id=task_id,
+        message=message,
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+async def publish_task_input_response(
+    redis: AsyncRedis,
+    task_id: str,
+    message: InputResponse,
+) -> None:
+    """Publish task input response to Redis.
+
+    Parameters
+    ----------
+    redis : AsyncRedis
+        The Redis client.
+    task_id : str
+        The task ID.
+    message : InputResponse
+        The input response message.
+    """
     try:
         await redis.publish(
             channel=f"task:{task_id}:input_response",
@@ -272,11 +310,6 @@ async def on_input_request(
         )
     except BaseException as e:  # pylint: disable=broad-exception-caught
         LOG.warning("Failed to publish task input response message: %s", e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to publish task input response message",
-        ) from e
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @task_router.get(

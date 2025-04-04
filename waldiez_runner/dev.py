@@ -7,12 +7,15 @@
 
 import logging
 import os
+import signal
 import subprocess
+import sys
+from multiprocessing import Process
 from pathlib import Path
+from types import FrameType
 from typing import Any, Dict, List, Tuple
 
 import uvicorn
-import uvicorn.config
 
 from waldiez_runner._logging import LogLevel
 from waldiez_runner.config import ENV_PREFIX
@@ -135,6 +138,38 @@ def start_scheduler(log_level: LogLevel, skip_redis: bool) -> None:
         scheduler_process.terminate()
 
 
+def run_worker(worker_args: List[str], cwd: str, skip_redis: bool) -> None:
+    """Run the worker.
+    Parameters
+    ----------
+    worker_args : List[str]
+        The arguments to pass to the worker.
+    cwd : str
+        The current working directory.
+    skip_redis : bool
+        Whether to skip using Redis
+    """
+    worker_process = run_process(worker_args, cwd, skip_redis)
+    worker_process.wait()
+
+
+def run_scheduler(
+    scheduler_args: List[str], cwd: str, skip_redis: bool
+) -> None:
+    """Run the scheduler.
+    Parameters
+    ----------
+    scheduler_args : List[str]
+        The arguments to pass to the scheduler.
+    cwd : str
+        The current working directory.
+    skip_redis : bool
+        Whether to skip using Redis
+    """
+    scheduler_process = run_process(scheduler_args, cwd, skip_redis)
+    scheduler_process.wait()
+
+
 def start_broker_and_scheduler(
     reload: bool, log_level: LogLevel, skip_redis: bool
 ) -> None:
@@ -186,6 +221,7 @@ def start_all(
     port: int,
     reload: bool,
     log_level: LogLevel,
+    logging_config: Dict[str, Any],
     skip_redis: bool,
 ) -> None:
     """Start both the uvicorn server and the worker.
@@ -200,6 +236,8 @@ def start_all(
         Whether to reload the server when the code changes.
     log_level : LogLevel
         The log level to use.
+    logging_config : Dict[str, Any]
+        The logging configuration.
     skip_redis : bool
         Whether to skip using Redis.
     """
@@ -207,21 +245,6 @@ def start_all(
     this_dir = Path(__file__).parent
     module_name = this_dir.name
     cwd = str(this_dir.parent)
-    app_module_path = f"{module_name}.main"
-    if host in ("localhost", "127.0.0.1"):  # pragma: no cover
-        host = "0.0.0.0"
-    uvicorn_args = [
-        "uvicorn",
-        f"{app_module_path}:app",
-        "--host",
-        host,
-        "--port",
-        str(port),
-        "--log-level",
-        log_level.lower(),
-    ]
-    if reload:  # pragma: no-branch
-        uvicorn_args.append("--reload")
     worker_args = [
         "taskiq",
         "worker",
@@ -238,18 +261,49 @@ def start_all(
         log_level.upper(),
         f"{module_name}.worker:scheduler",
     ]
-    uvicorn_process = run_process(uvicorn_args, cwd, skip_redis)
-    worker_process = run_process(worker_args, cwd, skip_redis)
-    scheduler_process = run_process(scheduler_args, cwd, skip_redis)
-    try:
-        uvicorn_process.wait()
-        worker_process.wait()
-        scheduler_process.wait()
-    except (KeyboardInterrupt, SystemExit):  # pragma: no cover
-        LOG.info("Shutting down server, worker, and scheduler...")
-        uvicorn_process.terminate()
-        worker_process.terminate()
-        scheduler_process.terminate()
+
+    processes = [
+        Process(
+            target=start_uvicorn,
+            name="FastAPI",
+            args=(host, port, reload, log_level, logging_config),
+        ),
+        Process(
+            target=run_worker,
+            name="TaskiqWorker",
+            args=(worker_args, cwd, skip_redis),
+        ),
+        Process(
+            target=run_scheduler,
+            name="TaskiqScheduler",
+            args=(scheduler_args, cwd, skip_redis),
+        ),
+    ]
+
+    for proc in processes:
+        proc.start()
+
+    # pylint: disable=unused-argument
+    def shutdown_all(signum: int, frame: FrameType | None) -> None:
+        """Shutdown all processes.
+        Parameters
+        ----------
+        signum : int
+            The signal number.
+        frame : FrameType
+            The current stack frame.
+        """
+        print("\n[DEV] Shutting down all services...")
+        for proc in processes:
+            proc.terminate()
+            proc.join()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, shutdown_all)
+    signal.signal(signal.SIGTERM, shutdown_all)
+
+    for proc in processes:
+        proc.join()
 
 
 def start_uvicorn(
@@ -294,5 +348,6 @@ def start_uvicorn(
         proxy_headers=True,
         forwarded_allow_ips="*",
         ws_ping_timeout=None,
+        ws="websockets",
         # ws="wsproto",
     )
