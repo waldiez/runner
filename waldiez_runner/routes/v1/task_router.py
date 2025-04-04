@@ -257,8 +257,17 @@ async def on_input_request(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Task {task_id} not found",
         )
+    if task.status != TaskStatus.WAITING_FOR_INPUT:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid input request",
+        )
     if message.request_id != task.input_request_id:
-        LOG.warning("Received invalid input request: %s", message.request_id)
+        LOG.warning(
+            "Received invalid input request: %s vs %s",
+            message.request_id,
+            task.input_request_id,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid input request",
