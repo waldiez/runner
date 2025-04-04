@@ -53,6 +53,8 @@ EXAMPLE_2_FLOW_PATH = ROOT_DIR / "examples" / "dummy_with_input2.waldiez"
 
 HTTPX_CLIENT = httpx.AsyncClient(timeout=30)
 
+os.environ["PYTHONUNBUFFERED"] = "1"  # Force stdout to be unbuffered.
+
 
 async def random_sleep(smaller_than: int) -> None:
     """Sleep for a random time.
@@ -62,7 +64,7 @@ async def random_sleep(smaller_than: int) -> None:
     smaller_than : int
         The maximum time to sleep.
     """
-    sleep_duration = secrets.randbelow(smaller_than)
+    sleep_duration = max(secrets.randbelow(smaller_than), 2)
     print(f"Sleeping for {sleep_duration} seconds.")
     await asyncio.sleep(sleep_duration)
 
@@ -405,7 +407,7 @@ async def send_user_input(
     )
     response.raise_for_status()
     if response.status_code != 204:
-        raise AssertionError("The task should be cancelled.")
+        raise AssertionError("The input should be accepted.")
     return
 
 
@@ -602,10 +604,9 @@ async def handle_one_task(
         time_to_sleep = (
             2 * (retries + 1) if task["status"] != "WAITING_FOR_INPUT" else 5
         )
-        await asyncio.sleep(time_to_sleep)
         if task["status"] == "WAITING_FOR_INPUT":
             # random small delay
-            await random_sleep(max(input_timeout // 2 - 2, 1))
+            await random_sleep(input_timeout // 2)
             await send_user_input(
                 task["id"],
                 task["input_request_id"],
@@ -614,7 +615,7 @@ async def handle_one_task(
             )
             user_inputs += 1
             print(f"Sent user input #{user_inputs}")
-            await asyncio.sleep(2)
+        await asyncio.sleep(time_to_sleep)
     if task["status"] == "COMPLETED":
         print("The task is completed.")
         archive = await download_task_archive(task_id, tasks_access_token)
