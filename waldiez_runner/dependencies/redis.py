@@ -5,7 +5,6 @@
 # pylint: disable=broad-exception-caught, protected-access
 """Redis connection manager."""
 
-import asyncio
 import atexit
 import logging
 import os
@@ -41,7 +40,7 @@ LOG = logging.getLogger(__name__)
 class RedisManager:
     """Redis connection manager with support for Fake Redis."""
 
-    _client: AsyncRedis | None = None
+    _pool: a_redis.ConnectionPool | None = None
     _lock = Lock()
     _stop_event = Event()
     _server: TcpFakeServer | None = None
@@ -83,71 +82,34 @@ class RedisManager:
             redis_url = self.start_fake_redis_server()
 
         self.redis_url = redis_url
-        LOG.info("Using Redis at %s", redis_url)
+        self._pool = a_redis.ConnectionPool.from_url(
+            self.redis_url, decode_responses=True
+        )
+        LOG.info("Redis pool initialized at %s", self.redis_url)
 
     async def close(self) -> None:
         """Close the Redis connection and stop Fake Redis if running."""
-        if self._client:
-            if hasattr(self._client, "aclose"):
-                await self._client.aclose()
-            else:  # pragma: no cover
-                await self._client.close()
-            LOG.info("Redis connection closed.")
-        self._client = None
-
+        if self._pool:
+            await self._pool.disconnect()
+            LOG.info("Redis connection pool closed")
+        self._pool = None
         self._stop_fake_redis_server()
 
-    async def client(
-        self, retries: int = 3, backoff_factor: int = 2
-    ) -> AsyncRedis:
+    async def client(self) -> AsyncRedis:
         """Get a Redis client with retries.
-
-        Parameters
-        ----------
-        retries : int, optional
-            Number of retries in case of failure, by default 3.
-        backoff_factor : int, optional
-            Factor for exponential backoff, by default 2.
 
         Returns
         -------
-        Redis
+        AsyncRedis
             Redis client instance.
 
         Raises
-        ------
-        ConnectionError
-            If the Redis connection fails after all retries.
         RuntimeError
-            If the client cannot be initialized.
+            If the Redis pool is not initialized.
         """
-        if self._client is not None:
-            return self._client  # Return existing client
-        attempt = 0
-        while attempt < retries:
-            async with self._lock:
-                try:
-                    self._client = await a_redis.from_url(
-                        self.redis_url, decode_responses=True
-                    )
-                    await self._client.ping()  # Test connection
-                    LOG.info("Connected to Redis at %s", self.redis_url)
-                    return self._client
-                except ConnectionError as e:
-                    attempt += 1
-                    LOG.warning(
-                        "Redis connection failed: %s. Retrying (%d/%d)...",
-                        e,
-                        attempt,
-                        retries,
-                    )
-                    if attempt < retries:
-                        await asyncio.sleep(backoff_factor**attempt)
-                    else:
-                        raise ConnectionError(
-                            "Failed to connect to Redis."
-                        ) from e
-        raise RuntimeError("Could not connect to Redis")
+        if not self._pool:
+            self.setup()
+        return a_redis.Redis(connection_pool=self._pool)
 
     def start_fake_redis_server(self, new_port: bool = False) -> str:
         """Start a Fake Redis server using TcpFakeServer.
@@ -214,7 +176,9 @@ class RedisManager:
             atexit.register(self._stop_fake_redis_server)
             LOG.info("Fake Redis server started at %s", new_url)
             self.redis_url = new_url
-            self._client = a_redis.from_url(new_url, decode_responses=True)
+            self._pool = a_redis.ConnectionPool.from_url(
+                new_url, decode_responses=True
+            )
             return new_url
         except BaseException as e:
             LOG.error("Error starting Fake Redis server: %s", e)
