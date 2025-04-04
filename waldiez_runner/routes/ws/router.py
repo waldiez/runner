@@ -14,9 +14,9 @@ from typing import Any, Dict, Tuple
 from fastapi import (
     APIRouter,
     Depends,
-    HTTPException,
     WebSocket,
     WebSocketDisconnect,
+    WebSocketException,
 )
 from starlette import status
 from typing_extensions import Annotated
@@ -58,7 +58,7 @@ async def websocket_endpoint(
     Raises
     ------
     HTTPException
-        It the websocket cannot be accepted.
+        If the websocket cannot be accepted.
     WebSocketException
         If there is an error with the WebSocket connection.
     asyncio.CancelledError
@@ -82,7 +82,7 @@ async def websocket_endpoint(
 
     try:
         await websocket.accept(subprotocol)
-    except BaseException as err:
+    except Exception as err:
         LOG.error("WebSocket accept failed: %s", err)
         cleanup_ws_client(task_id, websocket, task_manager)
         raise WebSocketException(
