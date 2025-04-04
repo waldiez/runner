@@ -64,10 +64,8 @@ async def random_sleep(smaller_than: int) -> None:
     smaller_than : int
         The maximum time to sleep.
     """
-    if smaller_than < 2:
-        sleep_duration = secrets.randbelow(smaller_than)
-    else:
-        sleep_duration = max(secrets.randbelow(smaller_than), 2)
+    sleep_duration = secrets.randbelow(smaller_than)
+    sleep_duration = max(sleep_duration, 2)
     print(f"Sleeping for {sleep_duration} seconds.")
     await asyncio.sleep(sleep_duration)
 
