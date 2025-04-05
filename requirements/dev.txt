@@ -9,10 +9,10 @@ mypy==1.15.0
 pre-commit==4.2.0
 pydocstyle==6.3.0
 pylint==3.3.6
-ruff==0.11.2
+ruff==0.11.4
 taskiq[reload]==0.11.16
 taskiq_fastapi==0.3.4
-types-PyYAML==6.0.12.20241230
+types-PyYAML==6.0.12.20250402
 types-aiofiles==24.1.0.20250326
 types-redis==4.6.0.20241004
 types-requests==2.32.0.20250328

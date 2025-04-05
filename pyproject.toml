@@ -47,7 +47,7 @@ dependencies = [
     "puremagic==1.28",
     "python-multipart==0.0.20",
     "redis==5.2.1",
-    "slowapi",
+    "slowapi==0.1.9",
     "pydantic>=2.11.1",
     "python-ulid==3.0.0",
     "taskiq==0.11.16",
@@ -89,14 +89,14 @@ dev = [
     "pre-commit==4.2.0",
     "pydocstyle==6.3.0",
     "pylint==3.3.6",
-    "ruff==0.11.2",
+    "ruff==0.11.4",
     "taskiq[reload]==0.11.16",
     "taskiq_fastapi==0.3.4",
     "types-aiofiles==24.1.0.20250326",
     "types-redis==4.6.0.20241004",
     "types-requests==2.32.0.20250328",
     "types-toml==0.10.8.20240310",
-    "types-PyYAML==6.0.12.20241230",
+    "types-PyYAML==6.0.12.20250402",
     "yamllint==1.37.0",
 ]
 test = [
@@ -107,7 +107,7 @@ test = [
     "moto[s3]==5.1.2",
     "pytest==8.3.5",
     "pytest-asyncio==0.26.0",
-    "pytest-cov==6.1.0",
+    "pytest-cov==6.1.1",
     "pytest-html==4.1.1",
     "pytest-httpx",
     "pytest-env==1.1.5",
@@ -263,11 +263,7 @@ exclude_dirs = [
 # B602, B603: allow shell=True (subprocess,popen)
 skips = ["B104", "B110", "B404", "B602", "B603" ]
 [tool.bandit.assert_used]
-skips = ["*/*_test.py", "*/test_*.py"]
-[tool.bandit.hardcoded_password_funcarg]
-skips = ["*/*_test.py", "*/test_*.py"]
-[tool.bandit.hardcoded_password_string]
-skips = ["*/*_test.py", "*/test_*.py"]
+skips = ["*/test_*.py", "*/*_test.py"]
 # ruff
 [tool.ruff]
 line-length = 80
@@ -315,6 +311,10 @@ filterwarnings = [
     "ignore:.*ConfigDict*:pydantic.PydanticDeprecatedSince20",
     # DeprecationWarning: jsonschema.RefResolver is deprecated as of v4.18.0, "
     "ignore:.*RefResolver.*:DeprecationWarning",
+    # autogen/import_utils.py:45: DeprecationWarning:
+    # Accessing jsonschema.__version__ is deprecated and will be removed in a future release.
+    #  Use importlib.metadata directly to query for jsonschema's version.
+    "ignore:.*jsonschema.__version__.*:DeprecationWarning",
 ]
 python_files = [
     "tests.py",
@@ -352,5 +352,5 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "except ImportError:",
 ]
-# fail_under = 80  # not there yet :(
+fail_under = 80
 precision = 2

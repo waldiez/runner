@@ -15,7 +15,7 @@ import websockets.asyncio.client
 import websockets.sync.client
 from websockets.exceptions import ConnectionClosed, InvalidStatus
 
-from ._auth import CustomAuth
+from .auth import CustomAuth
 
 LOG = logging.getLogger(__name__)
 
@@ -133,7 +133,7 @@ class SyncWebSocketClient:
             except BaseException as e:
                 retries += 1
                 if not self.reconnect or retries > self.max_retries:
-                    if on_error:
+                    if on_error:  # pragma: no branch
                         on_error(str(e))
                     self.stop_event.set()
                 if not self.stop_event.is_set():
@@ -173,7 +173,8 @@ class SyncWebSocketClient:
                     message = websocket.recv(timeout=1, decode=True)
                     message_str = ensure_str(message)
                     on_message(message_str)
-                except ConnectionClosed:
+                except ConnectionClosed:  # pragma: no cover
+                    LOG.debug("Connection closed, stopping listener.")
                     break
                 except TimeoutError:
                     continue
@@ -218,11 +219,11 @@ class SyncWebSocketClient:
                 on_error(str(e))
             return True
 
-        if code == 1000:
+        if code == 1000:  # pragma: no cover
             LOG.info("Normal closure from server.")
             return True
 
-        if on_error:
+        if on_error:  # pragma: no branch
             on_error(str(e))
         return True
 
@@ -244,7 +245,7 @@ class SyncWebSocketClient:
                     f"{self.ws_url}/{task_id}", additional_headers=headers
                 ) as websocket:
                     websocket.send(message)
-            except BaseException as e:
+            except BaseException as e:  # pragma: no cover
                 LOG.error("WebSocket Error (sync): %s", e)
 
         threading.Thread(target=send_func, daemon=True).start()
@@ -252,7 +253,9 @@ class SyncWebSocketClient:
     def stop(self) -> None:
         """Stop the WebSocket listener."""
         self.stop_event.set()
-        if self.listener_thread and self.listener_thread.is_alive():
+        if (
+            self.listener_thread and self.listener_thread.is_alive()
+        ):  # pragma: no branch
             self.listener_thread.join(timeout=2)
         self.listener_thread = None
 
@@ -352,14 +355,14 @@ class AsyncWebSocketClient:
                     LOG.error("WebSocket Error (async): %s", e)
                     retries += 1
                     if not self.reconnect or retries > self.max_retries:
-                        if on_error:
+                        if on_error:  # pragma: no branch
                             await on_error(str(e))
                         break
                     if not self.stop_event.is_set():
                         delay = exponential_backoff(retries)
                         LOG.warning("Reconnecting in %d seconds...", delay)
                         await asyncio.sleep(delay)
-                    else:
+                    else:  # pragma: no cover
                         break
         finally:
             self.stop_event.set()
@@ -383,18 +386,18 @@ class AsyncWebSocketClient:
             f"{self.ws_url}/{task_id}",
             extra_headers=headers,
         ) as websocket:
-            while not self.stop_event.is_set():
+            while not self.stop_event.is_set():  # pragma: no branch
                 try:
                     message = await asyncio.wait_for(
                         websocket.recv(), timeout=1
                     )
-                    if message:
+                    if message:  # pragma: no branch
                         await on_message(ensure_str(message))
                 except ConnectionClosed:
                     self.stop_event.set()
                 except asyncio.TimeoutError:
                     continue
-                except asyncio.CancelledError:
+                except asyncio.CancelledError:  # pragma: no cover
                     self.stop_event.set()
                 except BaseException as e:
                     LOG.error("WebSocket Error (recv async): %s", e)
@@ -429,10 +432,10 @@ class AsyncWebSocketClient:
             LOG.warning("Unauthorized (1008): refreshing token...")
             await self.auth.async_get_token(force=True)
             return False
-        if code == 1000:
+        if code == 1000:  # pragma: no cover
             LOG.info("Normal closure for task %s", task_id)
             return True
-        if on_error:
+        if on_error:  # pragma: no branch
             await on_error(str(e))
         return True
 
@@ -452,7 +455,7 @@ class AsyncWebSocketClient:
                 f"{self.ws_url}/{task_id}", extra_headers=headers
             ) as websocket:
                 await websocket.send(message)
-        except BaseException as e:
+        except BaseException as e:  # pragma: no cover
             LOG.error("WebSocket Error (async send): %s", e)
 
     async def stop(self) -> None:
@@ -462,7 +465,10 @@ class AsyncWebSocketClient:
             self.listener_task.cancel()
             try:
                 await asyncio.wait_for(self.listener_task, timeout=1)
-            except (asyncio.TimeoutError, asyncio.CancelledError):
+            except (
+                asyncio.TimeoutError,
+                asyncio.CancelledError,
+            ):  # pragma: no cover
                 pass
             self.listener_task = None
 

@@ -5,7 +5,7 @@ httpx<1
 httpx_ws==0.7.2
 moto[s3]==5.1.2
 pytest-asyncio==0.26.0
-pytest-cov==6.1.0
+pytest-cov==6.1.1
 pytest-env==1.1.5
 pytest-html==4.1.1
 pytest-httpx

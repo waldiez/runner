@@ -57,28 +57,31 @@ def run_pytest() -> None:
     if coverage_dir.exists():
         shutil.rmtree(coverage_dir)
     coverage_dir.mkdir(parents=True, exist_ok=True)
+    args = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "-c",
+        "pyproject.toml",
+        "-n",
+        "0",
+        "--cov=waldiez_runner",
+        "--cov-branch",
+        "--cov-context=test",
+        "--cov-report=term-missing:skip-covered",
+        "--cov-report",
+        "lcov:coverage/lcov.info",
+        "--cov-report",
+        "html:coverage/html",
+        "--cov-report",
+        "xml:coverage/coverage.xml",
+        "--junitxml=coverage/xunit.xml",
+        "tests",
+    ]
+    print("Running pytest...\n")
+    print(" ".join(args) + "\n")
     subprocess.run(  # nosemgrep # nosec
-        [
-            sys.executable,
-            "-m",
-            "pytest",
-            "-c",
-            "pyproject.toml",
-            "-n",
-            "0",
-            "--cov=waldiez_runner",
-            "--cov-branch",
-            "--cov-context=test",
-            "--cov-report=term-missing:skip-covered",
-            "--cov-report",
-            "lcov:coverage/lcov.info",
-            "--cov-report",
-            "html:coverage/html",
-            "--cov-report",
-            "xml:coverage/coverage.xml",
-            "--junitxml=coverage/xunit.xml",
-            "tests",
-        ],
+        args,
         check=True,
         cwd=ROOT_DIR,
     )

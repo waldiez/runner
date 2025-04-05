@@ -1,124 +1,97 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
-# flake8: noqa: E501
-# pylint: disable=line-too-long,too-many-try-statements,broad-exception-caught
-
-"""Waldiez serve client."""
+"""Waldiez serve tasks client."""
 
 import asyncio
-import inspect
 import json
 from io import BytesIO
-from types import TracebackType
-from typing import Any, Callable, Coroutine, Dict, Type
+from typing import Any, Callable, Coroutine, Dict
 
-from ._auth import CustomAuth
 from ._tasks_api import TasksAPIClient
 from ._websockets import AsyncWebSocketClient, SyncWebSocketClient
+from .client_base import BaseClient
 
 
 # pylint: disable=too-many-public-methods
-class Client:
-    """Waldiez serve client."""
+class TasksClient(BaseClient):
+    """Tasks client implementation."""
+
+    tasks: TasksAPIClient | None
+    ws_sync: SyncWebSocketClient | None
+    ws_async: AsyncWebSocketClient | None
 
     def __init__(
         self,
         base_url: str | None = None,
         client_id: str | None = None,
         client_secret: str | None = None,
-        on_auth_token: Callable[[str], None] | None = None,
-        on_auth_error: Callable[[str], None] | None = None,
-        on_tasks_error: (
+        on_auth_token: (
+            Callable[[str], None]
+            | Callable[[str], Coroutine[Any, Any, None]]
+            | None
+        ) = None,
+        on_auth_error: (
+            Callable[[str], None]
+            | Callable[[str], Coroutine[Any, Any, None]]
+            | None
+        ) = None,
+        on_error: (
             Callable[[str], None]
             | Callable[[str], Coroutine[Any, Any, None]]
             | None
         ) = None,
     ) -> None:
-        """Initialize the unified client with late configuration."""
-        self.base_url: str | None = base_url
-        self.client_id: str | None = client_id
-        self.client_secret: str | None = client_secret
+        """Initialize the tasks client with optional late configuration."""
+        self.tasks = None
+        self.ws_sync = None
+        self.ws_async = None
+        super().__init__(
+            base_url=base_url,
+            client_id=client_id,
+            client_secret=client_secret,
+            on_auth_token=on_auth_token,
+            on_auth_error=on_auth_error,
+            on_error=on_error,
+        )
 
-        self.auth: CustomAuth | None = None
-        self.tasks: TasksAPIClient | None = None
-        self.ws_sync: SyncWebSocketClient | None = None
-        self.ws_async: AsyncWebSocketClient | None = None
-        self.on_auth_token = on_auth_token
-        self.on_auth_error = on_auth_error
-        self.on_tasks_error = on_tasks_error
-        if base_url and client_id and client_secret:
-            self.configure(
-                base_url=base_url,
-                client_id=client_id,
-                client_secret=client_secret,
-                on_auth_token=on_auth_token,
-                on_auth_error=on_auth_error,
-                on_tasks_error=on_tasks_error,
-            )
+    def close(self) -> None:
+        """Close the client properly."""
+        if self.ws_sync:
+            self.ws_sync.stop()
+        if self.ws_async:  # pragma: no branch
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self.ws_async.stop())  # pragma: no cover
+            except RuntimeError:
+                asyncio.run(self.ws_async.stop())
 
-    def __enter__(self) -> "Client":
-        """Enter context for sync usage."""
-        self._ensure_configured()
-        return self
-
-    def __exit__(
-        self,
-        exc_type: Type[BaseException] | None,
-        exc_value: BaseException | None,
-        traceback: TracebackType | None,
-    ) -> None:
-        """Exit context for sync usage, ensuring cleanup.
-
-        Parameters
-        ----------
-        exc_type : Type[BaseException] | None
-            The exception type
-        exc_value : BaseException | None
-            The exception value
-        traceback : TracebackType | None
-            The traceback
-        """
-        self.close()
-
-    async def __aenter__(self) -> "Client":
-        """Enter context for async usage.
-
-        Returns
-        -------
-        Client
-            The client instance
-        """
-        self._ensure_configured()
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: Type[BaseException] | None,
-        exc_value: BaseException | None,
-        traceback: TracebackType | None,
-    ) -> None:
-        """Exit context for async usage, ensuring cleanup.
-
-        Parameters
-        ----------
-        exc_type : Type[BaseException] | None
-            The exception type
-        exc_value : BaseException | None
-            The exception value
-        traceback : TracebackType | None
-            The traceback
-        """
-        await self.aclose()
+    async def aclose(self) -> None:
+        """Async close for WebSocket and tasks."""
+        if self.ws_async:  # pragma: no branch
+            await self.ws_async.stop()
+        if self.ws_sync:  # pragma: no branch
+            self.ws_sync.stop()
+        self.ws_sync = None
+        self.ws_async = None
+        self.tasks = None
 
     def configure(
         self,
         base_url: str,
         client_id: str,
         client_secret: str,
-        on_auth_token: Callable[[str], None] | None = None,
-        on_auth_error: Callable[[str], None] | None = None,
-        on_tasks_error: (
+        on_auth_token: (
+            Callable[[str], None]
+            | Callable[[str], Coroutine[Any, Any, None]]
+            | None
+        ) = None,
+        on_auth_error: (
+            Callable[[str], None]
+            | Callable[[str], Coroutine[Any, Any, None]]
+            | None
+        ) = None,
+        on_error: (
             Callable[[str], None]
             | Callable[[str], Coroutine[Any, Any, None]]
             | None
@@ -134,118 +107,66 @@ class Client:
             The client ID
         client_secret : str
             The client secret
-        on_auth_token : Callable[[str], None], optional
+        on_auth_token : Callable[[str], None]
+                      | Callable[[str], Coroutine[Any, Any, None]]
+                      | None, optional
             The function to call on token retrieval, by default None
-        on_auth_error : Callable[[str], None], optional
+        on_auth_error : Callable[[str], None]
+                      | Callable[[str], Coroutine[Any, Any, None]]
+                      | None, optional
             The function to call on auth error, by default None
-        on_tasks_error : Callable[[str], None] | Callable[[str], Coroutine[Any, Any, None]] | None, optional
-            The function to call on tasks API error, by default None
+        on_error : Callable[[str], None]
+                 | Callable[[str], Coroutine[Any, Any, None]]
+                 | None, optional
+            The function to call on tasks API error,
+            by default None (or self.on_error)
         """
-        self.base_url = base_url
-        self.client_id = client_id
-        self.client_secret = client_secret
-        if on_tasks_error:
-            self.on_tasks_error = on_tasks_error
-        _on_auth_token = on_auth_token or self.on_auth_token
-        _on_auth_error = on_auth_error or self.on_auth_error
-        self.auth = CustomAuth(
+        super().configure(
             base_url=base_url,
-            on_error=_on_auth_error,
-            on_token=_on_auth_token,
+            client_id=client_id,
+            client_secret=client_secret,
+            on_auth_token=on_auth_token,
+            on_auth_error=on_auth_error,
+            on_error=on_error,
         )
-        self.auth.configure(client_id, client_secret, base_url=base_url)
-        if client_id and client_secret:
+        if client_id and client_secret and self.auth:
             self.tasks = TasksAPIClient(
                 self.auth,
-                on_error=self._handle_tasks_error,
+                on_error=self._handle_error,
             )
             self.ws_sync = SyncWebSocketClient(self.auth)
             self.ws_async = AsyncWebSocketClient(self.auth)
 
-    def authenticate(self) -> bool:
-        """Authenticate the client.
+    def _ensure_configured(self) -> None:
+        super()._ensure_configured()
+        if not self.tasks:  # pragma: no cover  # raised on super
+            raise ValueError(
+                "Tasks client is not configured. Call `configure()` first."
+            )
 
-        Returns
-        -------
-        bool
-            Whether the client was authenticated successfully or not.
-        """
-        if (
-            not self.auth
-            or not self.auth.base_url
-            or not self.auth.client_id
-            or not self.auth.client_secret
-        ):
-            return False
-        try:
-            self.auth.sync_get_token()
-            return True
-        except BaseException:
-            return False
-
-    async def a_authenticate(self) -> bool:
-        """Authenticate the client asynchronously.
-
-        Returns
-        -------
-        bool
-            Whether the client was authenticated successfully or not.
-        """
-        if (
-            not self.auth
-            or not self.auth.base_url
-            or not self.auth.client_id
-            or not self.auth.client_secret
-        ):
-            return False
-        try:
-            await self.auth.async_get_token()
-            return True
-        except BaseException:
-            return False
-
-    def has_valid_token(self) -> bool:
-        """Check if the client has an auth token.
-
-        Returns
-        -------
-        bool
-            Whether the client has a valid token
-        """
-        if not self.auth:
-            return False
-        return self.auth.has_valid_token()
-
-    def _handle_tasks_error(self, message: str) -> None:
-        """Handle tasks API errors.
+    def list_tasks(
+        self,
+        params: Dict[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        """List tasks synchronously.
 
         Parameters
         ----------
-        message : str
-            The error message to pass to the handler
-        """
-        if self.on_tasks_error:
-            if inspect.iscoroutinefunction(self.on_tasks_error):
-                try:
-                    loop = asyncio.get_running_loop()
-                    loop.create_task(self.on_tasks_error(message))
-                except RuntimeError:
-                    asyncio.run(self.on_tasks_error(message))
-            else:
-                self.on_tasks_error(message)
+        params : Dict[str, Any] | None, optional
+            The query parameters, by default None
 
-    def _ensure_configured(self) -> None:
-        """Ensure the client is configured before use.
+        Returns
+        -------
+        Dict[str, Any]
+            The response JSON
 
         Raises
         ------
         ValueError
             If the client is not configured
         """
-        if not self.auth or not self.tasks:
-            raise ValueError(
-                "Client is not configured. Call `configure()` first."
-            )
+        self._ensure_configured()
+        return self.tasks.list_tasks(params)  # type: ignore
 
     def trigger_task(
         self, file_data: bytes, file_name: str, input_timeout: int = 180
@@ -326,18 +247,19 @@ class Client:
         """
         self._ensure_configured()
         sent = False
-        if use_rest is False:
+        if use_rest is False:  # pragma: no branch
             # first check/try using websockets
             if self.ws_sync and self.ws_sync.is_listening():
                 message = {
                     "data": user_input,
                     "request_id": request_id,
                 }
+                # pylint: disable=broad-exception-caught
                 try:
                     self.ws_sync.send(task_id, json.dumps(message))
                     sent = True
-                except BaseException as e:
-                    self._handle_tasks_error(
+                except BaseException as e:  # pragma: no cover
+                    self._handle_error(
                         f"Error sending user input via WebSocket: {e}"
                     )
         if not sent:
@@ -388,6 +310,120 @@ class Client:
         """
         self._ensure_configured()
         return self.tasks.cancel_task(task_id)  # type: ignore
+
+    def delete_task(self, task_id: str, force: bool = False) -> None:
+        """Delete a task synchronously.
+
+        Parameters
+        ----------
+        task_id : str
+            The task ID
+        force : bool, optional
+            Whether to force delete the task (even if active), by default False
+
+        Raises
+        ------
+        ValueError
+            If the client is not configured
+        """
+        self._ensure_configured()
+        self.tasks.delete_task(task_id, force=force)  # type: ignore
+
+    def delete_all_tasks(self, force: bool = False) -> None:
+        """Delete all tasks synchronously.
+
+        Parameters
+        ----------
+        force : bool, optional
+            Whether to force delete the tasks (even if active), by default False
+
+        Raises
+        ------
+        ValueError
+            If the client is not configured
+        """
+        self._ensure_configured()
+        self.tasks.delete_all_tasks(force=force)  # type: ignore
+
+    def is_listening(self) -> bool:
+        """Check if the WebSocket listener is running.
+
+        Returns
+        -------
+        bool
+            Whether the WebSocket listener is running
+        """
+        if self.ws_sync:
+            return self.ws_sync.is_listening()
+        return False
+
+    def start_ws_listener(
+        self,
+        task_id: str,
+        on_message: Callable[[str], None],
+        on_error: Callable[[str], None] | None = None,
+        in_thread: bool = True,
+    ) -> None:
+        """Start listening to the WebSocket (sync).
+
+        Parameters
+        ----------
+        task_id: str
+            The task ID to use for the WebSocket connection
+        on_message : Callable[[str], None]
+            The function to call when a message is received
+        on_error : Callable[[str], None], optional
+            The function to call on error, by default None
+        in_thread : bool, optional
+            Whether to run in a thread, by default True
+
+        Raises
+        ------
+        ValueError
+            If the WebSocket client is not configured
+        """
+        if not self.ws_sync:
+            raise ValueError(
+                "WebSockets are not configured. Call `configure()` first."
+            )
+        if self.is_listening():
+            return
+        self.ws_sync.listen(
+            task_id=task_id,
+            on_message=on_message,
+            on_error=on_error,
+            in_thread=in_thread,
+        )
+
+    def stop_ws_listener(self) -> None:
+        """Stop the WebSocket listener (sync)."""
+        if self.ws_sync:  # pragma: no branch
+            self.ws_sync.stop()
+            self.ws_sync = None
+
+    async def a_list_tasks(
+        self,
+        params: Dict[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        """List tasks asynchronously.
+
+        Parameters
+        ----------
+        params : Dict[str, Any] | None, optional
+            The query parameters, by default None
+
+        Returns
+        -------
+        Dict[str, Any]
+            The response JSON
+
+        Raises
+        ------
+        ValueError
+            If the client is not configured
+        """
+        self._ensure_configured()
+        return await self.tasks.a_list_tasks(params)  # type: ignore
 
     async def a_trigger_task(
         self,
@@ -471,9 +507,10 @@ class Client:
         """
         self._ensure_configured()
         sent = False
-        if use_rest is False:
+        if use_rest is False:  # pragma: no branch
             # first check/try using websockets
             if self.ws_async and self.ws_async.is_listening():
+                # pylint: disable=broad-exception-caught
                 try:
                     message = {
                         "data": user_input,
@@ -481,8 +518,8 @@ class Client:
                     }
                     await self.ws_async.send(task_id, json.dumps(message))
                     sent = True
-                except BaseException as e:
-                    self._handle_tasks_error(
+                except BaseException as e:  # pragma: no cover
+                    self._handle_error(
                         f"Error sending user input via WebSocket: {e}"
                     )
         if not sent:
@@ -534,55 +571,39 @@ class Client:
         self._ensure_configured()
         return await self.tasks.a_cancel_task(task_id)  # type: ignore
 
-    def is_listening(self) -> bool:
-        """Check if the WebSocket listener is running.
-
-        Returns
-        -------
-        bool
-            Whether the WebSocket listener is running
-        """
-        if self.ws_sync:
-            return self.ws_sync.is_listening()
-        return False
-
-    def start_ws_listener(
-        self,
-        task_id: str,
-        on_message: Callable[[str], None],
-        on_error: Callable[[str], None] | None = None,
-        in_thread: bool = True,
-    ) -> None:
-        """Start listening to the WebSocket (sync).
+    async def a_delete_task(self, task_id: str, force: bool = False) -> None:
+        """Delete a task asynchronously.
 
         Parameters
         ----------
-        task_id: str
-            The task ID to use for the WebSocket connection
-        on_message : Callable[[str], None]
-            The function to call when a message is received
-        on_error : Callable[[str], None], optional
-            The function to call on error, by default None
-        in_thread : bool, optional
-            Whether to run in a thread, by default True
+        task_id : str
+            The task ID
+        force : bool, optional
+            Whether to force delete the task (even if active), by default False
 
         Raises
         ------
         ValueError
-            If the WebSocket client is not configured
+            If the client is not configured
         """
-        if not self.ws_sync:
-            raise ValueError(
-                "WebSockets are not configured. Call `configure()` first."
-            )
-        if self.is_listening():
-            return
-        self.ws_sync.listen(
-            task_id=task_id,
-            on_message=on_message,
-            on_error=on_error,
-            in_thread=in_thread,
-        )
+        self._ensure_configured()
+        await self.tasks.a_delete_task(task_id, force=force)  # type: ignore
+
+    async def a_delete_all_tasks(self, force: bool = False) -> None:
+        """Delete all tasks asynchronously.
+
+        Parameters
+        ----------
+        force : bool, optional
+            Whether to force delete the tasks (even if active), by default False
+
+        Raises
+        ------
+        ValueError
+            If the client is not configured
+        """
+        self._ensure_configured()
+        await self.tasks.a_delete_all_tasks(force=force)  # type: ignore
 
     async def a_is_listening(self) -> bool:
         """Check if the WebSocket listener is running asynchronously.
@@ -634,30 +655,8 @@ class Client:
             in_task=in_task,
         )
 
-    def stop_ws_listener(self) -> None:
-        """Stop the WebSocket listener (sync)."""
-        if self.ws_sync:
-            self.ws_sync.stop()
-
     async def stop_ws_async_listener(self) -> None:
         """Stop the WebSocket listener (async)."""
-        if self.ws_async:
+        if self.ws_async:  # pragma: no branch
             await self.ws_async.stop()
-
-    def close(self) -> None:
-        """Close all clients properly."""
-        if self.ws_sync:
-            self.ws_sync.stop()
-        if self.ws_async:
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(self.ws_async.stop())
-            except RuntimeError:
-                asyncio.run(self.ws_async.stop())
-
-    async def aclose(self) -> None:
-        """Async close for WebSocket and tasks."""
-        if self.ws_async:
-            await self.ws_async.stop()
-        if self.ws_sync:
-            self.ws_sync.stop()
+            self.ws_async = None

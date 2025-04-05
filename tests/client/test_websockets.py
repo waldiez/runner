@@ -6,7 +6,6 @@
 # pylint: disable=missing-raises-doc,unused-argument
 """Test waldiez_runner.client._websockets.*."""
 
-# import asyncio
 import asyncio
 import threading
 import time
@@ -16,11 +15,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from websockets import ConnectionClosed, InvalidStatus
 
-from waldiez_runner.client._auth import CustomAuth
 from waldiez_runner.client._websockets import (
     AsyncWebSocketClient,
     SyncWebSocketClient,
 )
+from waldiez_runner.client.auth import CustomAuth
 
 
 @patch("websockets.sync.client.connect")
@@ -435,3 +434,45 @@ async def test_async_listen_status_error(
     )
 
     assert any("1006" in e or "InvalidStatus" in e for e in errors)
+
+
+@patch("websockets.sync.client.connect")
+def test_sync_already_listening_does_not_start_again(
+    mock_connect: MagicMock,
+    auth: MagicMock,
+) -> None:
+    """Test that sync client does not restart if already listening in thread."""
+    client = SyncWebSocketClient(auth=auth)
+
+    # Patch thread to simulate already running listener
+    mock_thread = MagicMock()
+    mock_thread.is_alive.return_value = True
+    client.listener_thread = mock_thread
+
+    # This should exit early and not start a new thread
+    client.listen("task123", on_message=lambda m: None, in_thread=True)
+
+    assert not mock_connect.called
+    mock_thread.is_alive.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_async_already_listening_skips_listen(auth: CustomAuth) -> None:
+    """Test that async client does not restart if already listening."""
+    client = AsyncWebSocketClient(auth=auth)
+    client.listener_task = asyncio.create_task(asyncio.sleep(10))
+
+    # Force test to think the task is active
+    assert client.is_listening()
+
+    await client.listen("task123", on_message=AsyncMock(), in_task=True)
+
+    # No new task should be created
+    assert client.listener_task is not None
+    assert not client.listener_task.done()
+
+    client.listener_task.cancel()
+    try:
+        await client.listener_task
+    except asyncio.CancelledError:
+        pass

@@ -6,12 +6,14 @@
 # pylint: disable=missing-param-doc,missing-return-doc,protected-access
 """Test waldiez_runner.client._auth.*."""
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from pytest import LogCaptureFixture
 from pytest_httpx import HTTPXMock
 
-from waldiez_runner.client._auth import CustomAuth, TokensResponse
+from waldiez_runner.client.auth import CustomAuth, TokensResponse
 
 
 @pytest.fixture(name="auth")
@@ -256,3 +258,154 @@ async def test_async_http_error(
 
     auth.on_error = on_error
     await auth.async_get_token()
+
+
+def test_force_sync_fetch_token(
+    auth: CustomAuth,
+    valid_token_response: TokensResponse,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """Force a token fetch even if a valid one exists."""
+    httpx_mock.add_response(
+        method="POST",
+        url="http://localhost:8000/auth/token",
+        json=valid_token_response,
+        status_code=200,
+    )
+    token = auth.sync_get_token(force=True)
+    assert token == "valid_access_token"  # nosemgrep # nosec
+
+
+@pytest.mark.anyio
+async def test_force_async_fetch_token(
+    auth: CustomAuth,
+    valid_token_response: TokensResponse,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """Force an async token fetch."""
+    httpx_mock.add_response(
+        method="POST",
+        url="http://localhost:8000/auth/token",
+        json=valid_token_response,
+        status_code=200,
+    )
+    token = await auth.async_get_token(force=True)
+    assert token == "valid_access_token"  # nosemgrep # nosec
+
+
+def test_is_expired_invalid_datetime(auth: CustomAuth) -> None:
+    """Test _is_expired with invalid datetime format."""
+    auth._tokens_response = {
+        "expires_at": "not-a-datetime",
+        "refresh_expires_at": "still-not-a-date",
+        "access_token": "abc",
+        "refresh_token": "def",
+        "token_type": "bearer",
+        "audience": "x",
+    }
+    assert auth.is_token_expired()
+    assert auth.is_refresh_token_expired()
+
+
+def test_handle_token_sync(auth: CustomAuth) -> None:
+    """Test _handle_token with sync callback."""
+    called = []
+
+    def token_callback(t: str) -> None:
+        called.append(t)
+
+    auth.on_token = token_callback
+    auth._handle_token("abc123")
+    assert called == ["abc123"]
+
+
+@pytest.mark.anyio
+async def test_handle_token_async(auth: CustomAuth) -> None:
+    """Test _handle_token with async callback."""
+
+    result = {}
+
+    async def token_callback(t: str) -> None:
+        result["value"] = t
+
+    auth.on_token = token_callback
+    auth._handle_token("def456")
+    await asyncio.sleep(0.05)  # Let the callback task complete
+    assert result["value"] == "def456"
+
+
+def test_fetch_token_missing_client(
+    auth: CustomAuth,
+    caplog: LogCaptureFixture,
+) -> None:
+    """Missing client ID and secret leads to error."""
+    auth._client_id = None
+    auth._client_secret = None
+    auth._fetch_token()
+    assert "Client ID and secret are not configured" in caplog.text
+
+
+def test_fetch_token_missing_endpoint(
+    auth: CustomAuth,
+    caplog: LogCaptureFixture,
+) -> None:
+    """Missing token endpoint triggers error."""
+    auth._client_id = "id"
+    auth._client_secret = "secret"  # nosemgrep # nosec
+    auth._base_url = None
+    auth._fetch_token()
+    assert "Token endpoint is not configured" in caplog.text
+
+
+@pytest.mark.anyio
+async def test_async_fetch_token_missing_client(auth: CustomAuth) -> None:
+    auth._client_id = None
+    auth._client_secret = None
+    await auth._async_fetch_token()  # Should not raise
+
+
+@pytest.mark.anyio
+async def test_async_refresh_token_missing(auth: CustomAuth) -> None:
+    auth._tokens_response = {}  # type: ignore[assignment]
+    await auth._async_refresh_access_token()  # Should not raise
+
+
+def test_sync_refresh_token_missing(auth: CustomAuth) -> None:
+    auth._tokens_response = {}  # type: ignore[assignment]
+    auth._refresh_access_token()  # Should not raise
+
+
+def test_parse_token_response_with_missing_fields(auth: CustomAuth) -> None:
+    """Test fallback/default values in token parsing."""
+    raw = {
+        "access_token": "abc",
+        "refresh_token": "def",
+        "token_type": "bearer",
+    }
+    parsed = auth._parse_token_response(raw)
+    assert parsed["access_token"] == "abc"
+    assert parsed["audience"] == ""
+    assert "expires_at" in parsed
+
+
+@pytest.mark.anyio
+async def test_async_refresh_access_token_success(
+    auth: CustomAuth,
+    valid_token_response: TokensResponse,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """Test refreshing access token asynchronously (200 OK)."""
+    auth._tokens_response = {
+        "refresh_token": "valid_refresh_token",  # nosec
+    }  # type: ignore
+
+    httpx_mock.add_response(
+        method="POST",
+        url="http://localhost:8000/auth/token/refresh",
+        json=valid_token_response,
+        status_code=200,
+    )
+
+    await auth._async_refresh_access_token()
+    assert auth._tokens_response is not None
+    assert auth._tokens_response["access_token"] == "valid_access_token"

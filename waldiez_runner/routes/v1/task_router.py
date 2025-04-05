@@ -55,6 +55,13 @@ validate_tasks_audience = get_client_id(*REQUIRED_AUDIENCES)
 task_router = APIRouter()
 
 
+class InputResponse(BaseModel):
+    """Input response model."""
+
+    request_id: str
+    data: str
+
+
 @task_router.get("/tasks/", include_in_schema=False)
 @task_router.get(
     "/tasks",
@@ -204,13 +211,6 @@ async def get_task(
     return TaskResponse.model_validate(task)
 
 
-class InputResponse(BaseModel):
-    """Input response model."""
-
-    request_id: str
-    data: str
-
-
 @task_router.post("/tasks/{task_id}/input")
 async def on_input_request(
     task_id: str,
@@ -283,33 +283,6 @@ async def on_input_request(
         message=message,
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-async def publish_task_input_response(
-    redis: AsyncRedis,
-    task_id: str,
-    message: InputResponse,
-) -> None:
-    """Publish task input response to Redis.
-
-    Parameters
-    ----------
-    redis : AsyncRedis
-        The Redis client.
-    task_id : str
-        The task ID.
-    message : InputResponse
-        The input response message.
-    """
-    try:
-        await redis.publish(
-            channel=f"task:{task_id}:input_response",
-            message=json.dumps(
-                {"request_id": message.request_id, "data": message.data}
-            ),
-        )
-    except BaseException as e:  # pylint: disable=broad-exception-caught
-        LOG.warning("Failed to publish task input response message: %s", e)
 
 
 @task_router.get(
@@ -527,6 +500,33 @@ async def delete_all_tasks(
     if task_ids_to_delete:
         await session.commit()
     return Response(status_code=204)
+
+
+async def publish_task_input_response(
+    redis: AsyncRedis,
+    task_id: str,
+    message: InputResponse,
+) -> None:
+    """Publish task input response to Redis.
+
+    Parameters
+    ----------
+    redis : AsyncRedis
+        The Redis client.
+    task_id : str
+        The task ID.
+    message : InputResponse
+        The input response message.
+    """
+    try:
+        await redis.publish(
+            channel=f"task:{task_id}:input_response",
+            message=json.dumps(
+                {"request_id": message.request_id, "data": message.data}
+            ),
+        )
+    except BaseException as e:  # pylint: disable=broad-exception-caught
+        LOG.warning("Failed to publish task input response message: %s", e)
 
 
 async def _trigger_run_task(

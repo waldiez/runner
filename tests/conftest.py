@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from waldiez_runner.client._auth import CustomAuth
+from waldiez_runner.client.auth import CustomAuth
 from waldiez_runner.config import Settings, SettingsManager
 from waldiez_runner.models import (
     Base,
