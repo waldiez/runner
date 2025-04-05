@@ -20,7 +20,7 @@ python-multipart==0.0.20
 python-ulid==3.0.0
 python_dotenv==1.1.0
 redis==5.2.1
-slowapi
+slowapi==0.1.9
 taskiq-dependencies==1.5.7
 taskiq-redis==1.0.4
 taskiq==0.11.16
