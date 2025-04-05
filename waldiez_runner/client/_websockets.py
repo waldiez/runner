@@ -176,9 +176,9 @@ class SyncWebSocketClient:
                 except ConnectionClosed:  # pragma: no cover
                     LOG.debug("Connection closed, stopping listener.")
                     break
-                except TimeoutError:
+                except TimeoutError:  # pragma: no cover
                     continue
-                except BaseException as e:
+                except BaseException as e:  # pragma: no cover
                     LOG.error("Ws error on connect and rcv (sync): %s", e)
                     break
 

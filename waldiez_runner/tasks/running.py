@@ -534,6 +534,7 @@ async def _terminate_process(process: Process) -> None:
     process : Process
         Process object.
     """
+    # pylint: disable=no-member
     if process.returncode is not None:
         return
     LOG.info("Terminating process %s", process.pid)

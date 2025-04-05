@@ -95,7 +95,7 @@ def make_serializable_results(results: Any) -> List[Dict[str, Any]]:
         return serialize_list(results)
     if is_dataclass_instance(results):
         return serialize_dict(asdict(results))
-    return make_serializable_results([results])
+    return make_serializable_results([results])  # pragma: no cover
 
 
 def is_dataclass_instance(obj: Any) -> bool:
