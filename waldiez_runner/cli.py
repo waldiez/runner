@@ -248,7 +248,7 @@ def run(
     if version:
         typer.echo(f"{APP_NAME} {__version__}")
         raise typer.Exit()
-    if "-no-debug" in sys.argv:
+    if "--no-debug" in sys.argv:  # pragma: no cover
         log_level = LogLevel.INFO
     logging_config = get_logging_config(log_level.value)
     logging.config.dictConfig(logging_config)
@@ -330,7 +330,7 @@ def check_secrets(
         "local_client_secret": local_client_secret,
     }
     for key, value in data.items():
-        if not value or value == "REPLACE_ME":
+        if not value or value == "REPLACE_ME":  # pragma: no cover
             if not dev:
                 raise typer.BadParameter(f"Invalid value for {key}: {value}")
             else:

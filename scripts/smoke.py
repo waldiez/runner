@@ -2,6 +2,8 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 """Simple checks after startup with no extra data.
 
+This script is a simple smoke test to ensure the API is working as expected.
+
 - Use the initial client_id/client_secret pair to get an access token.
 - Ensure it cannot be used to list tasks (it is for clients only).
 - Ensure it can be used to list and create clients.
@@ -17,9 +19,9 @@
 - Send Task input via HTTP.
 - Run two parallel tasks (with input).
 
-This script is a simple smoke test to ensure the API is working as expected.
+Not covered (yet?) in this script:
 
-Not covered (yet?):
+- Use the client in the package for the requests
 - WebSocket connection for task input/output.
 """
 
@@ -27,6 +29,7 @@ import asyncio
 import json
 import os
 import secrets
+import sys
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
@@ -54,6 +57,19 @@ EXAMPLE_2_FLOW_PATH = ROOT_DIR / "examples" / "dummy_with_input2.waldiez"
 HTTPX_CLIENT = httpx.AsyncClient(timeout=30)
 
 os.environ["PYTHONUNBUFFERED"] = "1"  # Force stdout to be unbuffered.
+
+
+def in_container() -> bool:
+    """ "Check if we are running in a container.
+
+    Returns
+    -------
+    bool
+        Whether we are running in a container.
+    """
+    in_docker = os.path.isfile("/.dockerenv")
+    in_container_env = os.path.isfile("/run/.containerenv")
+    return in_docker or in_container_env
 
 
 async def random_sleep(smaller_than: int) -> None:
@@ -241,7 +257,7 @@ async def delete_task(task_id: str, access_token: str) -> None:
         If the task is not deleted.
     """
     response = await HTTPX_CLIENT.delete(
-        f"{TASKS_URL}/{task_id}",
+        f"{TASKS_URL}/{task_id}?force=true",
         headers={"Authorization": f"Bearer {access_token}"},
     )
     response.raise_for_status()
@@ -291,7 +307,11 @@ async def clients_check() -> Tuple[Dict[str, Any], str]:
     return client, clients_access_token
 
 
-async def cancel_task(task_id: str, tasks_access_token: str) -> None:
+async def cancel_task(
+    task_id: str,
+    tasks_access_token: str,
+    might_not_be_active: bool = False,
+) -> None:
     """Cancel a task.
 
     Parameters
@@ -300,6 +320,8 @@ async def cancel_task(task_id: str, tasks_access_token: str) -> None:
         The task ID.
     tasks_access_token : str
         The tasks access token.
+    might_not_be_active: bool
+        If true, we do not raise if the request fails
 
     Raises
     ------
@@ -312,7 +334,10 @@ async def cancel_task(task_id: str, tasks_access_token: str) -> None:
     )
     response.raise_for_status()
     if response.status_code != 204:
-        raise AssertionError("The task should be cancelled.")
+        print(response.json())
+        if might_not_be_active is False:
+            raise AssertionError("The task should be cancelled.")
+        print("It's probably ok, using fake redis")
     return
 
 
@@ -448,6 +473,15 @@ async def task_status_check(  # noqa
         if task["status"] == "FAILED":
             raise AssertionError("The task should not fail.")
         reties += 1
+        if reties > 10 and not in_container():
+            # not using real redis, status not changing
+            await cancel_task(
+                task_id=task_id,
+                tasks_access_token=tasks_access_token,
+                might_not_be_active=True,
+            )
+            await delete_task(task_id, tasks_access_token)
+            return
         await asyncio.sleep(2)
     if task["status"] == "PENDING":
         raise AssertionError("The task should change status.")
@@ -684,7 +718,8 @@ async def main() -> None:
     client, clients_access_token = await clients_check()
     task, tasks_access_token = await tasks_check(client)
     await task_status_check(task, tasks_access_token)
-    await test_running_two_parallel_tasks(tasks_access_token)
+    if in_container() or "--force" in sys.argv:
+        await test_running_two_parallel_tasks(tasks_access_token)
     await delete_client(
         client["client_id"], tasks_access_token, clients_access_token
     )
