@@ -1,76 +1,57 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 #
-# flake8: noqa: E501
-# pylint: disable=line-too-long
 """Tasks API client implementation."""
 
-import asyncio
-import inspect
-from typing import Any, Callable, Coroutine, Dict
+from typing import Any, Dict
 
 import httpx
 
-from ._auth import CustomAuth
+from ._api_base import BaseAPIClient
 
 
-class TasksAPIClient:
+class TasksAPIClient(BaseAPIClient):
     """Tasks API client."""
 
     url_prefix = "/api/v1/tasks"
 
-    def __init__(
-        self,
-        auth: CustomAuth | None,
-        on_error: (
-            Callable[[str], None]
-            | Callable[[str], Coroutine[Any, Any, None]]
-            | None
-        ) = None,
-    ) -> None:
-        """Initialize the client.
+    def list_tasks(
+        self, params: Dict[str, Any] | None = None
+    ) -> Dict[str, Any]:
+        """List all tasks.
 
         Parameters
         ----------
-        auth : CustomAuth
-            The authentication instance
-        on_error : Callable[[str], None] | Callable[[str], Coroutine[Any, Any, None]] | None
-            The error handler
-        """
-        self._auth = auth
-        self.on_error = on_error
-        if auth:
-            self.configure(auth)
+        params : Dict[str, Any] | None
+            The query parameters to filter the tasks
+            like for pagination, status, etc.
+            (default: None)
 
-    def configure(self, auth: CustomAuth) -> None:
-        """Configure the client.
-
-        Parameters
-        ----------
-        auth : CustomAuth
-            The authentication instance
+        Returns
+        -------
+        Dict[str, Any]
+            The response JSON
 
         Raises
         ------
-        ValueError
-            If the base URL is not set
+        httpx.HTTPError
+            If the request fails
         """
-        self._auth = auth
-        if not auth.base_url:
-            raise ValueError("Base URL is required")
-        if not self.on_error and auth.on_error:
-            self.on_error = auth.on_error
-
-    def _ensure_configured(self) -> None:
-        """Ensure the client is configured.
-
-        Raises
-        ------
-        ValueError
-            If the client is not configured
-        """
-        if not self._auth or not self._auth.base_url:
-            raise ValueError("Client is not configured")
+        self.ensure_configured()
+        try:
+            with httpx.Client(
+                auth=self._auth,
+                base_url=self._auth.base_url,  # type: ignore
+            ) as client:
+                response = client.get(self.url_prefix, params=params)
+                response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            self.handle_error(e.response.text)
+            raise e
+        except httpx.HTTPError as e:  # pragma: no cover
+            self.handle_error(str(e))
+            raise e
+        return response.json()
 
     def trigger_task(
         self, file_data: bytes, file_name: str, input_timeout: int = 180
@@ -95,7 +76,7 @@ class TasksAPIClient:
         httpx.HTTPError
             If the request fails
         """
-        self._ensure_configured()
+        self.ensure_configured()
         files = {"file": (file_name, file_data)}
         url = f"{self.url_prefix}?input_timeout={input_timeout}"
         try:
@@ -106,10 +87,10 @@ class TasksAPIClient:
                 response = client.post(url, files=files)
                 response.raise_for_status()
         except httpx.HTTPStatusError as e:
-            self._handle_error(e.response.text)
+            self.handle_error(e.response.text)
             raise e
         except httpx.HTTPError as e:  # pragma: no cover
-            self._handle_error(str(e))
+            self.handle_error(str(e))
             raise e
         return response.json()
 
@@ -131,7 +112,7 @@ class TasksAPIClient:
         httpx.HTTPError
             If the request fails
         """
-        self._ensure_configured()
+        self.ensure_configured()
         url = f"{self.url_prefix}/{task_id}"
         try:
             with httpx.Client(
@@ -140,11 +121,11 @@ class TasksAPIClient:
             ) as client:
                 response = client.get(url)
                 response.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            self._handle_error(e.response.text)
+        except httpx.HTTPStatusError as e:  # pragma: no cover
+            self.handle_error(e.response.text)
             raise e
         except httpx.HTTPError as e:  # pragma: no cover
-            self._handle_error(str(e))
+            self.handle_error(str(e))
             raise e
         return response.json()
 
@@ -170,7 +151,7 @@ class TasksAPIClient:
         httpx.HTTPError
             If the request fails
         """
-        self._ensure_configured()
+        self.ensure_configured()
         url = f"{self.url_prefix}/{task_id}/input"
         data = {"data": user_input, "request_id": request_id}
         try:
@@ -180,11 +161,11 @@ class TasksAPIClient:
             ) as client:
                 response = client.post(url, json=data)
                 response.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            self._handle_error(e.response.text)
+        except httpx.HTTPStatusError as e:  # pragma: no cover
+            self.handle_error(e.response.text)
             raise e
         except httpx.HTTPError as e:  # pragma: no cover
-            self._handle_error(str(e))
+            self.handle_error(str(e))
             raise e
 
     def download_task_results(self, task_id: str) -> bytes:
@@ -205,7 +186,7 @@ class TasksAPIClient:
         httpx.HTTPError
             If the request fails
         """
-        self._ensure_configured()
+        self.ensure_configured()
         url = f"{self.url_prefix}/{task_id}/download"
         try:
             with httpx.Client(
@@ -214,11 +195,11 @@ class TasksAPIClient:
             ) as client:
                 response = client.get(url)
                 response.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            self._handle_error(e.response.text)
+        except httpx.HTTPStatusError as e:  # pragma: no cover
+            self.handle_error(e.response.text)
             raise e
         except httpx.HTTPError as e:  # pragma: no cover
-            self._handle_error(str(e))
+            self.handle_error(str(e))
             raise e
         return response.content
 
@@ -240,8 +221,42 @@ class TasksAPIClient:
         httpx.HTTPError
             If the request fails
         """
-        self._ensure_configured()
+        self.ensure_configured()
+        url = f"{self.url_prefix}/{task_id}/cancel"
+        try:
+            with httpx.Client(
+                auth=self._auth,
+                base_url=self._auth.base_url,  # type: ignore
+            ) as client:
+                response = client.post(url)
+                response.raise_for_status()
+        except httpx.HTTPStatusError as e:  # pragma: no cover
+            self.handle_error(e.response.text)
+            raise e
+        except httpx.HTTPError as e:  # pragma: no cover
+            self.handle_error(str(e))
+            raise e
+        return response.json()
+
+    def delete_task(self, task_id: str, force: bool = False) -> None:
+        """Delete a task.
+
+        Parameters
+        ----------
+        task_id : str
+            The task ID
+        force : bool
+            Whether to force delete the task (even if active, default: False)
+
+        Raises
+        ------
+        httpx.HTTPError
+            If the request fails
+        """
+        self.ensure_configured()
         url = f"{self.url_prefix}/{task_id}"
+        if force:
+            url += "?force=true"
         try:
             with httpx.Client(
                 auth=self._auth,
@@ -249,11 +264,83 @@ class TasksAPIClient:
             ) as client:
                 response = client.delete(url)
                 response.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            self._handle_error(e.response.text)
+        except httpx.HTTPStatusError as e:  # pragma: no cover
+            self.handle_error(e.response.text)
             raise e
         except httpx.HTTPError as e:  # pragma: no cover
-            self._handle_error(str(e))
+            self.handle_error(str(e))
+            raise e
+
+    def delete_all_tasks(self, force: bool = False) -> None:
+        """Delete all tasks for the client.
+
+        Parameters
+        ----------
+        force : bool
+            Whether to force delete the tasks (even if active, default: False)
+
+        Raises
+        ------
+        httpx.HTTPError
+            If the request fails
+        httpx.HTTPStatusError
+            If the request fails with a 4xx or 5xx status code
+        ValueError
+            If the client is not configured
+        """
+        self.ensure_configured()
+        force_str = "true" if force else "false"
+        try:
+            with httpx.Client(
+                auth=self._auth,
+                base_url=self._auth.base_url,  # type: ignore
+            ) as client:
+                response = client.delete(f"{self.url_prefix}?force={force_str}")
+                response.raise_for_status()
+        except httpx.HTTPStatusError as e:  # pragma: no cover
+            self.handle_error(e.response.text)
+            raise e
+        except httpx.HTTPError as e:  # pragma: no cover
+            self.handle_error(str(e))
+            raise e
+
+    async def a_list_tasks(
+        self, params: Dict[str, Any] | None = None
+    ) -> Dict[str, Any]:
+        """List all tasks asynchronously.
+
+        Parameters
+        ----------
+        params : Dict[str, Any] | None
+            The query parameters to filter the tasks
+            like for pagination, status, etc.
+            (default: None)
+
+        Returns
+        -------
+        Dict[str, Any]
+            The response JSON
+
+        Raises
+        ------
+        httpx.HTTPError
+            If the request fails
+        """
+        # pylint: disable=duplicate-code
+        # also in ./clients_api.py
+        self.ensure_configured()
+        try:
+            async with httpx.AsyncClient(
+                auth=self._auth,
+                base_url=self._auth.base_url,  # type: ignore
+            ) as client:
+                response = await client.get(self.url_prefix, params=params)
+                response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            self.handle_error(e.response.text)
+            raise e
+        except httpx.HTTPError as e:  # pragma: no cover
+            self.handle_error(str(e))
             raise e
         return response.json()
 
@@ -284,7 +371,7 @@ class TasksAPIClient:
         httpx.HTTPError
             If the request fails
         """
-        self._ensure_configured()
+        self.ensure_configured()
         files = {"file": (file_name, file_data)}
         url = f"{self.url_prefix}?input_timeout={input_timeout}"
         try:
@@ -294,11 +381,11 @@ class TasksAPIClient:
             ) as client:
                 response = await client.post(url, files=files)
                 response.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            self._handle_error(e.response.text)
+        except httpx.HTTPStatusError as e:  # pragma: no cover
+            self.handle_error(e.response.text)
             raise e
         except httpx.HTTPError as e:  # pragma: no cover
-            self._handle_error(str(e))
+            self.handle_error(str(e))
             raise e
         return response.json()
 
@@ -320,7 +407,7 @@ class TasksAPIClient:
         httpx.HTTPError
             If the request fails
         """
-        self._ensure_configured()
+        self.ensure_configured()
         url = f"{self.url_prefix}/{task_id}"
         try:
             async with httpx.AsyncClient(
@@ -329,11 +416,11 @@ class TasksAPIClient:
             ) as client:
                 response = await client.get(url)
                 response.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            self._handle_error(e.response.text)
+        except httpx.HTTPStatusError as e:  # pragma: no cover
+            self.handle_error(e.response.text)
             raise e
         except httpx.HTTPError as e:  # pragma: no cover
-            self._handle_error(str(e))
+            self.handle_error(str(e))
             raise e
         return response.json()
 
@@ -359,7 +446,7 @@ class TasksAPIClient:
         httpx.HTTPError
             If the request fails
         """
-        self._ensure_configured()
+        self.ensure_configured()
         url = f"{self.url_prefix}/{task_id}/input"
         data = {"data": user_input, "request_id": request_id}
         try:
@@ -369,11 +456,11 @@ class TasksAPIClient:
             ) as client:
                 response = await client.post(url, json=data)
                 response.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            self._handle_error(e.response.text)
+        except httpx.HTTPStatusError as e:  # pragma: no cover
+            self.handle_error(e.response.text)
             raise e
         except httpx.HTTPError as e:  # pragma: no cover
-            self._handle_error(str(e))
+            self.handle_error(str(e))
             raise e
 
     async def a_download_task_results(self, task_id: str) -> bytes:
@@ -394,7 +481,7 @@ class TasksAPIClient:
         httpx.HTTPError
             If the request fails
         """
-        self._ensure_configured()
+        self.ensure_configured()
         url = f"{self.url_prefix}/{task_id}/download"
         try:
             async with httpx.AsyncClient(
@@ -403,11 +490,11 @@ class TasksAPIClient:
             ) as client:
                 response = await client.get(url)
                 response.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            self._handle_error(e.response.text)
+        except httpx.HTTPStatusError as e:  # pragma: no cover
+            self.handle_error(e.response.text)
             raise e
         except httpx.HTTPError as e:  # pragma: no cover
-            self._handle_error(str(e))
+            self.handle_error(str(e))
             raise e
         return response.content
 
@@ -429,8 +516,42 @@ class TasksAPIClient:
         httpx.HTTPError
             If the request fails
         """
-        self._ensure_configured()
+        self.ensure_configured()
+        url = f"{self.url_prefix}/{task_id}/cancel"
+        try:
+            async with httpx.AsyncClient(
+                auth=self._auth,
+                base_url=self._auth.base_url,  # type: ignore
+            ) as client:
+                response = await client.post(url)
+                response.raise_for_status()
+        except httpx.HTTPStatusError as e:  # pragma: no cover
+            self.handle_error(e.response.text)
+            raise e
+        except httpx.HTTPError as e:  # pragma: no cover
+            self.handle_error(str(e))
+            raise e
+        return response.json()
+
+    async def a_delete_task(self, task_id: str, force: bool = False) -> None:
+        """Delete a task asynchronously.
+
+        Parameters
+        ----------
+        task_id : str
+            The task ID
+        force : bool
+            Whether to force delete the task (even if active, default: False)
+
+        Raises
+        ------
+        httpx.HTTPError
+            If the request fails
+        """
+        self.ensure_configured()
         url = f"{self.url_prefix}/{task_id}"
+        if force:
+            url += "?force=true"
         try:
             async with httpx.AsyncClient(
                 auth=self._auth,
@@ -438,28 +559,44 @@ class TasksAPIClient:
             ) as client:
                 response = await client.delete(url)
                 response.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            self._handle_error(e.response.text)
+        except httpx.HTTPStatusError as e:  # pragma: no cover
+            self.handle_error(e.response.text)
             raise e
         except httpx.HTTPError as e:  # pragma: no cover
-            self._handle_error(str(e))
+            self.handle_error(str(e))
             raise e
-        return response.json()
 
-    def _handle_error(self, message: str) -> None:
-        """Handle errors using the provided callback (sync or async).
+    async def a_delete_all_tasks(self, force: bool = False) -> None:
+        """Delete all tasks for the client asynchronously.
 
         Parameters
         ----------
-        message : str
-            The error message
+        force : bool
+            Whether to force delete the tasks (even if active, default: False)
+
+        Raises
+        ------
+        httpx.HTTPError
+            If the request fails
+        httpx.HTTPStatusError
+            If the request fails with a 4xx or 5xx status code
+        ValueError
+            If the client is not configured
         """
-        if self.on_error:
-            if inspect.iscoroutinefunction(self.on_error):
-                try:
-                    loop = asyncio.get_running_loop()
-                    loop.create_task(self.on_error(message))
-                except RuntimeError:  # pragma: no branch
-                    asyncio.run(self.on_error(message))
-            else:
-                self.on_error(message)
+        self.ensure_configured()
+        force_str = "true" if force else "false"
+        try:
+            async with httpx.AsyncClient(
+                auth=self._auth,
+                base_url=self._auth.base_url,  # type: ignore
+            ) as client:
+                response = await client.delete(
+                    f"{self.url_prefix}?force={force_str}"
+                )
+                response.raise_for_status()
+        except httpx.HTTPStatusError as e:  # pragma: no cover
+            self.handle_error(e.response.text)
+            raise e
+        except httpx.HTTPError as e:  # pragma: no cover
+            self.handle_error(str(e))
+            raise e

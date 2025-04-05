@@ -4,8 +4,4 @@
 # flake8: noqa: E501
 # pylint: disable=line-too-long
 
-"""Simple waldiez serve sync and async client."""
-
-from ._client import Client as WaldiezServeClient
-
-__all__ = ["WaldiezServeClient"]
+"""Simple waldiez serve sync and async clients."""
