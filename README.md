@@ -1,10 +1,10 @@
-# Waldiez runner (server)
+# Waldiez runner
 
-WIP
+Serve your Waldiez flows in isolated environments (e.g., Python virtualenvs and/or containerized environments) and stream logs and input/output via Redis.
 
 ## Overview
 
-A lightweight server to run tasks in isolated environments (e.g., Python virtualenvs) and stream logs and input/output via Redis.
+A server to run tasks in isolated environments (e.g., Python virtualenvs) and stream logs and input/output via Redis.
 Using:
 
 - [Waldiez](https://github.com/waldiez/waldiez) + [ag2](https://github.com/ag2ai/ag2) + [FastStream](https://github.com/ag2ai/faststream) for running the isolated tasks.
@@ -34,7 +34,7 @@ sequenceDiagram
 
     TaskiqWorker->>Filesystem: Create venv and copy app files
     TaskiqWorker->>DB: Update status to running
-    TaskiqWorker->>AppInVenv: Run subprocess
+    TaskiqWorker->>AppInVenv: Run subprocess (start FastStream app)
 
     loop Task flow
         AppInVenv->>FastStream: Publish input_request
@@ -61,8 +61,7 @@ sequenceDiagram
 
     opt HTTP Input
         Client->>API: POST /api/v1/tasks/{id}/input
-        API->>FastStream: Publish input response
-        FastStream->>Redis: Publish to task:{id}:input_response
+        API->>Redis: Publish input response to task:{id}:input_response
     end
 
     alt Task completes/fails/cancelled
@@ -76,14 +75,15 @@ sequenceDiagram
 - [x] Handle Local Authentication
 - [x] Handle Task Creation
 - [x] Handle Task Execution
-- [ ] Handle messaging between the task and the server to update the task status/results in db
+- [x] Handle messaging between the task and the task broker to update the task status/results in db
 - [ ] Documentation
-- [ ] Dockerfile and deployment generation
-- [ ] Examples using a python client (streamlit?) and a JS client
+- [ ] Dockerfile and deployment generation, documentation and examples
+- [ ] An example using a python client
+- [ ] An example using a JS client
 - [ ] Support other storage backends (e.g., S3, GCS, etc.)
 - [ ] Support other authentication methods (e.g., OIDC)
 - [x] [Dev] work on any platform (Linux, MacOS, Windows) and in any environment (containerized or not)
-- [ ] [Dev] Comprehensive tests for everything, reach coverage >= 80%
+- [x] [Dev] Comprehensive tests for (almost) everything coverage > 80%
 
 ### Authentication
 
