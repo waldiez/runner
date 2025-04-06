@@ -3,7 +3,7 @@
 
 # pylint: disable=missing-return-doc,missing-param-doc,too-few-public-methods
 # pylint: disable=missing-yield-doc,disable=line-too-long, unused-argument
-"""Test the auth websocket auth check."""
+"""Test waldiez_runner.routes.ws.auth.*."""
 
 from typing import Any, Dict
 from unittest.mock import AsyncMock, MagicMock, patch

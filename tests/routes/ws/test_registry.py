@@ -3,7 +3,7 @@
 
 # pylint: disable=missing-return-doc,missing-param-doc,unused-argument
 
-"""Tests for the WsTaskRegistry class."""
+"""Test waldiez_runner.routes.ws.registry.*."""
 
 import time
 from unittest.mock import AsyncMock
@@ -11,8 +11,8 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi import WebSocket
 
-from waldiez_runner.routes.ws.task_manager import WsTaskManager
-from waldiez_runner.routes.ws.task_registry import (
+from waldiez_runner.routes.ws.manager import WsTaskManager
+from waldiez_runner.routes.ws.registry import (
     TooManyTasksException,
     WsTaskRegistry,
 )

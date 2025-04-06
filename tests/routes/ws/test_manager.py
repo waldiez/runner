@@ -3,14 +3,14 @@
 
 # pylint: disable=missing-return-doc,missing-param-doc,unused-argument
 
-"""Tests for the WsTaskManager class."""
+"""Test waldiez_runner.routes.ws.manager.*."""
 
 from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import WebSocket
 
-from waldiez_runner.routes.ws.task_manager import (
+from waldiez_runner.routes.ws.manager import (
     TooManyClientsException,
     WsTaskManager,
 )

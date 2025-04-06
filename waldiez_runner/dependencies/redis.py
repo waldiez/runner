@@ -109,7 +109,10 @@ class RedisManager:
         """
         if not self._pool:
             self.setup()
-        return a_redis.Redis(connection_pool=self._pool)
+        return a_redis.Redis(
+            connection_pool=self._pool,
+            single_connection_client=True,
+        )
 
     def start_fake_redis_server(self, new_port: bool = False) -> str:
         """Start a Fake Redis server using TcpFakeServer.
@@ -132,7 +135,7 @@ class RedisManager:
             self._server is not None
             and self._server_thread is not None
             and self._server_thread.is_alive()
-        ):
+        ):  # pragma: no cover
             LOG.warning("Fake Redis server is already running.")
             return self.redis_url
 
@@ -164,7 +167,7 @@ class RedisManager:
                 """
                 try:
                     self._server.serve_forever()  # type: ignore
-                except BaseException:
+                except BaseException:  # pragma: no cover
                     pass
 
             self._server_thread = Thread(

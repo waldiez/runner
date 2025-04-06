@@ -82,8 +82,12 @@ sequenceDiagram
 - [ ] An example using a JS client
 - [ ] Support other storage backends (e.g., S3, GCS, etc.)
 - [ ] Support other authentication methods (e.g., OIDC)
-- [x] [Dev] work on any platform (Linux, MacOS, Windows) and in any environment (containerized or not)
-- [x] [Dev] Comprehensive tests for (almost) everything coverage > 80%
+- [ ] Support three modes of operation:
+  - [x] - **Push Mode**: Tasks are submitted via FastAPI (`POST /api/v1/tasks`), and execution is handled by TaskIQ workers.
+  - [ ] **Polling Mode**: Workers periodically poll an external service to fetch jobs and execute them independently.
+  - [ ] **Hybrid Mode**: Supports both push and polling mechanisms, allowing seamless fallback.
+- [x] [Dev] work on any platform (Linux, MacOS, Windows) and any environment (containerized or not)
+- [x] [Dev] Comprehensive tests for most parts. Coverage > 80%
 
 ### Authentication
 

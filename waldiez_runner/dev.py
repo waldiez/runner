@@ -248,6 +248,10 @@ def start_all(
     worker_args = [
         "taskiq",
         "worker",
+        "--workers",
+        "1",
+        "--max-tasks-per-child",
+        "3",
         "--log-level",
         log_level.upper(),
         f"{module_name}.worker:broker",
