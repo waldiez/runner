@@ -21,8 +21,8 @@ from waldiez_runner.models import Task
 from waldiez_runner.services import TaskService
 
 from .auth import get_ws_client_id
-from .task_manager import TooManyClientsException, WsTaskManager
-from .task_registry import TooManyTasksException, WsTaskRegistry
+from .manager import TooManyClientsException, WsTaskManager
+from .registry import TooManyTasksException, WsTaskRegistry
 
 ws_task_registry = WsTaskRegistry(
     max_active_tasks=MAX_ACTIVE_TASKS, max_clients_per_task=MAX_CLIENTS_PER_TASK

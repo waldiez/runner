@@ -6,7 +6,7 @@ import logging
 import time
 from typing import Any, Dict
 
-from .task_manager import WsTaskManager
+from .manager import WsTaskManager
 
 LOG = logging.getLogger(__name__)
 

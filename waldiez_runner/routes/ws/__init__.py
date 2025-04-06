@@ -2,10 +2,10 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 """WebSocket route utilities."""
 
-from .dependency import ws_task_registry
+from .manager import WsTaskManager
+from .registry import WsTaskRegistry
 from .router import ws_router
-from .task_manager import WsTaskManager
-from .task_registry import WsTaskRegistry
+from .validation import ws_task_registry
 
 __all__ = [
     "WsTaskManager",
