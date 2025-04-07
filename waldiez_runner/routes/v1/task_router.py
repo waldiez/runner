@@ -26,12 +26,10 @@ from starlette import status
 from waldiez_runner.dependencies import (
     ALLOWED_EXTENSIONS,
     TASK_API_AUDIENCE,
-    AsyncRedis,
     Storage,
+    app_state,
     get_client_id,
     get_db,
-    get_redis,
-    get_redis_url,
     get_storage,
 )
 from waldiez_runner.models import TaskResponse, TaskStatus
@@ -102,8 +100,6 @@ async def create_task(
     client_id: Annotated[str, Depends(validate_tasks_audience)],
     session: Annotated[AsyncSession, Depends(get_db)],
     storage: Annotated[Storage, Depends(get_storage)],
-    redis_url: Annotated[str, Depends(get_redis_url)],
-    redis: Annotated[AsyncRedis, Depends(get_redis)],
     file: Annotated[UploadFile, File(...)],
     input_timeout: int = 180,
 ) -> TaskResponse:
@@ -117,10 +113,6 @@ async def create_task(
         The database session dependency.
     storage : Storage
         The storage service dependency.
-    redis : AsyncRedis
-        The Redis client dependency.
-    redis_url : str
-        The Redis URL dependency.
     file : UploadFile
         The file to process.
     input_timeout : int, optional
@@ -169,7 +161,7 @@ async def create_task(
             status_code=500, detail="Internal server error"
         ) from error
     task_response = TaskResponse.model_validate(task, from_attributes=True)
-    await _trigger_run_task(task_response, session, storage, redis, redis_url)
+    await _trigger_run_task(task_response, session, storage)
     return task_response
 
 
@@ -216,7 +208,6 @@ async def on_input_request(
     task_id: str,
     message: InputResponse,
     background_tasks: BackgroundTasks,
-    redis: Annotated[AsyncRedis, Depends(get_redis)],
     db_session: Annotated[AsyncSession, Depends(get_db)],
     client_id: Annotated[str, Depends(validate_tasks_audience)],
 ) -> Response:
@@ -230,8 +221,6 @@ async def on_input_request(
         The input response message.
     background_tasks : BackgroundTasks
         The background tasks.
-    redis : AsyncRedis
-        The Redis client dependency.
     db_session : AsyncSession
         The database session.
     client_id : str
@@ -278,7 +267,6 @@ async def on_input_request(
         )
     background_tasks.add_task(
         publish_task_input_response,
-        redis=redis,
         task_id=task_id,
         message=message,
     )
@@ -345,7 +333,6 @@ async def cancel_task(
     task_id: str,
     client_id: Annotated[str, Depends(validate_tasks_audience)],
     session: Annotated[AsyncSession, Depends(get_db)],
-    redis: Annotated[AsyncRedis, Depends(get_redis)],
 ) -> TaskResponse:
     """Cancel a task.
 
@@ -357,8 +344,6 @@ async def cancel_task(
         The client ID that triggered the task.
     session : AsyncSession
         The database session dependency.
-    redis : AsyncRedis
-        The Redis client dependency.
 
     Returns
     -------
@@ -392,7 +377,6 @@ async def cancel_task(
         task_id=task_id,
         client_id=client_id,
         session=session,
-        redis=redis,
     )
     return TaskResponse.model_validate(task, from_attributes=True)
 
@@ -503,7 +487,6 @@ async def delete_all_tasks(
 
 
 async def publish_task_input_response(
-    redis: AsyncRedis,
     task_id: str,
     message: InputResponse,
 ) -> None:
@@ -511,32 +494,38 @@ async def publish_task_input_response(
 
     Parameters
     ----------
-    redis : AsyncRedis
-        The Redis client.
     task_id : str
         The task ID.
     message : InputResponse
         The input response message.
+
+    Raises
+    ------
+    RuntimeError
+        If the Redis connection manager is not initialized.
     """
-    try:
-        await redis.publish(
-            channel=f"task:{task_id}:input_response",
-            message=json.dumps(
-                {"request_id": message.request_id, "data": message.data}
-            ),
-        )
-    except BaseException as e:  # pylint: disable=broad-exception-caught
-        LOG.warning("Failed to publish task input response message: %s", e)
+    if not app_state.redis:  # pragma: no cover
+        raise RuntimeError("Redis manager not initialized")
+    async with app_state.redis.contextual_client(True) as redis:
+        try:
+            await redis.publish(
+                channel=f"task:{task_id}:input_response",
+                message=json.dumps(
+                    {"request_id": message.request_id, "data": message.data}
+                ),
+            )
+        except BaseException as e:  # pylint: disable=broad-exception-caught
+            LOG.warning("Failed to publish task input response message: %s", e)
 
 
 async def _trigger_run_task(
     task: TaskResponse,
     session: AsyncSession,
     storage: Storage,
-    redis: AsyncRedis,
-    redis_url: str,
 ) -> None:
     """Trigger a task."""
+    if not app_state.redis:
+        raise RuntimeError("Redis not initialized")
     if getattr(broker, "_is_smoke_testing", False) is True:  # pragma: no cover
         LOG.warning("Using fake Redis, running task in background")
         bg_task = asyncio.create_task(
@@ -544,8 +533,7 @@ async def _trigger_run_task(
                 task=task,
                 db_session=session,
                 storage=storage,
-                redis=redis,
-                redis_url=redis_url,
+                redis_manager=app_state.redis,
             )
         )
         bg_task.add_done_callback(
@@ -563,9 +551,10 @@ async def _trigger_cancel_task(
     task_id: str,
     client_id: str,
     session: AsyncSession,
-    redis: AsyncRedis,
 ) -> None:
     """Trigger a task cancellation."""
+    if not app_state.redis:
+        raise RuntimeError("Redis not initialized")
     if getattr(broker, "_is_smoke_testing", False) is True:  # pragma: no cover
         LOG.warning("Using fake Redis, cancelling task in background")
         bg_task = asyncio.create_task(
@@ -573,7 +562,7 @@ async def _trigger_cancel_task(
                 task_id=task_id,
                 client_id=client_id,
                 db_session=session,
-                redis=redis,
+                redis_manager=app_state.redis,
             )
         )
         bg_task.add_done_callback(

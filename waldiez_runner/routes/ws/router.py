@@ -5,19 +5,11 @@
 
 """WebSocket route utilities."""
 
-from fastapi import (
-    APIRouter,
-    Depends,
-    WebSocket,
-)
+from fastapi import APIRouter, Depends, WebSocket
 from typing_extensions import Annotated
 
 from waldiez_runner.config import Settings
-from waldiez_runner.dependencies import (
-    AsyncRedis,
-    get_redis,
-    get_settings,
-)
+from waldiez_runner.dependencies import app_state, get_settings
 
 from .handler import TaskWebSocketHandler
 
@@ -29,7 +21,6 @@ async def websocket_endpoint(
     websocket: WebSocket,
     task_id: str,
     settings: Annotated[Settings, Depends(get_settings)],
-    redis_client: Annotated[AsyncRedis, Depends(get_redis)],
 ) -> None:
     """WebSocket endpoint for the ws router.
 
@@ -41,10 +32,11 @@ async def websocket_endpoint(
         The task ID.
     settings : Settings
         The settings dependency.
-    redis_client : AsyncRedis
-        The Redis client dependency.
+
     Raises
     ------
+    RuntimeError
+        If the Redis client is not initialized.
     HTTPException
         If the websocket cannot be accepted.
     WebSocketException
@@ -52,10 +44,15 @@ async def websocket_endpoint(
     asyncio.CancelledError
         If the task is cancelled.
     """
-    handler = TaskWebSocketHandler(
-        websocket=websocket,
-        task_id=task_id,
-        settings=settings,
-        redis=redis_client,
-    )
-    await handler.run()
+    if not app_state.redis:  # pragma: no cover
+        raise RuntimeError("Redis not initialized")
+    async with app_state.redis.contextual_client(
+        use_single_connection=True
+    ) as redis_client:
+        handler = TaskWebSocketHandler(
+            websocket=websocket,
+            task_id=task_id,
+            settings=settings,
+            redis=redis_client,
+        )
+        await handler.run()

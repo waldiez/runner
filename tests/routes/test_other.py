@@ -93,6 +93,8 @@ async def test_status_unauthorized(client: AsyncClient) -> None:
         assert status_dict["active_tasks"] == 0
         assert status_dict["pending_tasks"] == 0
         assert isinstance(status_dict["max_capacity"], int)
+        assert isinstance(status_dict["cpu_percent"], float)
+        assert isinstance(status_dict["memory_percent"], float)
 
 
 @pytest.mark.anyio

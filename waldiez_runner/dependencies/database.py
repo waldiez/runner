@@ -123,7 +123,7 @@ class DatabaseManager:
         BaseException
             If an error occurs during the session.
         """
-        if self.session_maker is None:
+        if self.session_maker is None:  # pragma: no cover
             raise RuntimeError("Database not initialized. Call setup() first.")
 
         attempt = 0

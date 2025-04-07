@@ -16,7 +16,6 @@ from waldiez_runner.services.client_service import ClientService
 from .auth import get_client_id_from_token
 from .jwks import JWKSCache
 from .lifecycle import app_state
-from .redis import AsyncRedis
 from .storage import Storage, get_storage_backend
 
 bearer_scheme = HTTPBearer()
@@ -137,46 +136,6 @@ def get_jwks_cache() -> JWKSCache:
     if not app_state.jwks_cache:
         raise RuntimeError("JWKS cache not initialized")
     return app_state.jwks_cache
-
-
-def get_redis_url() -> str:
-    """Get the Redis URL.
-
-    Returns
-    -------
-    str
-        The Redis URL.
-
-    Raises
-    ------
-    RuntimeError
-        If the Redis URL is not initialized.
-    """
-    if not app_state.redis:
-        raise RuntimeError("Redis not initialized")
-    if not app_state.redis.redis_url:
-        raise RuntimeError("Redis URL not initialized")
-    return app_state.redis.redis_url
-
-
-async def get_redis() -> AsyncRedis:
-    """Get the Redis client.
-
-    Returns
-    -------
-    AsyncRedis
-        The Redis client.
-
-    Raises
-    ------
-    RuntimeError
-        If the Redis client is not initialized.
-    """
-    if not app_state.redis:
-        raise RuntimeError("Redis not initialized")
-    if not app_state.settings:  # pragma: no cover
-        raise RuntimeError("Settings not initialized")
-    return await app_state.redis.client()
 
 
 def get_settings() -> "Settings":

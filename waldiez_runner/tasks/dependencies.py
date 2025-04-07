@@ -10,7 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taskiq import Context, TaskiqDepends
 from typing_extensions import Annotated
 
-from waldiez_runner.dependencies import AsyncRedis, Storage, get_storage_backend
+from waldiez_runner.dependencies import (
+    RedisManager,
+    Storage,
+    get_storage_backend,
+)
 from waldiez_runner.models import Base
 
 LOG = logging.getLogger(__name__)
@@ -46,9 +50,9 @@ async def get_db_session(
         yield session
 
 
-async def get_redis(
+async def get_redis_manager(
     context: Annotated[Context, TaskiqDepends()],
-) -> AsyncRedis:
+) -> RedisManager:
     """Get the Redis client.
 
     Parameters
@@ -58,28 +62,10 @@ async def get_redis(
 
     Returns
     -------
-    AsyncRedis
-        The Redis client.
+    RedisManager
+        The Redis manager instance.
     """
-    return await context.state.redis_manager.client()
-
-
-async def get_redis_url(
-    context: Annotated[Context, TaskiqDepends()],
-) -> str:
-    """Get the Redis URL.
-
-    Parameters
-    ----------
-    context : Context
-        Taskiq context.
-
-    Returns
-    -------
-    str
-        The Redis URL.
-    """
-    return context.state.redis_manager.redis_url
+    return context.state.redis_manager
 
 
 def get_storage(

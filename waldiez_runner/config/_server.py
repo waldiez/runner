@@ -44,6 +44,11 @@ class ServerStatus(TypedDict):
     active_tasks: int
     pending_tasks: int
     max_capacity: int
+    cpu_count: int | None
+    cpu_percent: float
+    total_memory: int
+    used_memory: int
+    memory_percent: float
 
 
 def get_trusted_hosts(domain_name: str, host: str) -> List[str]:

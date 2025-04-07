@@ -3,6 +3,7 @@
 
 """Other routes like health check, robots.txt, and status."""
 
+import psutil
 from fastapi import APIRouter, Depends, FastAPI, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -89,4 +90,9 @@ def add_status_route(app: FastAPI, max_jobs: int) -> None:
             "active_tasks": active_tasks_count,
             "pending_tasks": pending_tasks_count,
             "max_capacity": max_jobs,
+            "cpu_count": psutil.cpu_count(logical=False),
+            "cpu_percent": psutil.cpu_percent(),
+            "total_memory": psutil.virtual_memory().total,
+            "used_memory": psutil.virtual_memory().used,
+            "memory_percent": psutil.virtual_memory().percent,
         }
