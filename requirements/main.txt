@@ -11,6 +11,7 @@ fastapi[all]==0.115.12
 faststream[redis,cli]==0.5.37
 hiredis==3.1.0
 orjson==3.10.16
+psutil==7.0.0
 psycopg==3.2.6; sys_platform == 'linux' or (sys_platform  == 'win32' and (platform_machine == 'arm64' or platform_machine == 'ARM64'))
 psycopg[binary]==3.2.6; sys_platform != 'linux' and (sys_platform != 'win32' or (platform_machine != 'arm64' and platform_machine != 'ARM64'))
 puremagic==1.28

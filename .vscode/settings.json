@@ -133,6 +133,7 @@
         "PGPORT",
         "poolclass",
         "popen",
+        "psutil",
         "psycopg",
         "puremagic",
         "pycache",
