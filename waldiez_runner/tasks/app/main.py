@@ -31,24 +31,19 @@ async def run(params: TaskParams) -> None:
     params : TaskParams
         The parameters for the task.
     """
-    # just a simulation of a long-running task for now
-
     broker = RedisBroker(url=params.redis_url)
     app = FastStream(broker=broker)
-
     status_channel = f"task:{params.task_id}:status"
+
     await app.start()
-    # Load the task file
+    task_status: Dict[str, Any] = {
+        "task_id": params.task_id,
+    }
+    # pylint: disable=too-many-try-statements
     try:
         waldiez = FlowRunner.validate_flow(params.file_path)
-    except BaseException as e:  # pylint: disable=broad-exception-caught
-        LOG.error("Error validating flow: %s", e)
-        await broker.publish("FAILED", status_channel)
-        await app.stop()
-        return
-    output_path = params.file_path.replace(".waldiez", ".py")
-    task_status: Dict[str, Any]
-    try:
+        output_path = params.file_path.replace(".waldiez", ".py")
+
         flow_runner = FlowRunner(
             task_id=params.task_id,
             redis_url=params.redis_url,
@@ -56,25 +51,27 @@ async def run(params: TaskParams) -> None:
             output_path=output_path,
             input_timeout=params.input_timeout,
         )
+
         results = await flow_runner.run()
+        task_status.update(
+            {
+                "status": "COMPLETED",
+                "data": results,
+            }
+        )
+
     except BaseException as e:  # pylint: disable=broad-exception-caught
-        LOG.error("Error running flow: %s", e)
-        task_status = {
-            "status": "FAILED",
-            "task_id": params.task_id,
-            "data": str(e),
-        }
+        LOG.error("Task %s failed: %s", params.task_id, e)
+        task_status.update(
+            {
+                "status": "FAILED",
+                "data": str(e),
+            }
+        )
+    finally:
         await broker.publish(json.dumps(task_status), status_channel)
         await app.stop()
-        return
-    task_status = {
-        "status": "COMPLETED",
-        "task_id": params.task_id,
-        "data": results,
-    }
-    await broker.publish(json.dumps(task_status), status_channel)
-    LOG.info("Task completed successfully.")
-    await app.stop()
+        LOG.info("App stopped for task %s", params.task_id)
 
 
 async def main() -> None:

@@ -175,10 +175,11 @@ class FlowRunner:
             "data": None,
         }
         chanel = f"task:{task_id}:status"
+        # pylint: disable=broad-exception-caught
         try:
             self.io_stream.redis.publish(
                 channel=chanel,
                 message=json.dumps(task_status),
             )
-        except BaseException as e:  # pylint: disable=broad-exception-caught
+        except BaseException as e:  # pragma: no cover
             LOG.error("Error publishing input response: %s", e)
