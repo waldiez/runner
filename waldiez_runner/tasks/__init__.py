@@ -4,7 +4,7 @@
 
 from .cleanup import cancel_task, delete_task
 from .common import broker, get_broker, get_scheduler, scheduler
-from .dependencies import get_db_session, get_redis, get_storage
+from .dependencies import get_db_session, get_redis_manager, get_storage
 from .lifecycle import on_worker_shutdown, on_worker_startup
 from .running import run_task
 from .schedule import (
@@ -22,7 +22,7 @@ __all__ = [
     "get_broker",
     "get_scheduler",
     "get_db_session",
-    "get_redis",
+    "get_redis_manager",
     "get_storage",
     "on_worker_shutdown",
     "on_worker_startup",

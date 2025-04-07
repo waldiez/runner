@@ -13,6 +13,7 @@ import fakeredis
 import pytest
 from fastapi_pagination import Page, Params
 
+from waldiez_runner.dependencies import AsyncRedis
 from waldiez_runner.models import Task, TaskStatus
 from waldiez_runner.tasks.schedule import (
     check_stuck_tasks,
@@ -23,6 +24,16 @@ from waldiez_runner.tasks.schedule import (
 )
 
 SCHEDULE_MODULE = "waldiez_runner.tasks.schedule"
+
+
+def make_redis_manager_ctx(mock_redis: AsyncRedis) -> MagicMock:
+    """Create a mock Redis manager context."""
+    manager = MagicMock()
+    ctx = AsyncMock()
+    ctx.__aenter__.return_value = mock_redis
+    ctx.__aexit__.return_value = None
+    manager.contextual_client.return_value = ctx
+    return manager
 
 
 @pytest.mark.asyncio
@@ -198,10 +209,13 @@ async def test_check_stuck_tasks(
 )
 async def test_cleanup_processed_requests(
     mock_cleanup: AsyncMock,
+    a_fake_redis: fakeredis.aioredis.FakeRedis,
 ) -> None:
     """Test cleaning up processed requests."""
-    mock_redis = AsyncMock()
-    await cleanup_processed_requests(redis=mock_redis)
+    manager = make_redis_manager_ctx(a_fake_redis)
+    await cleanup_processed_requests(
+        redis_manager=manager,
+    )
     mock_cleanup.assert_awaited_once()
 
 
@@ -214,7 +228,11 @@ async def test_trim_old_stream_entries(
     for i in range(10):
         await a_fake_redis.xadd(stream_name, {"key": f"value{i}"})
     assert await a_fake_redis.xlen(stream_name) == 10
-    await trim_old_stream_entries(redis=a_fake_redis, maxlen=5)
+    manager = make_redis_manager_ctx(a_fake_redis)
+    await trim_old_stream_entries(
+        redis_manager=manager,
+        maxlen=5,
+    )
     assert await a_fake_redis.xlen(stream_name) == 5
 
 

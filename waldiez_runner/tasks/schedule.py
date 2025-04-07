@@ -14,13 +14,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taskiq import TaskiqDepends
 from typing_extensions import Annotated
 
-from waldiez_runner.dependencies import AsyncRedis, Storage
+from waldiez_runner.dependencies import RedisManager, Storage
 from waldiez_runner.models import Task, TaskStatus
 from waldiez_runner.services import TaskService
 
 from .app.redis_io_stream import RedisIOStream
 from .common import broker
-from .dependencies import get_db_session, get_redis, get_storage
+from .dependencies import get_db_session, get_redis_manager, get_storage
 
 LOG = logging.getLogger(__name__)
 
@@ -33,20 +33,23 @@ EVERY_15_MINUTES = [{"cron": "*/15 * * * *"}]
 
 @broker.task(schedule=EVERY_DAY)
 async def cleanup_processed_requests(
-    redis: Annotated[AsyncRedis, TaskiqDepends(get_redis)],
+    redis_manager: Annotated[RedisManager, TaskiqDepends(get_redis_manager)],
 ) -> None:
     """Periodic cleanup of stale processed requests.
 
     Parameters
     ----------
-    redis : AsyncRedis
-        Redis connection.
+    redis_manager : RedisManager
+        Redis connection manager.
     """
-    await RedisIOStream.a_cleanup_processed_requests(
-        redis,
-        retention_period=86400,  # 86400 seconds = 1 day
-    )
-    LOG.info("Cleaned up stale processed requests.")
+    async with redis_manager.contextual_client(
+        use_single_connection=True
+    ) as redis:
+        await RedisIOStream.a_cleanup_processed_requests(
+            redis,
+            retention_period=86400,  # 86400 seconds = 1 day
+        )
+        LOG.info("Cleaned up stale processed requests.")
 
 
 @broker.task(schedule=EVERY_DAY)
@@ -122,7 +125,7 @@ async def check_stuck_tasks(
 
 @broker.task(schedule=EVERY_DAY)
 async def trim_old_stream_entries(
-    redis: Annotated[AsyncRedis, TaskiqDepends(get_redis)],
+    redis_manager: Annotated[RedisManager, TaskiqDepends(get_redis_manager)],
     maxlen: int = 1000,
     scan_count: int = 100,
 ) -> None:
@@ -130,18 +133,21 @@ async def trim_old_stream_entries(
 
     Parameters
     ----------
-    redis : AsyncRedis
-        Redis connection.
+    redis_manager : RedisManager
+        Redis connection manager.
     maxlen : int, optional
         The maximum length of the stream, by default 1000.
     scan_count : int, optional
         The number of entries to scan at a time, by default 100.
     """
-    await RedisIOStream.a_trim_task_output_streams(
-        redis,
-        maxlen=maxlen,
-        scan_count=scan_count,
-    )
+    async with redis_manager.contextual_client(
+        use_single_connection=True
+    ) as redis:
+        await RedisIOStream.a_trim_task_output_streams(
+            redis,
+            maxlen=maxlen,
+            scan_count=scan_count,
+        )
 
 
 async def delete_old_task_from_db(

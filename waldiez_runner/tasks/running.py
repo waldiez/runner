@@ -22,12 +22,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taskiq import TaskiqDepends
 
 from waldiez_runner.config import SettingsManager
-from waldiez_runner.dependencies import AsyncRedis, Storage
+from waldiez_runner.dependencies import AsyncRedis, RedisManager, Storage
 from waldiez_runner.models import TaskResponse, TaskStatus
 from waldiez_runner.services import TaskService
 
 from .common import broker, redis_status_key
-from .dependencies import get_db_session, get_redis, get_redis_url, get_storage
+from .dependencies import get_db_session, get_redis_manager, get_storage
 
 LOG = logging.getLogger(__name__)
 HERE = Path(__file__).parent
@@ -60,8 +60,7 @@ async def run_task(
     task: TaskResponse,
     db_session: AsyncSession = TaskiqDepends(get_db_session),
     storage: Storage = TaskiqDepends(get_storage),
-    redis: AsyncRedis = TaskiqDepends(get_redis),
-    redis_url: str = TaskiqDepends(get_redis_url),
+    redis_manager: RedisManager = TaskiqDepends(get_redis_manager),
 ) -> None:
     """Trigger a new task.
 
@@ -73,10 +72,8 @@ async def run_task(
         Database session dependency.
     storage : Storage
         Storage backend dependency.
-    redis : AsyncRedis
-        Redis dependency.
-    redis_url : str
-        Redis URL dependency.
+    redis_manager : RedisManager
+        Redis connection manager dependency.
     """
     temp_dir = Path(tempfile.mkdtemp())
     venv_dir = await prepare_app_env(storage, task, temp_dir)
@@ -85,48 +82,54 @@ async def run_task(
     settings = SettingsManager.load_settings()
     debug = settings.log_level.upper() == "DEBUG"
     # pylint: disable=too-many-try-statements, broad-exception-caught
-    try:
-        exit_code = await run_app_in_venv(
-            venv_root=venv_dir,
-            app_dir=app_dir,
-            task_id=task.id,
-            file_path=file_path,
-            redis_url=redis_url,
-            input_timeout=task.input_timeout,
-            redis=redis,
-            db_session=db_session,
-            debug=debug,
-        )
-        if exit_code != 0:
+    async with (
+        redis_manager.contextual_client(True) as redis_pub,
+        redis_manager.contextual_client(True) as redis_sub,
+    ):
+        try:
+            exit_code = await run_app_in_venv(
+                venv_root=venv_dir,
+                app_dir=app_dir,
+                task_id=task.id,
+                file_path=file_path,
+                redis_url=redis_manager.redis_url,
+                input_timeout=task.input_timeout,
+                redis_sub=redis_sub,
+                db_session=db_session,
+                debug=debug,
+            )
+            if exit_code != 0:
+                await _update_task_status(
+                    task.id,
+                    TaskStatus.FAILED,
+                    db_session,
+                    redis=redis_pub,
+                    results={"error": "Task failed"},
+                )
+                return
+        except asyncio.CancelledError:
+            await _update_task_status(
+                task.id,
+                TaskStatus.CANCELLED,
+                db_session,
+                redis=redis_pub,
+                results={"error": "Task cancelled"},
+            )
+        except BaseException as e:
+            LOG.exception("Task %s failed", task.id)
+            await redis_pub.publish(
+                redis_status_key(task.id), TaskStatus.FAILED.value
+            )
             await _update_task_status(
                 task.id,
                 TaskStatus.FAILED,
                 db_session,
-                redis,
-                results={"error": "Task failed"},
+                redis=redis_pub,
+                results={"error": str(e)},
             )
-            return
-    except asyncio.CancelledError:
-        await _update_task_status(
-            task.id,
-            TaskStatus.CANCELLED,
-            db_session,
-            redis,
-            results={"error": "Task cancelled"},
-        )
-    except BaseException as e:
-        LOG.exception("Task %s failed", task.id)
-        await redis.publish(redis_status_key(task.id), TaskStatus.FAILED.value)
-        await _update_task_status(
-            task.id,
-            TaskStatus.FAILED,
-            db_session,
-            redis,
-            results={"error": str(e)},
-        )
-    finally:
-        await move_results_to_storage(temp_dir, task, storage)
-        LOG.debug("Task %s completed", task.id)
+        finally:
+            await move_results_to_storage(temp_dir, task, storage)
+            LOG.debug("Task %s completed", task.id)
 
 
 def get_venv_python_executable(venv_root: Path) -> Path:
@@ -233,7 +236,7 @@ async def run_app_in_venv(
     file_path: Path,
     redis_url: str,
     input_timeout: int,
-    redis: AsyncRedis,
+    redis_sub: AsyncRedis,
     db_session: AsyncSession,
     debug: bool,
 ) -> int:
@@ -253,8 +256,8 @@ async def run_app_in_venv(
         Redis URL.
     input_timeout : int
         Input timeout.
-    redis : AsyncRedis
-        Redis client dependency.
+    redis_sub : AsyncRedis
+        Dedicated Redis client for subscribing to task status.
     db_session : AsyncSession
         Database session dependency.
     debug : bool
@@ -292,7 +295,7 @@ async def run_app_in_venv(
         _watch_status_and_cancel_if_needed(
             task_id=task_id,
             process=process,
-            redis=redis,
+            redis=redis_sub,
             db_session=db_session,
         )
     )

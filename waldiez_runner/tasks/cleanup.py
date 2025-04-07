@@ -11,12 +11,12 @@ import os
 from sqlalchemy.ext.asyncio import AsyncSession
 from taskiq import TaskiqDepends
 
-from waldiez_runner.dependencies import AsyncRedis, Storage
+from waldiez_runner.dependencies import RedisManager, Storage
 from waldiez_runner.models import TaskStatus
 from waldiez_runner.services import TaskService
 
 from .common import broker, redis_status_key
-from .dependencies import get_db_session, get_redis, get_storage
+from .dependencies import get_db_session, get_redis_manager, get_storage
 
 LOG = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ async def delete_task(
 async def cancel_task(
     task_id: str,
     client_id: str,
-    redis: AsyncRedis = TaskiqDepends(get_redis),
+    redis_manager: RedisManager = TaskiqDepends(get_redis_manager),
     db_session: AsyncSession = TaskiqDepends(get_db_session),
 ) -> None:
     """Cancel a task.
@@ -68,7 +68,7 @@ async def cancel_task(
         Task ID.
     client_id : str
         Client ID.
-    redis : AsyncRedis
+    redis_manager : RedisManager
         Redis client dependency.
     db_session : AsyncSession
         Database session dependency.
@@ -79,10 +79,11 @@ async def cancel_task(
         "status": TaskStatus.CANCELLED.value,
         "data": {"error": "Task Cancelled"},
     }
-    await redis.publish(
-        json.dumps(task_status),
-        redis_status_key(task_id),
-    )
+    async with redis_manager.contextual_client(True) as redis:
+        await redis.publish(
+            json.dumps(task_status),
+            redis_status_key(task_id),
+        )
     await TaskService.update_task_status(
         db_session,
         task_id,

@@ -9,8 +9,9 @@ import atexit
 import logging
 import os
 from asyncio.locks import Lock
+from contextlib import asynccontextmanager
 from threading import Event, Thread
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, AsyncIterator
 
 import redis
 import redis.asyncio as a_redis
@@ -95,8 +96,14 @@ class RedisManager:
         self._pool = None
         self._stop_fake_redis_server()
 
-    async def client(self) -> AsyncRedis:
-        """Get a Redis client with retries.
+    async def client(self, use_single_connection: bool = False) -> AsyncRedis:
+        """Get a Redis client.
+
+        Parameters
+        ----------
+        use_single_connection : bool, optional
+            Whether to use a single connection, by default False.
+            If True, a new connection is created and not returned to the pool.
 
         Returns
         -------
@@ -107,12 +114,36 @@ class RedisManager:
         RuntimeError
             If the Redis pool is not initialized.
         """
-        if not self._pool:
+        if not self._pool:  # pragma: no cover
             self.setup()
         return a_redis.Redis(
+            decode_responses=True,
             connection_pool=self._pool,
-            single_connection_client=True,
+            single_connection_client=use_single_connection,
         )
+
+    @asynccontextmanager
+    async def contextual_client(
+        self, use_single_connection: bool = False
+    ) -> AsyncIterator[AsyncRedis]:
+        """Get a Redis client as a context manager.
+
+        Parameters
+        ----------
+        use_single_connection : bool
+            Whether to use a dedicated connection.
+
+        Yields
+        ------
+        AsyncIterator[AsyncRedis]
+            A usable Redis client with auto-close logic if needed.
+        """
+        client = await self.client(use_single_connection=use_single_connection)
+        try:
+            yield client
+        finally:
+            if use_single_connection:
+                await client.aclose()
 
     def start_fake_redis_server(self, new_port: bool = False) -> str:
         """Start a Fake Redis server using TcpFakeServer.

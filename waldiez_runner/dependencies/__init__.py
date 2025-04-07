@@ -14,8 +14,6 @@ from .getters import (
     get_client_id,
     get_db,
     get_jwks_cache,
-    get_redis,
-    get_redis_url,
     get_settings,
     get_storage,
 )
@@ -37,8 +35,6 @@ __all__ = [
     "get_settings",
     "get_db",
     "get_jwks_cache",
-    "get_redis",
-    "get_redis_url",
     "get_client_id",
     "get_client_id_from_token",
     "get_storage",

@@ -10,10 +10,7 @@ import json
 import logging
 from typing import Any, Dict
 
-from fastapi import (
-    WebSocket,
-    WebSocketDisconnect,
-)
+from fastapi import WebSocket, WebSocketDisconnect
 
 from waldiez_runner.dependencies import AsyncRedis
 
@@ -60,7 +57,7 @@ async def stream_history_and_live(
             response = await redis.xread(
                 {stream_key: last_id}, block=5000, count=10
             )
-            if not response:
+            if not response:  # pragma: no cover
                 await asyncio.sleep(0.5)
                 continue
 

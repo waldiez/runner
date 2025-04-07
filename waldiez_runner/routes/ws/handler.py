@@ -11,24 +11,14 @@ import time
 from datetime import datetime
 from typing import Any, Dict
 
-from fastapi import (
-    WebSocket,
-    WebSocketDisconnect,
-    WebSocketException,
-)
+from fastapi import WebSocket, WebSocketDisconnect, WebSocketException
 from starlette import status
 
 from waldiez_runner.config import Settings
-from waldiez_runner.dependencies import (
-    AsyncRedis,
-    app_state,
-)
+from waldiez_runner.dependencies import AsyncRedis, app_state
 from waldiez_runner.models import Task
 
-from .listeners import (
-    listen_for_ws_input,
-    stream_history_and_live,
-)
+from .listeners import listen_for_ws_input, stream_history_and_live
 from .manager import WsTaskManager
 from .validation import validate_websocket_connection, ws_task_registry
 

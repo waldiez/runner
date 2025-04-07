@@ -7,7 +7,8 @@
 
 import asyncio
 import json
-from unittest.mock import AsyncMock
+from typing import Any, Coroutine, Dict, List
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import WebSocket
@@ -108,9 +109,32 @@ async def test_listen_for_ws_input_unexpected_error() -> None:
 async def test_stream_history_and_live(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test stream_history_and_live."""
     redis = AsyncMock()
-    manager = AsyncMock()
+    manager = MagicMock()
 
-    # Setup: one historical msg, one duplicate, one live msg
+    calls: List[Dict[str, Any]] = []
+
+    async def fake_broadcast(
+        msg: Dict[str, Any], skip_queue: bool = False
+    ) -> None:
+        calls.append(msg)
+
+    manager.broadcast = fake_broadcast
+
+    scheduled_tasks: List[Coroutine[None, None, None]] = []
+
+    # Instead of returning the coroutine, we store it to run it ourselves
+    def fake_create_task(
+        coro: Coroutine[None, None, None],
+    ) -> Coroutine[None, None, None]:
+        """Fake create_task to store the coroutine."""
+        scheduled_tasks.append(coro)
+        return coro  # not awaited here! we await it later
+
+    monkeypatch.setattr(
+        f"{MODULE_TO_PATCH}.asyncio.create_task", fake_create_task
+    )
+
+    # Setup
     redis.xrevrange.return_value = [
         ("1-0", {b"type": b"log", b"data": b"history"})
     ]
@@ -119,7 +143,7 @@ async def test_stream_history_and_live(monkeypatch: pytest.MonkeyPatch) -> None:
             (
                 "stream",
                 [
-                    ("1-0", {b"type": b"log", b"data": b"dupe"}),
+                    ("1-0", {b"type": b"log", b"data": b"dupe"}),  # skip
                     ("2-0", {b"type": b"log", b"data": b"live"}),
                 ],
             )
@@ -127,15 +151,12 @@ async def test_stream_history_and_live(monkeypatch: pytest.MonkeyPatch) -> None:
         asyncio.CancelledError(),
     ]
 
-    # Patch create_task to run coroutines directly
-    monkeypatch.setattr(
-        f"{MODULE_TO_PATCH}.asyncio.create_task", lambda coro: coro
-    )
-
     with pytest.raises(asyncio.CancelledError):
         await stream_history_and_live(redis, "stream", manager)
 
-    assert manager.broadcast.call_count == 2
-    calls = [call.args[0]["data"] for call in manager.broadcast.call_args_list]
-    assert "history" in calls
-    assert "live" in calls
+    for task in scheduled_tasks:
+        await task
+
+    assert len(calls) == 2
+    assert any(msg["data"] == "history" for msg in calls)
+    assert any(msg["data"] == "live" for msg in calls)
