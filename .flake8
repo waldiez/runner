@@ -18,3 +18,4 @@ exclude =
     __pycache__,
     build,
     dist,
+    waldiez_runner/storage,
