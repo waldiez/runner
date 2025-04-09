@@ -268,12 +268,10 @@ async def test_get_task_not_found(
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("kiq", ["cancel_task_job"], indirect=True)
 async def test_cancel_task(
     client: AsyncClient,
     async_session: AsyncSession,
     client_id: str,
-    kiq: AsyncMock,
 ) -> None:
     """Test cancelling a task."""
     task = Task(
@@ -286,17 +284,24 @@ async def test_cancel_task(
     await async_session.commit()
     await async_session.refresh(task)
 
-    response = await client.post(f"/tasks/{task.id}/cancel")
+    # let's patch the task_cancellation publisher to avoid any issues
+    # with redis / FakeRedis
+    # we handle it in smoke tests and (should! handle it) e2e tests
+    with patch(
+        f"{ROOT_MODULE}.routes.v1.task_router.publish_task_cancellation",
+        new_callable=AsyncMock,
+    ):
+        response = await client.post(f"/tasks/{task.id}/cancel")
 
-    assert response.status_code == HTTP_200_OK
-    data = response.json()
-    assert data["id"] == str(task.id)
-    assert data["status"] == TaskStatus.CANCELLED.value
+        assert response.status_code == HTTP_200_OK
+        data = response.json()
+        assert data["id"] == str(task.id)
+        assert data["status"] == TaskStatus.CANCELLED.value
 
-    await async_session.refresh(task)
-    task_in_db = await async_session.get(Task, str(task.id))
-    assert task_in_db is not None
-    assert task_in_db.status == TaskStatus.CANCELLED
+        await async_session.refresh(task)
+        task_in_db = await async_session.get(Task, str(task.id))
+        assert task_in_db is not None
+        assert task_in_db.status == TaskStatus.CANCELLED
 
 
 @pytest.mark.anyio

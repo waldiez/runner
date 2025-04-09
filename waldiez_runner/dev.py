@@ -250,8 +250,6 @@ def start_all(
         "worker",
         "--workers",
         "1",
-        "--max-tasks-per-child",
-        "3",
         "--log-level",
         log_level.upper(),
         f"{module_name}.worker:broker",
@@ -300,11 +298,12 @@ def start_all(
         print("\n[DEV] Shutting down all services...")
         for proc in processes:
             proc.terminate()
-            proc.join()
+            proc.join(timeout=1)
         sys.exit(0)
 
     signal.signal(signal.SIGINT, shutdown_all)
     signal.signal(signal.SIGTERM, shutdown_all)
+    signal.signal(signal.SIGQUIT, shutdown_all)
 
     for proc in processes:
         proc.join()

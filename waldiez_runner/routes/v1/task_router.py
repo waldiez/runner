@@ -35,7 +35,6 @@ from waldiez_runner.dependencies import (
 from waldiez_runner.models import TaskResponse, TaskStatus
 from waldiez_runner.services.task_service import TaskService
 from waldiez_runner.tasks import broker
-from waldiez_runner.tasks import cancel_task as cancel_task_job
 from waldiez_runner.tasks import delete_task as delete_task_job
 from waldiez_runner.tasks import run_task as run_task_job
 
@@ -371,13 +370,13 @@ async def cancel_task(
         session,
         task_id=task_id,
         status=TaskStatus.CANCELLED,
-        results={"error": "Task cancelled"},
+        results={"detail": "Task cancelled"},
     )
-    await _trigger_cancel_task(
-        task_id=task_id,
-        client_id=client_id,
-        session=session,
-    )
+    await publish_task_cancellation(task_id=task_id)
+    # background_tasks.add_task(
+    #     publish_task_cancellation,
+    #     task_id=task_id,
+    # )
     return TaskResponse.model_validate(task, from_attributes=True)
 
 
@@ -524,7 +523,7 @@ async def _trigger_run_task(
     storage: Storage,
 ) -> None:
     """Trigger a task."""
-    if not app_state.redis:
+    if not app_state.redis:  # pragma: no cover
         raise RuntimeError("Redis not initialized")
     if getattr(broker, "_is_smoke_testing", False) is True:  # pragma: no cover
         LOG.warning("Using fake Redis, running task in background")
@@ -547,36 +546,44 @@ async def _trigger_run_task(
         await run_task_job.kiq(task=task)
 
 
-async def _trigger_cancel_task(
+async def publish_task_cancellation(
     task_id: str,
-    client_id: str,
-    session: AsyncSession,
 ) -> None:
-    """Trigger a task cancellation."""
-    if not app_state.redis:
-        raise RuntimeError("Redis not initialized")
-    if getattr(broker, "_is_smoke_testing", False) is True:  # pragma: no cover
-        LOG.warning("Using fake Redis, cancelling task in background")
-        bg_task = asyncio.create_task(
-            cancel_task_job(
-                task_id=task_id,
-                client_id=client_id,
-                db_session=session,
-                redis_manager=app_state.redis,
+    """Publish task cancellation message to Redis.
+
+    Parameters
+    ----------
+    task_id : str
+        The task ID.
+
+    Raises
+    ------
+    HTTPException
+        If the Redis publish fails or if the Redis manager is not initialized.
+    """
+    if not app_state.redis:  # pragma: no cover
+        raise HTTPException(
+            status_code=500,
+            detail="Redis manager not initialized",
+        )
+    async with app_state.redis.contextual_client(True) as redis:
+        try:
+            await redis.publish(
+                channel=f"task:{task_id}:status",
+                message=json.dumps(
+                    {
+                        "task_id": task_id,
+                        "status": TaskStatus.CANCELLED.value,
+                        "data": {"detail": "Task Cancelled"},
+                    }
+                ),
             )
-        )
-        bg_task.add_done_callback(
-            lambda t: (
-                LOG.exception("cancel_task_job failed", exc_info=t.exception())
-                if t.exception()
-                else LOG.info("cancel_task_job succeeded")
-            )
-        )
-    else:
-        await cancel_task_job.kiq(
-            task_id=task_id,
-            client_id=client_id,
-        )
+        except BaseException as e:
+            LOG.warning("Failed to publish task cancellation message: %s", e)
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to publish task cancellation message",
+            ) from e
 
 
 async def _trigger_delete_task(

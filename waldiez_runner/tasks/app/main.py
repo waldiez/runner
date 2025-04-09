@@ -3,10 +3,11 @@
 """The main Faststream app entrypoint."""
 
 import asyncio
-import json
 import logging
+import signal
 import sys
 from pathlib import Path
+from types import FrameType
 from typing import Any, Dict
 
 from faststream import FastStream
@@ -23,6 +24,21 @@ except ImportError:
 LOG = logging.getLogger(__name__)
 
 
+# pylint: disable=unused-argument
+def shutdown(signum: int, frame: FrameType | None) -> None:
+    """Handle shutdown signals.
+
+    Parameters
+    ----------
+    signum : int
+        The signal number.
+    frame : FrameType | None
+        The current stack frame.
+    """
+    LOG.warning("Received signal %s, shutting down...", signum)
+    sys.exit(0)
+
+
 async def run(params: TaskParams) -> None:
     """Main function to run the Faststream app.
 
@@ -35,7 +51,40 @@ async def run(params: TaskParams) -> None:
     app = FastStream(broker=broker)
     status_channel = f"task:{params.task_id}:status"
 
+    @broker.subscriber(channel=status_channel)
+    async def status_handler(message: Dict[str, Any]) -> None:
+        """Handle status messages.
+
+        Parameters
+        ----------
+        message : str
+            The message received.
+        """
+        LOG.info("Received status message: %s", message)
+        if message.get("status", "") == "CANCELLED":
+            LOG.warning("Task %s cancelled", message.get("task_id", "unknown"))
+            shutdown(0, None)
+
+    # @app.after_startup
+    # async def set_running() -> None:
+    #     """Set the task status to running."""
+    #     LOG.info("Starting task %s", params.task_id)
+    #     await broker.publish(
+    #         {
+    #             "status": "RUNNING",
+    #             "task_id": params.task_id,
+    #         },
+    #         status_channel,
+    #     )
+
     await app.start()
+    await broker.publish(
+        {
+            "status": "RUNNING",
+            "task_id": params.task_id,
+        },
+        status_channel,
+    )
     task_status: Dict[str, Any] = {
         "task_id": params.task_id,
     }
@@ -59,8 +108,16 @@ async def run(params: TaskParams) -> None:
                 "data": results,
             }
         )
-
-    except BaseException as e:  # pylint: disable=broad-exception-caught
+    except SystemExit:
+        LOG.warning("Task %s was cancelled", params.task_id)
+        task_status.update(
+            {
+                "status": "CANCELLED",
+                "data": "Task was cancelled by signal",
+            }
+        )
+        return
+    except Exception as e:  # pylint: disable=broad-exception-caught
         LOG.error("Task %s failed: %s", params.task_id, e)
         task_status.update(
             {
@@ -69,13 +126,23 @@ async def run(params: TaskParams) -> None:
             }
         )
     finally:
-        await broker.publish(json.dumps(task_status), status_channel)
+        await broker.publish(task_status, status_channel)
         await app.stop()
         LOG.info("App stopped for task %s", params.task_id)
 
 
+def setup_signal_handlers() -> None:
+    """Set up signal handlers for graceful shutdown."""
+
+    signal.signal(signal.SIGTERM, shutdown)
+    signal.signal(signal.SIGINT, shutdown)
+    signal.signal(signal.SIGQUIT, shutdown)
+
+
 async def main() -> None:
     """Parse the command line arguments and run the app."""
+
+    setup_signal_handlers()
     params = parse_args()
     await run(params=params)
 

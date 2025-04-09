@@ -4,6 +4,7 @@
 """Common task utilities."""
 
 import os
+from pathlib import Path
 from typing import Any
 
 from taskiq import (
@@ -17,6 +18,9 @@ from taskiq_redis import ListQueueBroker, RedisAsyncResultBackend
 
 from waldiez_runner.config import ENV_PREFIX, TRUTHY, SettingsManager
 from waldiez_runner.dependencies import REDIS_MANAGER, RedisManager, skip_redis
+
+HERE = Path(__file__).parent
+APP_DIR = HERE / "app"
 
 
 def get_broker() -> AsyncBroker:
@@ -72,22 +76,6 @@ def get_scheduler(the_broker: AsyncBroker) -> TaskiqScheduler:
         the_broker, sources=[LabelScheduleSource(the_broker)]
     )
     return the_scheduler
-
-
-def redis_status_key(task_id: str) -> str:
-    """Get the Redis status key for a task.
-
-    Parameters
-    ----------
-    task_id : str
-        Task ID.
-
-    Returns
-    -------
-    str
-        The Redis status key.
-    """
-    return f"task:{task_id}:status"
 
 
 broker = get_broker()
