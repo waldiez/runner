@@ -18,8 +18,8 @@ from waldiez_runner.dependencies import RedisManager, Storage
 from waldiez_runner.models import Task, TaskStatus
 from waldiez_runner.services import TaskService
 
+from .__base__ import broker
 from .app.redis_io_stream import RedisIOStream
-from .common import broker
 from .dependencies import get_db_session, get_redis_manager, get_storage
 
 LOG = logging.getLogger(__name__)

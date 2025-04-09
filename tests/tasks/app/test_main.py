@@ -53,9 +53,16 @@ async def test_run_success(
     ):
         await run(params)
 
-    broker.publish.assert_called_once()
-    assert broker.publish.call_args[0][1] == "task:task123:status"
-    assert "COMPLETED" in broker.publish.call_args[0][0]
+    # we use "@app.after_startup" for the first publish, so it's not
+    # counted in the publish.await_count
+    # assert broker.publish.await_count == 2  # RUNNING and COMPLETED
+    # broker.publish.assert_any_call(
+    #     {"task_id": "task123", "status": "RUNNING"}, "task:task123:status"
+    # )
+    broker.publish.assert_any_call(
+        {"task_id": "task123", "status": "COMPLETED", "data": {"result": "ok"}},
+        "task:task123:status",
+    )
 
 
 @pytest.mark.asyncio
@@ -91,5 +98,6 @@ async def test_run_failure(
     ):
         await run(params)
 
-    assert broker.publish.call_args
-    assert "FAILED" in broker.publish.call_args[0][0]
+    # assert broker.publish.await_count == 2  # RUNNING and FAILED
+    assert broker.publish.await_count == 2
+    assert broker.publish.call_args[0][0]["status"] == "FAILED"

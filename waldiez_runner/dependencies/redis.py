@@ -5,12 +5,12 @@
 # pylint: disable=broad-exception-caught, protected-access
 """Redis connection manager."""
 
+import asyncio
 import atexit
 import logging
 import os
-from asyncio.locks import Lock
 from contextlib import asynccontextmanager
-from threading import Event, Thread
+from threading import Event, Lock, Thread
 from typing import TYPE_CHECKING, AsyncIterator
 
 import redis
@@ -42,7 +42,6 @@ class RedisManager:
     """Redis connection manager with support for Fake Redis."""
 
     _pool: a_redis.ConnectionPool | None = None
-    _lock = Lock()
     _stop_event = Event()
     _server: TcpFakeServer | None = None
     _server_thread: Thread | None = None
@@ -63,6 +62,21 @@ class RedisManager:
         self.settings = settings
         if skip_setup is False:
             self.setup()
+        atexit.register(self._atexit_close)
+
+    def _atexit_close(self) -> None:
+        """Fallback sync cleanup in case async close wasn't awaited."""
+        if self._pool:
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(self.close())
+                else:
+                    loop.run_until_complete(self.close())
+            except Exception:
+                pass
+        else:
+            self.stop_fake_redis_server()
 
     def setup(self) -> None:
         """Setup the Redis connection, starting Fake Redis if needed.
@@ -94,7 +108,7 @@ class RedisManager:
             await self._pool.disconnect()
             LOG.info("Redis connection pool closed")
         self._pool = None
-        self._stop_fake_redis_server()
+        self.stop_fake_redis_server()
 
     async def client(self, use_single_connection: bool = False) -> AsyncRedis:
         """Get a Redis client.
@@ -162,14 +176,11 @@ class RedisManager:
         RuntimeError
             If the server cannot be started.
         """
-        if (
-            self._server is not None
-            and self._server_thread is not None
-            and self._server_thread.is_alive()
-        ):  # pragma: no cover
-            LOG.warning("Fake Redis server is already running.")
-            return self.redis_url
-
+        thread_lock = Lock()
+        with thread_lock:
+            if self._server_thread and self._server_thread.is_alive():
+                LOG.debug("Fake Redis already running.")
+                return self.redis_url
         port = self.settings.redis_port
         if not is_port_available(port) or new_port is True:
             port = get_available_port()
@@ -191,23 +202,20 @@ class RedisManager:
             )
 
             def thread_target() -> None:
-                """Thread target for starting the Fake Redis server.
-
-                Ignoring exceptions, it's a fake server after all
-                On shutdown, we might get race conditions, but that's ok
-                """
+                """Thread target to run the Fake Redis server."""
+                # pylint: disable=broad-exception-caught
                 try:
-                    self._server.serve_forever()  # type: ignore
+                    self._server.serve_forever()
                 except BaseException:  # pragma: no cover
-                    pass
+                    LOG.debug("Fake Redis server stopped.")
 
             self._server_thread = Thread(
                 target=thread_target,
+                name="FakeRedisServerThread",
                 daemon=True,
             )
             self._stop_event.clear()
             self._server_thread.start()
-            atexit.register(self._stop_fake_redis_server)
             LOG.info("Fake Redis server started at %s", new_url)
             self.redis_url = new_url
             self._pool = a_redis.ConnectionPool.from_url(
@@ -218,21 +226,21 @@ class RedisManager:
             LOG.error("Error starting Fake Redis server: %s", e)
             raise RuntimeError("Failed to start Fake Redis server") from e
 
-    def _stop_fake_redis_server(self) -> None:
+    def stop_fake_redis_server(self) -> None:
         """Stop the Fake Redis server gracefully."""
-        if self._server and getattr(self._server, "_is_running", False) is True:
+        self._stop_event.set()
+        if self._server:
             try:
-                self._stop_event.set()
                 self._server.shutdown()
-                self._server.server_close()
-                LOG.info("Fake Redis server stopped.")
-            except BaseException:
-                pass
-        if self._server_thread is not None and self._server_thread.is_alive():
-            try:
-                self._server_thread.join(timeout=1)
-            except BaseException:
-                pass
+                LOG.info("Fake Redis server shutdown complete.")
+            except Exception as e:
+                LOG.warning("Failed to shut down fake Redis server: %s", e)
+
+        if self._server_thread and self._server_thread.is_alive():
+            self._server_thread.join(timeout=1)
+            if self._server_thread.is_alive():
+                LOG.warning("Fake Redis thread is still alive after join!")
+
         self._server = None
         self._server_thread = None
 

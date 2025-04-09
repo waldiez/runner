@@ -14,7 +14,7 @@ from waldiez_runner.dependencies import (
     StorageBackend,
 )
 
-from .common import broker
+from .__base__ import broker
 
 LOG = logging.getLogger(__name__)
 

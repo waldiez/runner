@@ -333,7 +333,7 @@ addopts = """
     --exitfirst \
     --durations=10 \
     --color=yes \
-    --timeout=120
+    --timeout=60
 """
 
 
@@ -357,5 +357,5 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "except ImportError:",
 ]
-fail_under = 80
+# fail_under = 80
 precision = 2

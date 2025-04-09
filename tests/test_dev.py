@@ -5,7 +5,9 @@
 """Test waldiez_runner.dev.*."""
 
 import os
+import signal
 from pathlib import Path
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 from waldiez_runner._logging import LogLevel
@@ -87,8 +89,14 @@ def test_start_broker_and_scheduler(mock_run_process: MagicMock) -> None:
     mock_scheduler_process.wait.assert_called_once()
 
 
+@patch(f"{MODULE_TO_PATCH}.sys.exit")
+@patch(f"{MODULE_TO_PATCH}.signal.signal")
 @patch(f"{MODULE_TO_PATCH}.Process")
-def test_start_all(mock_process_class: MagicMock) -> None:
+def test_start_all(
+    mock_process_class: MagicMock,
+    mock_signal: MagicMock,
+    mock_sys_exit: MagicMock,
+) -> None:
     """Test start_all."""
     mock_uvicorn_process = MagicMock()
     mock_worker_process = MagicMock()
@@ -112,6 +120,8 @@ def test_start_all(mock_process_class: MagicMock) -> None:
     mock_uvicorn_process.start.assert_called_once()
     mock_worker_process.start.assert_called_once()
     mock_scheduler_process.start.assert_called_once()
+    mock_signal.assert_any_call(signal.SIGINT, mock.ANY)
+    mock_sys_exit.assert_not_called()
 
 
 @patch(f"{MODULE_TO_PATCH}.uvicorn.run")
