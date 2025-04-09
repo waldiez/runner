@@ -136,7 +136,6 @@ def setup_signal_handlers() -> None:
 
     signal.signal(signal.SIGTERM, shutdown)
     signal.signal(signal.SIGINT, shutdown)
-    signal.signal(signal.SIGQUIT, shutdown)
 
 
 async def main() -> None:

@@ -303,7 +303,6 @@ def start_all(
 
     signal.signal(signal.SIGINT, shutdown_all)
     signal.signal(signal.SIGTERM, shutdown_all)
-    signal.signal(signal.SIGQUIT, shutdown_all)
 
     for proc in processes:
         proc.join()
