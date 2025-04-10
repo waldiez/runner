@@ -66,6 +66,7 @@ cat > "${_ENV_FILE}" <<EOF
 DOMAIN_NAME="${DOMAIN_NAME}"
 CERTBOT_EMAIL="${CERTBOT_EMAIL}"
 SKIP_CERTBOT="${SKIP_CERTBOT}"
+CONTAINER_COMMAND="docker"
 EOF
 # once more with the current values
 . "$_ENV_FILE"
@@ -117,6 +118,14 @@ do_upgrade() {
             sudo apt update && sudo apt dist-upgrade -y
             ;;
         centos|rhel|rocky|fedora)
+            if [ "${OS_ID}" != "rhel" ]; then
+                OS_VERSION_ID="$(. /etc/os-release && echo "$VERSION_ID" | cut -d. -f1)"
+                EPEL_RPM_URL="https://dl.fedoraproject.org/pub/epel/epel-release-latest-${OS_VERSION_ID}.noarch.rpm"
+                echo "Installing EPEL release from ${EPEL_RPM_URL}..."
+                sudo dnf install -y "$EPEL_RPM_URL" --skip-broken || sudo yum install -y "$EPEL_RPM_URL" --skip-broken
+            else
+                sudo dnf install -y epel-release
+            fi
             sudo dnf upgrade -y || sudo yum upgrade -y
             ;;
         arch)
@@ -140,9 +149,17 @@ if ! command -v sudo >/dev/null 2>&1; then
         arch) pacman -Sy --noconfirm sudo ;;
     esac
 fi
+get_sudo_group() {
+    case "$OS_ID" in
+        ubuntu|debian) echo "sudo" ;;
+        rhel|centos|rocky|fedora|arch) echo "wheel" ;;
+        *) echo "sudo" ;;  # fallback
+    esac
+}
+SUDO_GROUP="$(get_sudo_group)"
 # Find first sudo-capable user
 find_sudo_user() {
-    getent group sudo | cut -d: -f4 | tr ',' '\n' | grep -Ev '^\s*$' | head -n 1
+    getent group "${SUDO_GROUP}" | cut -d: -f4 | tr ',' '\n' | grep -Ev '^\s*$' | head -n 1
 }
 # Find unused GID
 find_group_id() {
@@ -201,18 +218,23 @@ if [ "$(id -u)" -eq 0 ]; then
         user_id="$(find_user_id "${group_id}")"
 
         echo "Creating group '${user_name_and_group}' (GID ${group_id})..."
-        addgroup --gid "${group_id}" "${user_name_and_group}"
-
+        if command -v addgroup >/dev/null 2>&1; then
+            addgroup --gid "${group_id}" "${user_name_and_group}"
+        else
+            groupadd -g "${group_id}" "${user_name_and_group}"
+        fi
         echo "Creating user '${user_name_and_group}' (UID ${user_id})..."
-        adduser --disabled-password --gecos '' --shell /bin/bash \
-                --uid "${user_id}" --gid "${group_id}" "${user_name_and_group}"
-
+        if command -v adduser >/dev/null 2>&1 && adduser --help 2>&1 | grep -q -- '--disabled-password'; then
+            adduser --disabled-password --gecos '' --shell /bin/bash \
+                        --uid "${user_id}" --gid "${group_id}" "${user_name_and_group}"
+        else
+            useradd -m -u "${user_id}" -g "${group_id}" -s /bin/bash "${user_name_and_group}"
+            passwd -l "${user_name_and_group}"  # Lock password (disable login)
+        fi
         echo "Adding user to sudo group..."
-        usermod -aG sudo "${user_name_and_group}"
-
+        usermod -aG "${SUDO_GROUP}" "${user_name_and_group}"
         echo "${user_name_and_group} ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/90-${user_name_and_group}"
         chmod 0440 "/etc/sudoers.d/90-${user_name_and_group}"
-
         SUDO_USER="${user_name_and_group}"
     fi
     # Copy root's authorized_keys to user ONLY if theirs is missing
@@ -235,11 +257,24 @@ if [ "$(id -u)" -eq 0 ]; then
     echo "Re-running script as user: ${SUDO_USER}"
     # Let's avoid any permission issues if "$_SCRIPT_PATH" is in a restricted location
     SCRIPT_COPY="${USER_HOME}/$(basename "$_SCRIPT_PATH")"
-    cp "${_SCRIPT_PATH}" "${SCRIPT_COPY}"
+    _src="$(readlink -f "${_SCRIPT_PATH}")"
+    _dst="$(readlink -f "${SCRIPT_COPY}")"
+    if [ "$_src" != "$_dst" ]; then
+        # Copy the script to the user's home directory
+        echo "Copying script to ${SCRIPT_COPY}..."
+        mkdir -p "${USER_HOME}"
+        cp "${_src}" "${_dst}"
+        rm "${_src}" 2>/dev/null || true
+    fi
     chown "${SUDO_USER}:${SUDO_USER}" "${SCRIPT_COPY}"
     chmod +rx "${SCRIPT_COPY}"
-    # let's also pass the env file
-    mv "${_ENV_FILE}" "${USER_HOME}/${_ENV_FILE_NAME}" 2>/dev/null || true
+    # let's also pass the env file (if not the same
+    _src="$(readlink -f "${_ENV_FILE}")"
+    _dst="${USER_HOME}/${_ENV_FILE_NAME}"
+    if [ "$_src" != "$_dst" ]; then
+        cp "${_src}" "${_dst}"
+        rm "${_src}" 2>/dev/null || true
+    fi
     chown "${SUDO_USER}:${SUDO_USER}" "${USER_HOME}/${_ENV_FILE_NAME}" 2>/dev/null || true
 
     exec sudo -u "${SUDO_USER}" sh "${SCRIPT_COPY}"
@@ -258,7 +293,7 @@ case "$OS_ID" in
     ubuntu|debian)
         do_install python-is-python3
         ;;
-    fedora|rhel|rocky)
+    centos|fedora|rhel|rocky)
         do_install python-unversioned-command
         ;;
     arch)
@@ -290,7 +325,11 @@ install_docker_rpm_family() {
     # https://docs.docker.com/engine/install/rhel/
     # https://docs.rockylinux.org/gemstones/containers/docker/
     do_install dnf-plugins-core
-    sudo dnf config-manager --add-repo "https://download.docker.com/linux/${OS_ID}/docker-ce.repo"
+    repo_id="${OS_ID}"
+    if [ "$OS_ID" = "rocky" ]; then
+        repo_id="rhel"
+    fi
+    sudo dnf config-manager --add-repo "https://download.docker.com/linux/${repo_id}/docker-ce.repo"
     do_install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin || \
     do_install docker-ce docker-ce-cli containerd.io docker-compose-plugin
     sudo systemctl enable --now docker
@@ -324,7 +363,6 @@ sudo usermod -aG docker "${CURRENT_USER}" > /dev/null 2>&1 || true
 if ! docker version > /dev/null 2>&1; then
     if [ -z "$REENTERED_WITH_DOCKER" ]; then
         echo "Docker group change needs session reload. Re-executing to apply..."
-        # exec su - "${CURRENT_USER}" -c "REENTERED_WITH_DOCKER=1 sh '${_SCRIPT_PATH}'"
         exec sudo -iu "$CURRENT_USER" env REENTERED_WITH_DOCKER=1 sh "$_SCRIPT_PATH"
     else
         echo "Docker still not available. Try logging out and in again, or rebooting."
@@ -360,6 +398,10 @@ rm -f "$TMP_DAEMON_CONFIG"
 # Nginx
 ##################################################################################################
 do_install nginx
+if [ "$(systemctl is-active nginx)" = "inactive" ]; then
+    echo "Nginx is not running. Starting it..."
+    sudo systemctl start nginx
+fi
 if [ -f "/etc/nginx/sites-available/default" ]; then
     NGINX_CONF="/etc/nginx/sites-available/default"
 elif [ -f "/etc/nginx/nginx.conf" ]; then
@@ -400,29 +442,35 @@ try_install_certbot() {
         # if arch, let's prefer packman
         # https://wiki.archlinux.org/title/Certbot
         if [ "$OS_ID" = "arch" ]; then
-            if ! command -v certbot >/dev/null 2>&1; then
-                echo "Certbot is not installed. Installing via pacman..."
-                do_install certbot certbot-nginx
-            fi
-        else
+            do_install certbot certbot-nginx
+        fi
+        if [ "$OS_ID" = "rhel" ] || [ "$OS_ID" = "rocky" ] || [ "$OS_ID" = "centos" ] || [ "$OS_ID" = "fedora" ]; then
+            do_install certbot python3-certbot-nginx
+        fi
+        # check again now
+        if ! command -v certbot >/dev/null 2>&1; then
+            echo "Trying to install certbot via snap..."
             if ! command -v snap >/dev/null 2>&1; then
-                echo "Snap is not installed. Installing snapd..."
                 do_install snapd
-                sudo systemctl enable --now snapd
-                sudo systemctl start snapd
-                sleep 5
+                # https://snapcraft.io/docs/installing-snap-on-red-hat
+                # https://snapcraft.io/docs/installing-snap-on-rocky
+                # https://snapcraft.io/docs/installing-snap-on-fedora
+                # https://snapcraft.io/docs/installing-snap-on-centos
+                if [ "$OS_ID" = "rhel" ] || [ "$OS_ID" = "rocky" ] || [ "$OS_ID" = "centos" ] || [ "$OS_ID" = "fedora" ]; then
+                    sudo systemctl enable --now snapd.socket
+                else
+                    sudo systemctl enable --now snapd
+                fi
             fi
             if ! command -v snap >/dev/null 2>&1; then
-                echo "Snap is still not installed. Please check your system."
+                echo "Could not find or install snap. Please install it manually and try again."
                 exit 1
             fi
-            # https://certbot.eff.org/instructions?ws=nginx&os=snap
             sudo snap install --classic certbot
-            # might already be installed, so let's ignore the error
+            sudo ln -s /var/lib/snapd/snap /snap > /dev/null 2>&1 || true
             sudo ln -s /snap/bin/certbot /usr/bin/certbot  > /dev/null 2>&1 || true
         fi
     fi
-    # Check if certbot is installed
     if ! command -v certbot >/dev/null 2>&1; then
         echo "Certbot is not installed. Please check your installation."
         exit 1
@@ -484,7 +532,7 @@ fi
 git clone https://github.com/waldiez/runner.git runner_tmp
 cd runner_tmp
 cp compose.example.yaml ../compose.yaml
-make image
+python scripts/image.py --container-command docker
 cd ..
 rm -rf runner_tmp
 #
