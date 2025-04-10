@@ -16,8 +16,10 @@ psycopg==3.2.6; sys_platform == 'linux' or (sys_platform  == 'win32' and (platfo
 psycopg[binary]==3.2.6; sys_platform != 'linux' and (sys_platform != 'win32' or (platform_machine != 'arm64' and platform_machine != 'ARM64'))
 puremagic==1.28
 pyJWT[crypto]==2.10.1
+pyautogen[retrievechat,gemini]
 pydantic-settings==2.8.1
-pydantic>=2.11.1
+pydantic>=2.11.3
+pysqlite3-binary==0.5.4; sys_platform == 'linux' and platform_machine != 'arm64'
 python-multipart==0.0.20
 python-ulid==3.0.0
 python_dotenv==1.1.0
