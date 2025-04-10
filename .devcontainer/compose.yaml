@@ -40,7 +40,7 @@ services:
     healthcheck:
       <<: *common-healthcheck
       test:
-        ['CMD', 'pg_isready', '-U', '${POSTGRES_USER:-db_user}', '-d', '${POSTGRES_DB:-db_password}', '-p', '${PGPORT:-5432}']
+        ['CMD', 'pg_isready', '-U', '${POSTGRES_USER:-db_user}', '-d', '${POSTGRES_DB:-db_name}', '-p', '${PGPORT:-5432}']
     logging: *common-logging
 
   redis:
