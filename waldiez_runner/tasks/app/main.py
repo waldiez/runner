@@ -8,7 +8,7 @@ import signal
 import sys
 from pathlib import Path
 from types import FrameType
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from faststream import FastStream
 from faststream.redis import RedisBroker
@@ -65,18 +65,6 @@ async def run(params: TaskParams) -> None:
             LOG.warning("Task %s cancelled", message.get("task_id", "unknown"))
             shutdown(0, None)
 
-    # @app.after_startup
-    # async def set_running() -> None:
-    #     """Set the task status to running."""
-    #     LOG.info("Starting task %s", params.task_id)
-    #     await broker.publish(
-    #         {
-    #             "status": "RUNNING",
-    #             "task_id": params.task_id,
-    #         },
-    #         status_channel,
-    #     )
-
     await app.start()
     await broker.publish(
         {
@@ -102,12 +90,7 @@ async def run(params: TaskParams) -> None:
         )
 
         results = await flow_runner.run()
-        task_status.update(
-            {
-                "status": "COMPLETED",
-                "data": results,
-            }
-        )
+        task_status.update(check_results(results))
     except SystemExit:
         LOG.warning("Task %s was cancelled", params.task_id)
         task_status.update(
@@ -129,6 +112,47 @@ async def run(params: TaskParams) -> None:
         await broker.publish(task_status, status_channel)
         await app.stop()
         LOG.info("App stopped for task %s", params.task_id)
+
+
+def check_results(
+    results: Dict[str, Any] | List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Check the results of the flow execution.
+
+    Parameters
+    ----------
+    results : Dict[str, Any]
+        The results of the flow execution.
+
+    Returns
+    -------
+    Dict[str, Any]
+        The checked results.
+    """
+    if isinstance(results, dict) and "error" in results:
+        return {
+            "status": "FAILED",
+            "data": results,
+        }
+    if isinstance(results, list) and len(results) == 0:
+        return {
+            "status": "FAILED",
+            "data": "No results returned",
+        }
+    if (
+        isinstance(results, list)
+        and len(results) == 1
+        and isinstance(results[0], dict)
+        and "error" in results[0]
+    ):
+        return {
+            "status": "FAILED",
+            "data": results[0],
+        }
+    return {
+        "status": "COMPLETED",
+        "data": results,
+    }
 
 
 def setup_signal_handlers() -> None:
