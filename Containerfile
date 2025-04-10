@@ -85,18 +85,6 @@ RUN pip install --upgrade pip
 COPY --chown=user:user requirements/main.txt /home/user/requirements.txt
 RUN pip install -r /home/user/requirements.txt && rm /home/user/requirements.txt
 
-# make sure we can also install pysqlite3[-binary]
-# on arm, pysqlite3[-binary] is not available
-# on PyPI, so we need to manually install it from source
-RUN mkdir -p /home/user/_tmp && \
-    cd /home/user/_tmp && \
-    python -c \
-    'from waldiez.utils.pysqlite3_checker import install_pysqlite3, download_sqlite_amalgamation; p=download_sqlite_amalgamation(); install_pysqlite3(p);' && \
-    python -c \
-    'from waldiez.utils.pysqlite3_checker import check_pysqlite3; check_pysqlite3()' && \
-    rm -rf /home/user/_tmp
-
-
 COPY --chown=user:user . /home/user
 RUN chmod +x /home/user/scripts/start.sh
 
