@@ -5,7 +5,7 @@ set -e  # Fail on error
 # Perform pre-start checks, initial data setup and start the application
 
 # (in container)
-# app root: /home/user/app
+# app root: "/home/user/app"
 # scripts root (where this file is): /home/user/scripts
 HERE="$(dirname "$(readlink -f "$0")")"
 ROOT_DIR="$(dirname "$HERE")"
@@ -45,45 +45,45 @@ start_uvicorn() {
     initial_data_setup
     echo "Starting uvicorn server..."
     # no args, it will load the configuration from the environment
-    python3 -m app
-}
-
-start_worker() {
-    pre_start_checks
-    initial_data_setup
-    echo "Starting worker..."
-    # --no-configure-logging
-    #   Use this parameter if your application configures custom logging. (default: True)
-    # --log-level {INFO,WARNING,DEBUG,ERROR,FATAL}
-    #       worker log level (default: INFO)
-    LOG_LEVEL="$(get_log_level)"
-    taskiq worker app.worker:broker --workers 1 --max-tasks-per-child 3 --log-level "$LOG_LEVEL"
-}
-
-start_scheduler() {
-    pre_start_checks
-    initial_data_setup
-    # --no-configure-logging
-    #   Use this parameter if your application configures custom logging. (default: True)
-    # --log-level {INFO,WARNING,DEBUG,ERROR,FATAL}
-    #       worker log level (default: INFO)
-    LOG_LEVEL="$(get_log_level)"
-    taskiq scheduler app.worker:scheduler --log-level "$LOG_LEVEL"
+    python3 -m waldiez_runner
 }
 
 start_broker() {
+    # pre_start_checks
+    # initial_data_setup
+    echo "Starting broker..."
+    # --no-configure-logging
+    #   Use this parameter if your application configures custom logging. (default: True)
+    # --log-level {INFO,WARNING,DEBUG,ERROR,FATAL}
+    #       worker log level (default: INFO)
+    LOG_LEVEL="$(get_log_level)"
+    taskiq worker waldiez_runner.worker:broker --workers 1 --max-tasks-per-child 3 --log-level "$LOG_LEVEL"
+}
+
+start_scheduler() {
+    # pre_start_checks
+    # initial_data_setup
+    # --no-configure-logging
+    #   Use this parameter if your application configures custom logging. (default: True)
+    # --log-level {INFO,WARNING,DEBUG,ERROR,FATAL}
+    #       worker log level (default: INFO)
+    LOG_LEVEL="$(get_log_level)"
+    taskiq scheduler waldiez_runner.worker:scheduler --log-level "$LOG_LEVEL"
+}
+
+start_broker_and_scheduler() {
     pre_start_checks
     initial_data_setup
-    # both worker and scheduler
-    echo "Starting Broker (worker and scheduler)..."
+    # both broker and scheduler
+    echo "Starting worker (broker and scheduler)..."
 
     # Trap SIGTERM and SIGINT to propagate to both worker and scheduler
     trap 'kill -- -$$' TERM INT
 
-    taskiq worker app.worker:broker --workers 1 --log-level "$LOG_LEVEL" &
+    taskiq worker waldiez_runner.worker:broker --workers 1 --log-level "$LOG_LEVEL" &
     WORKER_PID=$!
 
-    taskiq scheduler app.worker:scheduler --log-level "$LOG_LEVEL" &
+    taskiq scheduler waldiez_runner.worker:scheduler --log-level "$LOG_LEVEL" &
     SCHEDULER_PID=$!
 
     # Wait for both processes
@@ -95,14 +95,14 @@ main() {
         uvicorn)
             start_uvicorn
             ;;
-        worker)
-            start_worker
-            ;;
         scheduler)
             start_scheduler
             ;;
         broker)
             start_broker
+            ;;
+        worker)
+            start_broker_and_scheduler
             ;;
         *)
             echo "Invalid command: ${1}"

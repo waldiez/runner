@@ -20,6 +20,11 @@ from tenacity import (
     stop_after_attempt,
     wait_fixed,
 )
+from waldiez.utils.pysqlite3_checker import (
+    check_pysqlite3,
+    download_sqlite_amalgamation,
+    install_pysqlite3,
+)
 
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
@@ -46,6 +51,23 @@ except ImportError:
 os.environ[f"{ENV_PREFIX}TESTING"] = "false"
 
 
+def try_check_pysqlite3() -> None:
+    """Check if pysqlite3 is installed and if not, install it.
+
+    Before waldiez tries:
+     if on linux and arm64, pysqlite3-binary is not available
+    and we need to install it manually.
+    """
+    try:
+        check_pysqlite3()
+    except BaseException:  # pylint: disable=broad-exception-caught
+        LOG.info("pysqlite3 not found, installing...")
+        download_path = download_sqlite_amalgamation()
+        install_pysqlite3(download_path)
+        LOG.info("pysqlite3 installed")
+    check_pysqlite3()
+
+
 @retry(
     reraise=True,
     stop=stop_after_attempt(MAX_RETRIES),
@@ -62,6 +84,7 @@ def check_db_connection() -> None:
         If the connection fails.
     """
     settings = SettingsManager.load_settings(force_reload=False)
+    LOG.info("Settings: \n%s", settings.model_dump_json(indent=2))
     if "--no-postgres" in sys.argv or settings.postgres is not True:
         LOG.info("Skipping PostgreSQL connection check")
         return
@@ -196,7 +219,7 @@ def ensure_secrets() -> None:
     update_dotenv(f"{ENV_PREFIX}LOCAL_CLIENT_SECRET", client_secret)
     settings = SettingsManager.load_settings(force_reload=True)
     settings.save()
-    LOG.info("Secrets have been updated")
+    LOG.info("Secrets have been checked")
     assert_secrets(
         [
             (
@@ -217,6 +240,7 @@ def ensure_secrets() -> None:
 
 def main() -> None:
     """Perform pre-start actions."""
+    try_check_pysqlite3()
     if "--secrets" in sys.argv:
         ensure_secrets()
         return

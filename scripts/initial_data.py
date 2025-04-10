@@ -260,6 +260,7 @@ def main() -> None:
         use_postgres = True
     if use_postgres is not None:
         settings = SettingsManager.load_settings(force_reload=True)
+        LOG.info("Settings: \n%s", settings.model_dump_json(indent=2))
         settings.postgres = use_postgres
         settings.save()
         LOG.info("Postgres enabled: %s", use_postgres)
