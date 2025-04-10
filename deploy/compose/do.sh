@@ -118,12 +118,15 @@ do_upgrade() {
             sudo apt update && sudo apt dist-upgrade -y
             ;;
         centos|rhel|rocky|fedora)
-            if [ "${OS_ID}" != "rhel" ]; then
-                OS_VERSION_ID="$(. /etc/os-release && echo "$VERSION_ID" | cut -d. -f1)"
+            if [ "${OS_ID}" != "fedora" ]; then
+                if [ "${OS_ID}" = "rhel" ]; then
+                    OS_VERSION_ID="$(. /etc/os-release && echo "$VERSION_ID" | cut -d. -f1)"
+                else
+                    OS_VERSION_ID="9"
+                fi
                 EPEL_RPM_URL="https://dl.fedoraproject.org/pub/epel/epel-release-latest-${OS_VERSION_ID}.noarch.rpm"
                 echo "Installing EPEL release from ${EPEL_RPM_URL}..."
                 sudo dnf install -y "$EPEL_RPM_URL" --skip-broken || sudo yum install -y "$EPEL_RPM_URL" --skip-broken
-            else
                 sudo dnf install -y epel-release
             fi
             sudo dnf upgrade -y || sudo yum upgrade -y
@@ -158,8 +161,22 @@ get_sudo_group() {
 }
 SUDO_GROUP="$(get_sudo_group)"
 # Find first sudo-capable user
-find_sudo_user() {
-    getent group "${SUDO_GROUP}" | cut -d: -f4 | tr ',' '\n' | grep -Ev '^\s*$' | head -n 1
+get_sudo_user() {
+    SUDO_GROUP=$(get_sudo_group)
+    USER_FROM_GROUP=$(getent group "$SUDO_GROUP" | cut -d: -f4 | tr ',' '\n' | grep -Ev '^\s*$' | head -n 1)
+
+    if [ -n "$USER_FROM_GROUP" ]; then
+        echo "$USER_FROM_GROUP"
+        return
+    fi
+    # Fallback to checking sudo privileges
+    # shellcheck disable=SC2013
+    for user in $(awk -F: '{ if ($3 >= 1000 && $1 != "nobody") print $1 }' /etc/passwd); do
+        if sudo -n -l -U "$user" 2>/dev/null | grep -q 'NOPASSWD: ALL'; then
+            echo "$user"
+            return
+        fi
+    done
 }
 # Find unused GID
 find_group_id() {
@@ -201,7 +218,7 @@ find_user_id() {
 }
 # switch if needed to non-root user
 if [ "$(id -u)" -eq 0 ]; then
-    SUDO_USER="$(find_sudo_user)"
+    SUDO_USER="$(get_sudo_user)"
 
     if [ -n "${SUDO_USER}" ]; then
         echo "Found sudo user: ${SUDO_USER}"
@@ -310,11 +327,11 @@ install_docker_deb_family() {
     # https://docs.docker.com/engine/install/debian/
     do_install ca-certificates curl
     sudo install -m 0755 -d /etc/apt/keyrings
-    sudo curl -fsSL "https://download.docker.com/linux/$OS_ID/gpg" -o /etc/apt/keyrings/docker.asc
+    sudo curl -fsSL "https://download.docker.com/linux/${OS_ID}/gpg" -o /etc/apt/keyrings/docker.asc
     sudo chmod a+r /etc/apt/keyrings/docker.asc
     # Add the repository to Apt sources:
     codename="$(. /etc/os-release && echo "${UBUNTU_CODENAME:-${VERSION_CODENAME}}")"
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/$OS_ID \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/${OS_ID} \
     $codename stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
     sudo apt update
     do_install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
@@ -329,7 +346,18 @@ install_docker_rpm_family() {
     if [ "$OS_ID" = "rocky" ]; then
         repo_id="rhel"
     fi
-    sudo dnf config-manager --add-repo "https://download.docker.com/linux/${repo_id}/docker-ce.repo"
+    # let's try to avoid:
+    # Unknown argument "--add-repo" for command "config-manager". Add "--help" for more information about the arguments.
+    if command -v dnf-3 >/dev/null 2>&1; then
+        sudo dnf-3 config-manager --add-repo "https://download.docker.com/linux/${repo_id}/docker-ce.repo"
+    elif command -v dnf >/dev/null 2>&1; then
+        sudo dnf config-manager --add-repo "https://download.docker.com/linux/${repo_id}/docker-ce.repo"
+    elif command -v yum >/dev/null 2>&1; then
+        sudo yum-config-manager --add-repo "https://download.docker.com/linux/${repo_id}/docker-ce.repo"
+    else
+        echo "No compatible package manager found. Please install Docker manually."
+        exit 1
+    fi
     do_install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin || \
     do_install docker-ce docker-ce-cli containerd.io docker-compose-plugin
     sudo systemctl enable --now docker
@@ -444,7 +472,7 @@ try_install_certbot() {
         if [ "$OS_ID" = "arch" ]; then
             do_install certbot certbot-nginx
         fi
-        if [ "$OS_ID" = "rhel" ] || [ "$OS_ID" = "rocky" ] || [ "$OS_ID" = "centos" ] || [ "$OS_ID" = "fedora" ]; then
+        if [ "$OS_ID" = "rhel" ] || [ "$OS_ID" = "rocky" ] || [ "$OS_ID" = "centos" ]; then
             do_install certbot python3-certbot-nginx
         fi
         # check again now
@@ -452,10 +480,11 @@ try_install_certbot() {
             echo "Trying to install certbot via snap..."
             if ! command -v snap >/dev/null 2>&1; then
                 do_install snapd
-                # https://snapcraft.io/docs/installing-snap-on-red-hat
+                # https://snapcraft.io/install/certbot/rhel
+                # https://snapcraft.io/install/certbot/debian
+                # https://snapcraft.io/install/certbot/fedora
+                # https://snapcraft.io/install/certbot/centos
                 # https://snapcraft.io/docs/installing-snap-on-rocky
-                # https://snapcraft.io/docs/installing-snap-on-fedora
-                # https://snapcraft.io/docs/installing-snap-on-centos
                 if [ "$OS_ID" = "rhel" ] || [ "$OS_ID" = "rocky" ] || [ "$OS_ID" = "centos" ] || [ "$OS_ID" = "fedora" ]; then
                     sudo systemctl enable --now snapd.socket
                 else
@@ -466,9 +495,13 @@ try_install_certbot() {
                 echo "Could not find or install snap. Please install it manually and try again."
                 exit 1
             fi
-            sudo snap install --classic certbot
+            until snap list >/dev/null 2>&1; do
+                echo "Waiting for snapd to finish initializing..."
+                sleep 3
+            done
             sudo ln -s /var/lib/snapd/snap /snap > /dev/null 2>&1 || true
             sudo ln -s /snap/bin/certbot /usr/bin/certbot  > /dev/null 2>&1 || true
+            sudo snap install --classic certbot
         fi
     fi
     if ! command -v certbot >/dev/null 2>&1; then
