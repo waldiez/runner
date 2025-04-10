@@ -1,0 +1,192 @@
+---
+
+networks:
+  waldiez-internal:
+    internal: true
+  waldiez-external:
+    external: true
+
+volumes:
+  runner-postgres-data:
+  runner-redis-data:
+  runner-storage-data:
+
+x-podman:
+  in_pod: false
+
+x-logging: &common-logging
+  options:
+    max-size: '50m'
+    max-file: '10'
+  driver: 'json-file'
+
+x-healthcheck: &common-healthcheck
+  interval: 60s
+  timeout: 10s
+  retries: 10
+  start_period: 30s
+
+services:
+
+  db:
+    container_name: waldiez-runner-db
+    hostname: db
+    image: postgres:latest
+    restart: unless-stopped
+    init: true
+    networks:
+      - waldiez-internal
+    expose:
+      - "${PGPORT:-5432}"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-db_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-db_password}
+      POSTGRES_DB: ${POSTGRES_DB:-db_name}
+      PGDATA: /var/lib/postgresql/data
+      PGPORT: '${PGPORT:-5432}'
+    volumes:
+      - runner-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      <<: *common-healthcheck
+      test:
+        ['CMD', 'pg_isready', '-U', '${POSTGRES_USER:-db_user}', '-d', '${POSTGRES_DB:-db_name}', '-p', '${PGPORT:-5432}']
+    logging: *common-logging
+
+  redis:
+    hostname: redis
+    container_name: waldiez-runner-redis
+    image: redis:latest
+    restart: unless-stopped
+    init: true
+    networks:
+      - waldiez-internal
+    expose:
+      - "${REDIS_PORT:-6379}"
+    environment:
+      REDIS_PORT: '${REDIS_PORT:-6379}'
+      REDIS_PASSWORD: '${REDIS_PASSWORD:-redis_password}'
+    command:
+      - /bin/sh
+      - -c
+      - >
+        if [ ! -z "${REDIS_PASSWORD:-redis_password}" ]; then
+          redis-server --port ${REDIS_PORT:-6379} --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_password}
+        else
+          redis-server --port ${REDIS_PORT:-6379} --appendonly yes
+        fi
+    volumes:
+      - runner-redis-data:/data
+    healthcheck:
+      <<: *common-healthcheck
+      test:
+        - CMD-SHELL
+        - >
+          if [ ! -z "${REDIS_PASSWORD:-redis_password}" ]; then
+            redis-cli -p ${REDIS_PORT:-6379} -a "${REDIS_PASSWORD:-redis_password}" ping
+          else
+            redis-cli -p ${REDIS_PORT:-6379} ping
+          fi
+    logging: *common-logging
+  runner:
+    container_name: waldiez-runner
+    image: waldiez/runner:latest
+    restart: unless-stopped
+    init: true
+    networks:
+      - waldiez-internal
+      - waldiez-external
+    ports:
+      - "${WALDIEZ_RUNNER_PORT:-8000}:${WALDIEZ_RUNNER_PORT:-8000}"
+    environment: &waldiez-runner-env
+      - WALDIEZ_RUNNER_HOST=0.0.0.0
+      - WALDIEZ_RUNNER_PORT=8000
+      - WALDIEZ_RUNNER_DOMAIN_NAME=example.com
+      - WALDIEZ_RUNNER_MAX_JOBS=3
+      - WALDIEZ_RUNNER_FORCE_SSL=1
+      - WALDIEZ_RUNNER_TRUSTED_HOSTS=localhost,example.com
+      - WALDIEZ_RUNNER_TRUSTED_ORIGINS=https://example.com,http://localhost:8000
+      - WALDIEZ_RUNNER_TRUSTED_ORIGIN_REGEX=
+      - WALDIEZ_RUNNER_SECRET_KEY=REPLACE_ME
+      - WALDIEZ_RUNNER_LOG_LEVEL=INFO
+      - WALDIEZ_RUNNER_POSTGRES=1
+      - WALDIEZ_RUNNER_DB_HOST=db
+      - WALDIEZ_RUNNER_DB_PORT=5432
+      - WALDIEZ_RUNNER_DB_USER=db_user
+      - WALDIEZ_RUNNER_DB_PASSWORD=db_password
+      - WALDIEZ_RUNNER_DB_NAME=db_name
+      - WALDIEZ_RUNNER_DB_URL=
+      - WALDIEZ_RUNNER_REDIS=1
+      - WALDIEZ_RUNNER_REDIS_HOST=redis
+      - WALDIEZ_RUNNER_REDIS_PORT=6379
+      - WALDIEZ_RUNNER_REDIS_DB=0
+      - WALDIEZ_RUNNER_REDIS_SCHEME=redis
+      - WALDIEZ_RUNNER_REDIS_PASSWORD=redis_password
+      - WALDIEZ_RUNNER_REDIS_URL=
+      - WALDIEZ_RUNNER_DEV=0
+      - WALDIEZ_RUNNER_USE_LOCAL_AUTH=1
+      - WALDIEZ_RUNNER_LOCAL_CLIENT_ID=REPLACE_ME
+      - WALDIEZ_RUNNER_LOCAL_CLIENT_SECRET=REPLACE_ME
+      - WALDIEZ_RUNNER_USE_OIDC_AUTH=0
+      - WALDIEZ_RUNNER_OIDC_ISSUER_URL=
+      - WALDIEZ_RUNNER_OIDC_AUDIENCE=
+      - WALDIEZ_RUNNER_OIDC_JWKS_URL=
+      - WALDIEZ_RUNNER_OIDC_JWKS_CACHE_TTL=900
+      - WALDIEZ_RUNNER_INPUT_TIMEOUT=180
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - runner-storage-data:/home/user/waldiez_runner/storage
+    healthcheck:
+      <<: *common-healthcheck
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - --show-error
+        - http://localhost:${WALDIEZ_RUNNER_PORT:-8000}/health
+    logging: *common-logging
+
+  broker:
+    container_name: waldiez-broker
+    image: waldiez/runner:latest
+    restart: unless-stopped
+    command: ["/home/user/scripts/start.sh", "broker"]
+    init: true
+    networks:
+      - waldiez-internal
+      - waldiez-external
+    environment: *waldiez-runner-env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      runner:
+        condition: service_healthy
+    volumes:
+      - runner-storage-data:/home/user/waldiez_runner/storage
+    logging: *common-logging
+
+  scheduler:
+    container_name: waldiez-scheduler
+    image: waldiez/runner:latest
+    restart: unless-stopped
+    command: ["/home/user/scripts/start.sh", "scheduler"]
+    init: true
+    networks:
+      - waldiez-internal
+    environment: *waldiez-runner-env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      runner:
+        condition: service_healthy
+    volumes:
+      - runner-storage-data:/home/user/waldiez_runner/storage
+    logging: *common-logging
