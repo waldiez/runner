@@ -3,7 +3,7 @@
 
 # example usage:
 
-# DOMAIN_NAME=example.com sh -c "$(curl -fsSL https://raw.githubusercontent.com/waldiez/runner/main/deploy/compose/ubuntu.sh)"
+# DOMAIN_NAME=example.com sh -c "$(curl -fsSL https://raw.githubusercontent.com/waldiez/runner/refs/heads/main/deploy/compose/ubuntu.sh)"
 
 set -e
 
