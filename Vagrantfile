@@ -17,7 +17,7 @@ Vagrant.configure("2") do |config|
     config.vm.define opts[:name] do |vm_config|
       vm_config.vm.box = opts[:box]
       vm_config.vm.hostname = "#{opts[:name]}-runner"
-
+      vm_config.vm.disk :disk, size: "100GB", primary: true
       vm_config.vm.provider "virtualbox" do |vb|
         vb.memory = 4096
         vb.cpus = 2
