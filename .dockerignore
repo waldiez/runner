@@ -6,7 +6,7 @@
 !scripts/pre_start.py
 !scripts/initial_data.py
 !pyproject.toml
-!requirements/main.txt
+!requirements/
 !alembic.ini
 !LICENSE
 !README.md
