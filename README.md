@@ -77,7 +77,7 @@ sequenceDiagram
 - [x] Handle Task Execution
 - [x] Handle messaging between the task and the task broker to update the task status/results in db
 - [ ] Documentation
-- [ ] Dockerfile and deployment generation, documentation and examples
+- [ ] Dockerfile/Containerfile and deployment generation, documentation and examples
 - [ ] An example using a python client
 - [ ] An example using a JS client
 - [ ] Support other storage backends (e.g., S3, GCS, etc.)
