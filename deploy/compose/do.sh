@@ -472,10 +472,7 @@ try_install_certbot() {
         if [ "$OS_ID" = "arch" ]; then
             do_install certbot certbot-nginx
         fi
-        if [ "$OS_ID" = "rhel" ] || [ "$OS_ID" = "rocky" ] || [ "$OS_ID" = "centos" ]; then
-            do_install certbot python3-certbot-nginx
-        fi
-        # check again now
+        # check again
         if ! command -v certbot >/dev/null 2>&1; then
             echo "Trying to install certbot via snap..."
             if ! command -v snap >/dev/null 2>&1; then
