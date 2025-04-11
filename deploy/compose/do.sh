@@ -130,6 +130,7 @@ do_upgrade() {
                 sudo dnf install -y epel-release
             fi
             sudo dnf upgrade -y || sudo yum upgrade -y
+            sudo dnf clean all
             ;;
         arch)
             pacman -Syu --noconfirm
