@@ -22,7 +22,7 @@ def get_vm_boxes() -> List[str]:
     machine_lower = platform.machine().lower()
     if "x86_64" in machine_lower or "amd64" in machine_lower:
         return ALL_VM_BOXES
-    return [box for box in ALL_VM_BOXES if box not in ["debian", "rocky"]]
+    return [box for box in ALL_VM_BOXES if box not in ["debian", "arch"]]
 
 
 AVAILABLE_VM_BOXES = get_vm_boxes()
@@ -136,25 +136,21 @@ def main() -> None:
     )
     parser.add_argument("--all", action="store_true", help="Test all boxes")
     args = parser.parse_args()
-    if args.all:
-        for box in AVAILABLE_VM_BOXES:
-            run_vm(box)
-    elif args.box:
-        if args.box not in AVAILABLE_VM_BOXES:
-            print(f"Unknown box: {args.box}")
-            sys.exit(1)
-        run_vm(args.box)
-    else:
-        parser.print_help()
+    try:
+        if args.all:
+            for box in AVAILABLE_VM_BOXES:
+                run_vm(box)
+        elif args.box:
+            if args.box not in AVAILABLE_VM_BOXES:
+                print(f"Unknown box: {args.box}")
+                sys.exit(1)
+            run_vm(args.box)
+        else:
+            parser.print_help()
+            sys.exit(0)
+    finally:
+        run_command(["vagrant", "destroy", "-f"])
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    finally:
-        if "--help" in sys.argv or "-h" in sys.argv:
-            sys.exit(0)
-        try:
-            run_command(["vagrant", "destroy", "-f"])
-        finally:
-            pass
+    main()
