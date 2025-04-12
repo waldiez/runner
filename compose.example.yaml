@@ -140,8 +140,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - runner-storage-data:/home/user/waldiez_runner/storage
+    volumes: &waldiez-runner-volumes
+      - runner-storage-data:/home/user/app/waldiez_runner/storage
     healthcheck:
       <<: *common-healthcheck
       test:
@@ -157,7 +157,7 @@ services:
     container_name: waldiez-broker
     image: waldiez/runner:latest
     restart: unless-stopped
-    command: ["/home/user/scripts/start.sh", "broker"]
+    command: ["/home/user/app/scripts/start.sh", "broker"]
     init: true
     networks:
       - waldiez-internal
@@ -170,18 +170,19 @@ services:
         condition: service_healthy
       runner:
         condition: service_healthy
-    volumes:
-      - runner-storage-data:/home/user/waldiez_runner/storage
+    volumes: *waldiez-runner-volumes
     logging: *common-logging
 
   scheduler:
     container_name: waldiez-scheduler
     image: waldiez/runner:latest
     restart: unless-stopped
-    command: ["/home/user/scripts/start.sh", "scheduler"]
+    command: ["/home/user/app/scripts/start.sh", "scheduler"]
     init: true
     networks:
       - waldiez-internal
+    ports:
+      - "80:80"
     environment: *waldiez-runner-env
     depends_on:
       db:
@@ -190,6 +191,5 @@ services:
         condition: service_healthy
       runner:
         condition: service_healthy
-    volumes:
-      - runner-storage-data:/home/user/waldiez_runner/storage
+    volumes: *waldiez-runner-volumes
     logging: *common-logging

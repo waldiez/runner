@@ -1,0 +1,191 @@
+---
+# Only for dev (we map the ports to the host, this should be avoided, we also mount the app)
+volumes:
+  runner-postgres-data-dev:
+  runner-redis-data-dev:
+
+x-podman:
+  in_pod: false
+
+x-logging: &common-logging
+  options:
+    max-size: '50m'
+    max-file: '10'
+  driver: 'json-file'
+
+x-healthcheck: &common-healthcheck
+  interval: 60s
+  timeout: 10s
+  retries: 10
+  start_period: 30s
+
+services:
+
+  db:
+    container_name: waldiez-runner-db-dev
+    hostname: db
+    image: postgres:latest
+    restart: unless-stopped
+    init: true
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: db_user
+      POSTGRES_PASSWORD: db_password
+      POSTGRES_DB: db_name
+      PGDATA: /var/lib/postgresql/data
+      PGPORT: '5432'
+    volumes:
+      - runner-postgres-data-dev:/var/lib/postgresql/data
+    healthcheck:
+      <<: *common-healthcheck
+      test:
+        ['CMD', 'pg_isready', '-U', 'db_user', '-d', 'db_name', '-p', '5432']
+    logging: *common-logging
+
+  redis:
+    hostname: redis
+    container_name: waldiez-runner-redis-dev
+    image: redis:latest
+    restart: unless-stopped
+    init: true
+    ports:
+      - "6379:6379"
+    environment:
+      REDIS_PORT: '6379'
+      REDIS_PASSWORD: 'redis_password'
+    command:
+      - /bin/sh
+      - -c
+      - redis-server --port 6379 --appendonly yes --requirepass redis_password
+    volumes:
+      - runner-redis-data-dev:/data
+    healthcheck:
+      <<: *common-healthcheck
+      test:
+        - CMD-SHELL
+        - redis-cli -p 6379 -a redis_password ping
+    logging: *common-logging
+  runner:
+    container_name: waldiez-runner-dev
+    image: waldiez/runner:dev
+    restart: unless-stopped
+    init: true
+    build: &waldiez-runner-build-dev
+      context: .
+      dockerfile: Containerfile.dev
+    ports:
+      - "8000:8000"
+    volumes: &waldiez-runner-volumes-dev
+      - .:/home/user/app
+    environment: &waldiez-runner-env-dev
+      - WALDIEZ_RUNNER_HOST=0.0.0.0
+      - WALDIEZ_RUNNER_PORT=8000
+      - WALDIEZ_RUNNER_DOMAIN_NAME=localhost
+      - WALDIEZ_RUNNER_MAX_JOBS=3
+      - WALDIEZ_RUNNER_FORCE_SSL=0
+      - WALDIEZ_RUNNER_TRUSTED_HOSTS=localhost
+      - WALDIEZ_RUNNER_TRUSTED_ORIGINS=http://localhost:3000,http://localhost:8000
+      - WALDIEZ_RUNNER_TRUSTED_ORIGIN_REGEX=
+      - WALDIEZ_RUNNER_SECRET_KEY=no59Qqy8v4xFRfWRGjYuICXG-R3Ulu7En-7o0bt6uUaXI_NIO4H5ii3OIdX80vvKuzhs4okXFj6nTLac1gm0Lw
+      - WALDIEZ_RUNNER_LOG_LEVEL=DEBUG
+      - WALDIEZ_RUNNER_POSTGRES=1
+      - WALDIEZ_RUNNER_DB_HOST=db
+      - WALDIEZ_RUNNER_DB_PORT=5432
+      - WALDIEZ_RUNNER_DB_USER=db_user
+      - WALDIEZ_RUNNER_DB_PASSWORD=db_password
+      - WALDIEZ_RUNNER_DB_NAME=db_name
+      - WALDIEZ_RUNNER_DB_URL=
+      - WALDIEZ_RUNNER_REDIS=1
+      - WALDIEZ_RUNNER_REDIS_HOST=redis
+      - WALDIEZ_RUNNER_REDIS_PORT=6379
+      - WALDIEZ_RUNNER_REDIS_DB=0
+      - WALDIEZ_RUNNER_REDIS_SCHEME=redis
+      - WALDIEZ_RUNNER_REDIS_PASSWORD=redis_password
+      - WALDIEZ_RUNNER_REDIS_URL=
+      - WALDIEZ_RUNNER_DEV=0
+      - WALDIEZ_RUNNER_USE_LOCAL_AUTH=1
+      - WALDIEZ_RUNNER_LOCAL_CLIENT_ID=f53ef9371c428a2e942429dcb24f1132cfedfc9cbbb1829c5c06a9ba4053b26b
+      - WALDIEZ_RUNNER_LOCAL_CLIENT_SECRET=26e7fc463b47b8e87caff37a13e623a3938ad7aaf9787c98de92c8383e88fd20493e2a71bf6f05dab4ecaee107ed7eb52d8eeb4f4c79bffcd01310fe00c81d67
+      - WALDIEZ_RUNNER_USE_OIDC_AUTH=0
+      - WALDIEZ_RUNNER_OIDC_ISSUER_URL=
+      - WALDIEZ_RUNNER_OIDC_AUDIENCE=
+      - WALDIEZ_RUNNER_OIDC_JWKS_URL=
+      - WALDIEZ_RUNNER_OIDC_JWKS_CACHE_TTL=900
+      - WALDIEZ_RUNNER_INPUT_TIMEOUT=180
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      <<: *common-healthcheck
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - --show-error
+        - http://localhost:8000/health
+    logging: *common-logging
+
+  broker:
+    container_name: waldiez-broker-dev
+    image: waldiez/runner:latest
+    restart: unless-stopped
+    init: true
+    volumes: *waldiez-runner-volumes-dev
+    build: *waldiez-runner-build-dev
+    environment: *waldiez-runner-env-dev
+    command:
+      - taskiq
+      - worker
+      - waldiez_runner.worker:broker
+      - --workers
+      - '1'
+      - --log-level
+      - DEBUG
+      - --reload
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      runner:
+        condition: service_healthy
+    logging: *common-logging
+
+  scheduler:
+    container_name: waldiez-scheduler-dev
+    image: waldiez/runner:latest
+    restart: unless-stopped
+    init: true
+    volumes: *waldiez-runner-volumes-dev
+    build: *waldiez-runner-build-dev
+    environment: *waldiez-runner-env-dev
+    command:
+      - taskiq
+      - scheduler
+      - waldiez_runner.worker:scheduler
+      - --log-level
+      - DEBUG
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      runner:
+        condition: service_healthy
+    logging: *common-logging
+
+  nginx:
+    image: nginx:latest
+    container_name: waldiez-nginx-dev
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/dev.conf:/etc/nginx/nginx.conf:ro
+      - ./examples/plain:/var/www/html:ro
+    depends_on:
+      runner:
+        condition: service_healthy
