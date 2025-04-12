@@ -38,6 +38,8 @@ if [ -f "$_ENV_FILE" ]; then
     . "$_ENV_FILE"
 fi
 #
+# non-interractive mode
+export DEBIAN_FRONTEND=noninteractive
 # Parse CLI arguments
 DOMAIN_NAME="${DOMAIN_NAME:-}"
 CERTBOT_EMAIL="${CERTBOT_EMAIL:-}"
