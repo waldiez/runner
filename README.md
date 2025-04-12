@@ -12,8 +12,7 @@ Backed by:
 - [Taskiq](https://taskiq.readthedocs.io/) for async task queuing and scheduling
 - [Redis](https://redis.io/) for messaging and log/input/output streaming
 - [PostgreSQL](https://www.postgresql.org/) for tasks and clients persistence
-- [Waldiez](https://github.com/waldiez/waldiez) + [ag2](https://github.com/ag2ai/ag2) + [FastStream](https://github.com/ag2ai/faststream)  
-  for defining, executing, and streaming interactive flows in isolation
+- [Waldiez](https://github.com/waldiez/waldiez) + [ag2](https://github.com/ag2ai/ag2) + [FastStream](https://github.com/ag2ai/faststream) for defining, executing, and streaming interactive flows in isolation
 
 ![overview](https://raw.githubusercontent.com/waldiez/runner/refs/heads/main/docs/overview.jpg)
 
