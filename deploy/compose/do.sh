@@ -369,7 +369,8 @@ install_docker_rpm_family() {
 install_docker_arch() {
     # https://wiki.archlinux.org/title/Docker
     sudo pacman -Sy --noconfirm docker docker docker-compose docker-buildx
-    sudo systemctl enable --now docker.socket
+    sudo systemctl start docker
+    sudo systemctl enable docker
 }
 if ! command -v docker >/dev/null 2>&1; then
     case "$OS_ID" in
