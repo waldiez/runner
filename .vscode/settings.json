@@ -18,6 +18,8 @@
     "ruff.configuration": "pyproject.toml",
     "mypy.runUsingActiveInterpreter": true,
     "mypy-type-checker.args": ["--config pyproject.toml"],
+    "markdown.extension.toc.orderedList": false,
+    "markdown.extension.toc.updateOnSave": false,
     "cSpell.words": [
         "aconnect",
         "addgroup",
