@@ -55,7 +55,9 @@
                 "ruff.configuration": "pyproject.toml",
                 "mypy.runUsingActiveInterpreter": true,
                 "mypy-type-checker.args": ["--config pyproject.toml"],
-                "python.pythonPath": "/usr/local/bin/python"
+                "python.pythonPath": "/usr/local/bin/python",
+                "markdown.extension.toc.orderedList": false,
+                "markdown.extension.toc.updateOnSave": false
             },
             "extensions": [
                 "ms-python.python",
