@@ -124,6 +124,11 @@ def run_vm(name: str) -> bool:
         return False
     if not run_command(["vagrant", "up", name]):
         return False
+    if name == "arch":
+        # we need a reboot for Arch Linux
+        # (to load new kernel and be able to start docker)
+        if not run_command(["vagrant", "reload", "--provision"]):
+            return False
     compose_calls = [
         "config",
         "up -d",

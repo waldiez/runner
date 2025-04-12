@@ -366,7 +366,23 @@ install_docker_rpm_family() {
     do_install docker-ce docker-ce-cli containerd.io docker-compose-plugin
     sudo systemctl enable --now docker
 }
+check_kernel_mismatch() {
+    if [ "$OS_ID" = "arch" ]; then
+        running_kernel="$(uname -r)"
+        latest_kernel_pkg="$(pacman -Q linux | awk '{print $2}')"
+        latest_kernel_version="$(echo "$latest_kernel_pkg" | cut -d- -f1)"
+
+        if ! uname -r | grep -q "$latest_kernel_version"; then
+            echo "Running kernel ($running_kernel) does NOT match installed kernel ($latest_kernel_version)"
+            echo "A reboot is required to load the correct kernel modules."
+            echo "Please reboot and rerun the script."
+            exit 0
+        fi
+    fi
+}
 install_docker_arch() {
+    # https://bbs.archlinux.org/viewtopic.php?id=250142
+    check_kernel_mismatch
     # https://wiki.archlinux.org/title/Docker
     sudo pacman -Sy --noconfirm docker docker docker-compose docker-buildx
     sudo systemctl start docker
