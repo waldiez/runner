@@ -2,13 +2,16 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
 """Setup script for testing Docker Compose with Vagrant."""
+
 import argparse
 import platform
 import subprocess
 import sys
-from typing import List
+from typing import Any, List
 
 ALL_VM_BOXES = ["ubuntu", "debian", "fedora", "centos", "rocky", "arch"]
+
+P_OPENED: List[subprocess.Popen[Any]] = []
 
 
 def get_vm_boxes() -> List[str]:
@@ -71,19 +74,36 @@ def run_command(cmd: List[str], cwd: str | None = None) -> bool:
     -------
     bool
         True if the command was successful, False otherwise.
+
+    Raises
+    ------
+    KeyboardInterrupt
+        If the user interrupts the process with Ctrl+C.
     """
     cmd_str = " ".join(cmd)
     print(f"Running: {cmd_str}")
-    result = subprocess.run(
-        cmd,
-        cwd=cwd,
-        stdout=None,  # Inherit parent
-        stderr=None,
-        check=True,
-    )
-    if result.returncode != 0:
-        print(result.stderr, file=sys.stderr)
-    return result.returncode == 0
+    # pylint: disable=too-many-try-statements,
+    # pylint: disable=broad-exception-caught, consider-using-with
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            cwd=cwd,
+            stdout=None,  # inherit terminal output
+            stderr=None,
+        )
+        P_OPENED.append(proc)
+        proc.wait()
+        return proc.returncode == 0
+    except KeyboardInterrupt:
+        print("\n[!] Caught Ctrl+C — terminating subprocess...")
+        for p in P_OPENED:
+            try:
+                p.terminate()
+            except Exception:
+                pass
+        raise
+    finally:
+        P_OPENED.clear()
 
 
 def run_vm(name: str) -> bool:
@@ -99,6 +119,9 @@ def run_vm(name: str) -> bool:
         True if the VM was successfully started, False otherwise.
     """
     print(f"Testing {name}")
+    # let's first destroy any existing Vagrant VM (leftovers)
+    if not run_command(["vagrant", "destroy", "-f"]):
+        return False
     if not run_command(["vagrant", "up", name]):
         return False
     compose_calls = [
@@ -153,4 +176,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n[!] Aborted by user. Cleaning up...")
+        run_command(["vagrant", "destroy", "-f"])
+        sys.exit(130)

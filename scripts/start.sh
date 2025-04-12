@@ -9,7 +9,7 @@ set -e  # Fail on error
 # scripts root (where this file is): /home/user/scripts
 HERE="$(dirname "$(readlink -f "$0")")"
 ROOT_DIR="$(dirname "$HERE")"
-
+DROP_DB=false
 
 pre_start_checks() {
     if [ -f "${HERE}/pre_start.py" ]; then
@@ -42,6 +42,10 @@ get_log_level() {
 
 start_uvicorn() {
     pre_start_checks
+    if [ "$DROP_DB" = true ] && [ -f "${HERE}/drop.py" ]; then
+        echo "Dropping database..."
+        python3 "${HERE}/drop.py"
+    fi
     initial_data_setup
     echo "Starting uvicorn server..."
     # no args, it will load the configuration from the environment
@@ -57,7 +61,7 @@ start_broker() {
     # --log-level {INFO,WARNING,DEBUG,ERROR,FATAL}
     #       worker log level (default: INFO)
     LOG_LEVEL="$(get_log_level)"
-    taskiq worker waldiez_runner.worker:broker --workers 1 --max-tasks-per-child 3 --log-level "$LOG_LEVEL"
+    taskiq worker waldiez_runner.worker:broker --workers 1 --log-level "$LOG_LEVEL"
 }
 
 start_scheduler() {
@@ -103,6 +107,10 @@ main() {
             ;;
         worker)
             start_broker_and_scheduler
+            ;;
+        drop)
+            DROP_DB=true
+            start_uvicorn
             ;;
         *)
             echo "Invalid command: ${1}"

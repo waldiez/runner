@@ -3,6 +3,7 @@
 """Drop the tables and types in the database."""
 
 import os
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -35,11 +36,9 @@ def delete_storage() -> None:
     if STORAGE_DIR.exists():
         for item in STORAGE_DIR.iterdir():
             if item.is_dir():
-                os.rmdir(item)
+                shutil.rmtree(item)
             else:
                 os.remove(item)
-        os.rmdir(STORAGE_DIR)
-        print(f"Deleted storage directory: {STORAGE_DIR}")
     else:
         print(f"Storage directory does not exist: {STORAGE_DIR}")
     STORAGE_DIR.mkdir(parents=True, exist_ok=True)

@@ -6,6 +6,7 @@ import logging
 import os
 import secrets
 import sys
+import tempfile
 import traceback
 from pathlib import Path
 from typing import List, Tuple
@@ -51,6 +52,7 @@ except ImportError:
 os.environ[f"{ENV_PREFIX}TESTING"] = "false"
 
 
+# pylint: disable=duplicate-code
 def try_check_pysqlite3() -> None:
     """Check if pysqlite3 is installed and if not, install it.
 
@@ -58,13 +60,16 @@ def try_check_pysqlite3() -> None:
      if on linux and arm64, pysqlite3-binary is not available
     and we need to install it manually.
     """
+    cwd = os.getcwd()
+    tmp_dir = tempfile.gettempdir()
+    os.chdir(tmp_dir)
     try:
         check_pysqlite3()
     except BaseException:  # pylint: disable=broad-exception-caught
-        LOG.info("pysqlite3 not found, installing...")
         download_path = download_sqlite_amalgamation()
         install_pysqlite3(download_path)
-        LOG.info("pysqlite3 installed")
+    finally:
+        os.chdir(cwd)
     check_pysqlite3()
 
 
