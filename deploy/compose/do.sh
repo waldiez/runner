@@ -135,6 +135,7 @@ do_upgrade() {
             sudo dnf clean all
             ;;
         arch)
+           sudo pacman-key --refresh-keys
            sudo pacman -Syu --noconfirm
             ;;
         *)
