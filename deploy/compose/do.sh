@@ -135,7 +135,7 @@ do_upgrade() {
             sudo dnf clean all
             ;;
         arch)
-            pacman -Syu --noconfirm
+           sudo pacman -Syu --noconfirm
             ;;
         *)
             echo "Unsupported OS: ${OS_ID}"
