@@ -29,6 +29,7 @@ RELOAD_EXCLUDES = [
     "**/files/**/*",
     ".venv/*",
     "waldiez_runner/storage/*",
+    "waldiez_runner/tasks/*",
     "examples/*",
 ]
 
@@ -95,8 +96,6 @@ def start_broker(reload: bool, log_level: LogLevel, skip_redis: bool) -> None:
         "worker",
         "--log-level",
         log_level.upper(),
-        "--max-tasks-per-child",
-        "3",
         f"{module_name}.worker:broker",
     ]
     if reload:  # pragma: no-branch
@@ -344,6 +343,7 @@ def start_uvicorn(
         date_header=False,
         server_header=False,
         reload_dirs=[str(cwd)] if reload else None,
+        reload_includes=["waldiez_runner/**/*.py"] if reload else None,
         reload_excludes=RELOAD_EXCLUDES if reload else None,
         log_level=log_level.lower(),
         log_config=logging_config,

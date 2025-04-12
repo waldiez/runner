@@ -193,6 +193,7 @@ async def run_pip(python_exec: Path, cwd: Path, args: List[str]) -> None:
         raise RuntimeError(f"Failed to run pip with args: {args}")
 
 
+# pylint: disable=too-many-locals
 async def run_app_in_venv(
     venv_root: Path,
     app_dir: Path,

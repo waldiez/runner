@@ -6,6 +6,7 @@ import asyncio
 import logging
 import signal
 import sys
+import traceback
 from pathlib import Path
 from types import FrameType
 from typing import Any, Dict, List
@@ -102,10 +103,15 @@ async def run(params: TaskParams) -> None:
         return
     except Exception as e:  # pylint: disable=broad-exception-caught
         LOG.error("Task %s failed: %s", params.task_id, e)
+        tb = traceback.format_exc()
+        data = {
+            "error": str(e),
+            "traceback": tb,
+        }
         task_status.update(
             {
                 "status": "FAILED",
-                "data": str(e),
+                "data": data,
             }
         )
     finally:
@@ -145,9 +151,14 @@ def check_results(
         and isinstance(results[0], dict)
         and "error" in results[0]
     ):
+        data = {
+            "error": results[0]["error"],
+        }
+        if "traceback" in results[0]:
+            data["traceback"] = results[0]["traceback"]
         return {
             "status": "FAILED",
-            "data": results[0],
+            "data": data,
         }
     return {
         "status": "COMPLETED",

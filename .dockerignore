@@ -2,9 +2,7 @@
 **/*
 # but not these ...
 !waldiez_runner/
-!scripts/start.sh
-!scripts/pre_start.py
-!scripts/initial_data.py
+!scripts/
 !pyproject.toml
 !requirements/
 !alembic.ini

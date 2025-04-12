@@ -5,8 +5,10 @@
 import asyncio
 import json
 import logging
+import traceback
 from typing import Any, Dict, List
 
+from autogen import ChatResult  # type: ignore[import-untyped]
 from waldiez import Waldiez, WaldiezRunner
 
 from .redis_io_stream import RedisIOStream
@@ -62,7 +64,12 @@ class FlowRunner:
         List[Dict[str, Any]]]
             The results of the flow execution.
         """
-        results: Dict[str, Any] | List[Dict[str, Any]]
+        results: (
+            ChatResult
+            | Dict[str, ChatResult]
+            | List[Dict[str, ChatResult]]
+            | Dict[str, Any]
+        )
         if not self.waldiez.is_async:
             results = await asyncio.to_thread(self.run_sync)
             serializable_results = make_serializable_results(results)
@@ -72,7 +79,11 @@ class FlowRunner:
                 runner = WaldiezRunner(self.waldiez)
                 results = await runner.a_run(output_path=self.output_path)
             except BaseException as e:  # pylint: disable=broad-exception-caught
-                results = {"error": str(e)}
+                tb = traceback.format_exc()
+                results = {
+                    "error": str(e),
+                    "traceback": tb,
+                }
         serializable_results = make_serializable_results(results)
         self.io_stream.close()
         return serializable_results
@@ -85,14 +96,21 @@ class FlowRunner:
         List[Dict[str, Any]]
             The results of the flow execution.
         """
-        results: Dict[str, Any] | List[Dict[str, Any]]
+        results: (
+            ChatResult
+            | Dict[str, ChatResult]
+            | List[Dict[str, ChatResult]]
+            | Dict[str, Any]
+        )
         with RedisIOStream.set_default(self.io_stream):
             try:
                 runner = WaldiezRunner(self.waldiez)
                 results = runner.run(output_path=self.output_path)
             except BaseException as e:  # pylint: disable=broad-exception-caught
+                tb = traceback.format_exc()
                 results = {  # pylint: disable=redefined-variable-type
-                    "error": str(e)
+                    "error": str(e),
+                    "traceback": tb,
                 }
             finally:
                 self.io_stream.close()
