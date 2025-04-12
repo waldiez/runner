@@ -44,7 +44,7 @@ start_uvicorn() {
     pre_start_checks
     if [ "$DROP_DB" = true ] && [ -f "${HERE}/drop.py" ]; then
         echo "Dropping database..."
-        python3 "${HERE}/drop.py"
+        python3 "${HERE}/drop.py" --force
     fi
     initial_data_setup
     echo "Starting uvicorn server..."
