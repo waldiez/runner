@@ -90,9 +90,19 @@ Vagrant.configure("2") do |config|
       vm_config.vm.provision "file", source: "./deploy/compose/do.sh", destination: "/home/vagrant/do.sh"
       vm_config.vm.provision "shell", inline: <<-SHELL
         echo "[#{opts[:name]}] Running setup script..."
-
         cd /home/vagrant
-        DOMAIN_NAME=test.local sh ./do.sh --skip-certbot
+        if [ -f "${HOME}/.waldiez_reboot_required" ]; then
+          echo "[waldiez] Resuming after reboot..."
+          rm -f "${HOME}/.waldiez_reboot_required"
+          DOMAIN_NAME=test.local sh ./do.sh --skip-certbot
+        else
+          echo "[waldiez] Initial setup, checking for reboot requirement..."
+          DOMAIN_NAME=test.local sh ./do.sh --skip-certbot
+          if [ -f .waldiez_reboot_marker ]; then
+            echo "[waldiez] Reboot required. Triggering reboot..."
+            sudo shutdown -r now
+          fi
+        fi
         echo "[#{opts[:name]}] Setup complete. Validating..."
         docker info || exit 1
         docker compose -f compose.yaml config || exit 1

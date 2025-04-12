@@ -300,11 +300,32 @@ if [ "$(id -u)" -eq 0 ]; then
 
     exec sudo -u "${SUDO_USER}" sh "${SCRIPT_COPY}"
 fi
+
+check_kernel_mismatch_on_arch() {
+    if [ "$OS_ID" = "arch" ]; then
+        running_kernel="$(uname -r)"
+        latest_kernel_pkg="$(pacman -Q linux | awk '{print $2}')"
+        latest_kernel_version="$(echo "$latest_kernel_pkg" | cut -d- -f1)"
+
+        if ! uname -r | grep -q "$latest_kernel_version"; then
+            echo "Running kernel ($running_kernel) does NOT match installed kernel ($latest_kernel_version)"
+            echo "A reboot is required to load the correct kernel modules."
+            echo "Please reboot and rerun the script."
+            touch "${HOME}/.waldiez_reboot_required"
+            exit 0
+        fi
+    fi
+}
 ##################################################################################################
 # If we are here, we are not root
 # continue as the sudo user
 echo "Running as user: $(whoami)"
 do_upgrade
+if [ "$OS_ID" = "arch" ]; then
+    # https://bbs.archlinux.org/viewtopic.php?id=250142
+    check_kernel_mismatch_on_arch
+fi
+[ -f "${HOME}/.waldiez_reboot_required" ] && rm -f "${HOME}/.waldiez_reboot_required"
 #
 ##################################################################################################
 # Base Packages
@@ -376,13 +397,11 @@ check_kernel_mismatch() {
             echo "Running kernel ($running_kernel) does NOT match installed kernel ($latest_kernel_version)"
             echo "A reboot is required to load the correct kernel modules."
             echo "Please reboot and rerun the script."
-            exit 0
+            exit 1
         fi
     fi
 }
 install_docker_arch() {
-    # https://bbs.archlinux.org/viewtopic.php?id=250142
-    check_kernel_mismatch
     # https://wiki.archlinux.org/title/Docker
     sudo pacman -Sy --noconfirm docker docker docker-compose docker-buildx
     sudo systemctl start docker
