@@ -11,7 +11,9 @@ end
 
 Vagrant.configure("2") do |config|
   config.vm.box_check_update = false
-
+  if Vagrant.has_plugin?("vagrant-vbguest")
+    config.vbguest.auto_update = false
+  end
   boxes = [
     { name: "ubuntu", box: "bento/ubuntu-24.04" },
     { name: "debian", box: "bento/debian-12" },
