@@ -20,7 +20,8 @@ import uvicorn
 from waldiez_runner._logging import LogLevel
 from waldiez_runner.config import ENV_PREFIX
 
-RELOAD_EXCLUDES = [
+LOG = logging.getLogger(__name__)
+UVICORN_RELOAD_EXCLUDES = [
     "waldiez_out/*",
     ".*",
     ".py[cod]",
@@ -33,7 +34,53 @@ RELOAD_EXCLUDES = [
     "examples/*",
 ]
 
-LOG = logging.getLogger(__name__)
+
+def start_uvicorn(
+    host: str,
+    port: int,
+    reload: bool,
+    log_level: LogLevel,
+    logging_config: Dict[str, Any],
+) -> None:
+    """Start the Uvicorn server.
+
+    Parameters
+    ----------
+    host : str
+        The host to bind the server to.
+    port : int
+        The port to bind the server to.
+    reload : bool
+        Whether to reload the server when the code changes.
+    log_level : LogLevel
+        The log level to use.
+    logging_config : Dict[str, Any]
+        The logging configuration.
+    """
+    module_name, cwd = get_module_and_cwd()
+    app_module_path = f"{module_name}.main"
+    if host in ("localhost", "127.0.0.1"):  # pragma: no cover
+        host = "0.0.0.0"
+    LOG.info("Starting the server on %s:%s", host, port)
+    uvicorn.run(
+        f"{app_module_path}:app",
+        host=host,
+        port=port,
+        reload=reload,
+        app_dir=cwd,
+        date_header=False,
+        server_header=False,
+        reload_dirs=[str(cwd)] if reload else None,
+        reload_includes=["waldiez_runner/**/*.py"] if reload else None,
+        reload_excludes=UVICORN_RELOAD_EXCLUDES if reload else None,
+        log_level=log_level.lower(),
+        log_config=logging_config,
+        proxy_headers=True,
+        forwarded_allow_ips="*",
+        ws_ping_timeout=None,
+        ws="websockets",
+        # ws="wsproto",
+    )
 
 
 def get_module_and_cwd() -> Tuple[str, str]:
@@ -105,6 +152,7 @@ def start_broker(reload: bool, log_level: LogLevel, skip_redis: bool) -> None:
         worker_process.wait()
     except (KeyboardInterrupt, SystemExit):  # pragma: no cover
         LOG.info("Shutting down worker...")
+    finally:
         worker_process.terminate()
 
 
@@ -134,6 +182,7 @@ def start_scheduler(log_level: LogLevel, skip_redis: bool) -> None:
         scheduler_process.wait()
     except (KeyboardInterrupt, SystemExit):  # pragma: no cover
         LOG.info("Shutting down scheduler...")
+    finally:
         scheduler_process.terminate()
 
 
@@ -305,51 +354,3 @@ def start_all(
 
     for proc in processes:
         proc.join()
-
-
-def start_uvicorn(
-    host: str,
-    port: int,
-    reload: bool,
-    log_level: LogLevel,
-    logging_config: Dict[str, Any],
-) -> None:
-    """Start the Uvicorn server.
-
-    Parameters
-    ----------
-    host : str
-        The host to bind the server to.
-    port : int
-        The port to bind the server to.
-    reload : bool
-        Whether to reload the server when the code changes.
-    log_level : LogLevel
-        The log level to use.
-    logging_config : Dict[str, Any]
-        The logging configuration.
-    """
-    module_name, cwd = get_module_and_cwd()
-    app_module_path = f"{module_name}.main"
-    if host in ("localhost", "127.0.0.1"):  # pragma: no cover
-        host = "0.0.0.0"
-    LOG.info("Starting the server on %s:%s", host, port)
-    uvicorn.run(
-        f"{app_module_path}:app",
-        host=host,
-        port=port,
-        reload=reload,
-        app_dir=cwd,
-        date_header=False,
-        server_header=False,
-        reload_dirs=[str(cwd)] if reload else None,
-        reload_includes=["waldiez_runner/**/*.py"] if reload else None,
-        reload_excludes=RELOAD_EXCLUDES if reload else None,
-        log_level=log_level.lower(),
-        log_config=logging_config,
-        proxy_headers=True,
-        forwarded_allow_ips="*",
-        ws_ping_timeout=None,
-        ws="websockets",
-        # ws="wsproto",
-    )

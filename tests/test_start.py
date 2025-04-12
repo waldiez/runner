@@ -11,7 +11,7 @@ from unittest import mock
 from unittest.mock import MagicMock, patch
 
 from waldiez_runner._logging import LogLevel
-from waldiez_runner.dev import (
+from waldiez_runner.start import (
     get_module_and_cwd,
     run_process,
     start_all,
@@ -21,7 +21,7 @@ from waldiez_runner.dev import (
     start_uvicorn,
 )
 
-MODULE_TO_PATCH = "waldiez_runner.dev"
+MODULE_TO_PATCH = "waldiez_runner.start"
 
 
 def test_get_module_and_cwd() -> None:
