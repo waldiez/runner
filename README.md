@@ -15,7 +15,7 @@ Backed by:
 - [Waldiez](https://github.com/waldiez/waldiez) + [ag2](https://github.com/ag2ai/ag2) + [FastStream](https://github.com/ag2ai/faststream)  
   for defining, executing, and streaming interactive flows in isolation
 
-![overview](https://raw.githubusercontent.com/waldiez/waldiez/main/docs/overview.jpg)
+![overview](https://raw.githubusercontent.com/waldiez/runner/refs/heads/main/docs/overview.jpg)
 
 ## License
 
