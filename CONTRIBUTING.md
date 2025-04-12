@@ -4,19 +4,18 @@ Thank you for helping improve Waldiez Runner!
 
 ## 📚 Table of Contents
 
-- [Contributing to Waldiez Runner](#contributing-to-waldiez-runner)
-  - [📚 Table of Contents](#-table-of-contents)
-  - [Development Setup](#development-setup)
-    - [Authentication](#authentication)
-      - [Token Endpoints](#token-endpoints)
-      - [WebSocket Authentication](#websocket-authentication)
-    - [🔁 Redis I/O Layer: `RedisIOStream` an extension to ag2's IOStream](#-redis-io-layer-redisiostream-an-extension-to-ag2s-iostream)
-    - [🧱 Output Streams](#-output-streams)
-    - [🎤 Input Handling](#-input-handling)
-    - [Message Format](#message-format)
-    - [Smoke Test](#smoke-test)
-    - [Formatting, Linting and Testing](#formatting-linting-and-testing)
-    - [Roadmap](#roadmap)
+- [Development Setup](#development-setup)
+- [Architecture](#architecture)
+  - [Authentication](#authentication)
+    - [Token Endpoints](#token-endpoints)
+    - [WebSocket Authentication](#websocket-authentication)
+  - [🔁 Redis I/O Layer: `RedisIOStream` an extension to ag2's IOStream](#-redis-io-layer-redisiostream-an-extension-to-ag2s-iostream)
+  - [🧱 Output Streams](#-output-streams)
+  - [🎤 Input Handling](#-input-handling)
+  - [Message Format](#message-format)
+  - [Smoke Test](#smoke-test)
+  - [Formatting, Linting and Testing](#formatting-linting-and-testing)
+  - [Roadmap](#roadmap)
 
 ## Development Setup
 
@@ -45,6 +44,62 @@ We currently support three development modes:
 > After cloning the repo, run pre-commit install to enable auto-formatting and smoke testing before each commit. Or use `make some` to run format, lint, toggle, and test in one go.
 >
 > Calling `make some` before committing will handle formatting, linting, toggling the dev environment, and testing (both pytest and the smoke test described below). If this won't work, we should manually check and modify the .env file to ensure the correct values are set.
+
+## Architecture
+
+Here's a high-level overview of the architecture:
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant TaskiqWorker
+    participant TaskApp
+    participant Redis
+    participant Postgres
+    participant Storage
+    participant Filesystem
+    participant WebSocket
+
+    Client->>API: POST /api/v1/tasks (includes a .waldiez flow file and (optionally) an input_timeout)
+    API->>Postgres: Create task (status: pending)
+    API->>Storage: Save uploaded file
+    API->>TaskiqWorker: Enqueue job
+
+    TaskiqWorker-->>Storage: Copy file locally (if needed)
+    TaskiqWorker->>Filesystem: Create venv and copy app files
+    TaskiqWorker->>Postgres: Update status to running
+    TaskiqWorker->>TaskApp: Start subprocess (FastStream app)
+
+    loop Task flow
+        TaskApp->>Redis: Publish input_request
+        alt Waiting for user input
+            Redis-->>TaskApp: Deliver input_response
+        else Timeout
+            Note over TaskApp: Use default input (<empty response>)
+        end
+        TaskApp->>Redis: Publish output
+    end
+
+    opt WebSocket
+        Client->>WebSocket: Connect to /ws/task_id
+        Client-->>WebSocket: Send input
+        WebSocket->>Redis: Publish input_response
+        Redis-->>WebSocket: Stream output & input_request
+        WebSocket-->>Client: Deliver output & prompts
+    end
+
+    opt HTTP Input (fallback)
+        Client->>API: POST /api/v1/tasks/task_id/input
+        API->>Redis: Publish input_response
+    end
+
+    alt Task completes / fails / cancelled
+        TaskiqWorker->>Postgres: Update task status
+        TaskiqWorker->>Filesystem: Cleanup task files
+        TaskiqWorker->>Storage: Upload results (if needed)
+    end
+```
 
 ### Authentication
 
@@ -99,7 +154,7 @@ Ref: <https://websockets.readthedocs.io/en/stable/topics/authentication.html>
 
 All task logs and input prompts/responses are handled through a custom `RedisIOStream` implementation.
 
-This stream is used by the app running inside each task’s virtual environment to communicate with the outside world — via Redis.
+This stream is used by the task runner inside its sandbox to communicate with the outside world via Redis.
 
 ### 🧱 Output Streams
 
@@ -160,7 +215,7 @@ All-in-one:
 
 ```shell
 # if the test fails,
-# you can enable logging of te services too (suppressed by default):
+# you can enable logging of the services too (suppressed by default):
 # python scripts/test.py --smoke --debug
 make smoke
 ### or (what make smoke does):
@@ -190,7 +245,7 @@ make dev-no-reload
 # python -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000  --trusted-hosts localhost --debug --no-force-ssl --redis --postgres --dev
 ```
 
-In another terminal (not necessarily in the container, you could use one on the host machine):
+In another terminal (you may run it outside the container (e.g., on the host machine):
 
 ```shell
 python scripts/smoke.py
@@ -220,7 +275,7 @@ Not covered (yet?) in this script:
 
 ### Formatting, Linting and Testing
 
-Before submitting any changes, make sure the linting and tests pass:
+Before submitting any changes, try to ensure that the code is formatted, linted, and tested.
 
 ```shell
 make clean && make format && make lint && make test
@@ -242,15 +297,21 @@ make clean && make format && make lint && make test
 - [x] Handle Task Execution
 - [x] Handle messaging between the task and the task broker to update the task status/results in db
 - [ ] Documentation
-- [ ] Dockerfile/Containerfile and deployment generation, documentation and examples
-- [x] An example using a JS client
-- [ ] An example using a python client (streamlit?)
+- [x] Dockerfile/Containerfile generation
+- [ ] Deployment examples and instructions:
+  - [x] Docker Compose
+  - [ ] Kubernetes
+  - [ ] AWS ECS
+  - [ ] GCP Cloud Run
+- [ ] Example usage:
+  - [x] An example using a JS client
+  - [ ] An example using a python client (streamlit?)
 - [ ] Support other storage backends (e.g., S3, GCS, etc.)
 - [ ] Support other authentication methods (e.g., OIDC)
 - [ ] Support three modes of operation:
-  - [x] - **Push Mode**: Tasks are submitted via FastAPI (`POST /api/v1/tasks`), and execution is handled by TaskIQ workers.
-  - [ ] **Polling Mode**: Workers periodically poll an external service to fetch jobs and execute them independently.
-  - [ ] **Hybrid Mode**: Supports both push and polling mechanisms, allowing seamless fallback.
+  - [x] - Push Mode: Tasks are submitted via FastAPI (`POST /api/v1/tasks`), and execution is handled by TaskIQ workers.
+  - [ ] Polling Mode: Workers periodically poll an external service to fetch jobs and execute them independently.
+  - [ ] Hybrid Mode: Supports both push and polling mechanisms, allowing seamless fallback.
 - [x] [Dev] work on any platform (Linux, MacOS, Windows) and any environment (containerized or not)
 - [x] [Dev] Comprehensive tests for most parts. Coverage > 80%
 
