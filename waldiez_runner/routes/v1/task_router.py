@@ -32,6 +32,7 @@ from waldiez_runner.dependencies import (
     get_db,
     get_storage,
 )
+from waldiez_runner.middleware.slow_api import limiter
 from waldiez_runner.models import TaskResponse, TaskStatus
 from waldiez_runner.services.task_service import TaskService
 from waldiez_runner.tasks import broker
@@ -278,6 +279,7 @@ async def on_input_request(
     summary="Download a task archive",
     description="Download a task archive by ID for the current client",
 )
+@limiter.exempt  # type: ignore
 async def download_task(
     task_id: str,
     background_tasks: BackgroundTasks,

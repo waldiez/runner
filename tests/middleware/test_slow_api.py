@@ -11,7 +11,7 @@ import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 
-from waldiez_runner.middleware.limiter import (
+from waldiez_runner.middleware.slow_api import (
     add_rate_limiter,
     get_real_ip,
     limiter,

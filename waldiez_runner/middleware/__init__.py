@@ -12,10 +12,15 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from .conditional_gzip import ConditionalGZipMiddleware
 from .extra_headers import ExtraHeadersMiddleware
-from .limiter import add_rate_limiter
+from .slow_api import add_rate_limiter, limiter
 
 if TYPE_CHECKING:
     from waldiez_runner.config import Settings
+
+
+EXCLUDE_PATTERNS = [
+    r"^/api/v1/tasks/.+/download$",
+]
 
 
 def add_middlewares(app: FastAPI, settings: "Settings") -> None:
@@ -47,16 +52,17 @@ def add_middlewares(app: FastAPI, settings: "Settings") -> None:
     )
     app.add_middleware(
         ConditionalGZipMiddleware,
-        exclude_patterns=[r"^/api/v1/tasks/.+/download$"],
+        exclude_patterns=EXCLUDE_PATTERNS,
         minimum_size=1000,
         compresslevel=9,
     )
     app.add_middleware(
         ExtraHeadersMiddleware,
+        exclude_patterns=EXCLUDE_PATTERNS,
         csp=not settings.dev,
         force_ssl=settings.force_ssl,
     )
     add_rate_limiter(app)
 
 
-__all__ = ["add_middlewares"]
+__all__ = ["add_middlewares", "limiter"]
