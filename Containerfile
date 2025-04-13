@@ -75,7 +75,7 @@ RUN addgroup --system --gid ${GROUP_ID} user
 ARG USER_ID=1000
 ENV USER_ID=${USER_ID}
 RUN adduser --disabled-password --gecos '' --shell /bin/bash --uid ${USER_ID} --gid ${GROUP_ID} user
-RUN mkdir -p /home/user/.local/bin /home/user/app /home/user/waldiez_runner/storage && \
+RUN mkdir -p /home/user/.local/bin /home/user/app /home/user/app/waldiez_runner/storage && \
     chown -R user:user /home/user
 ENV PATH=/home/user/.local/bin:${PATH}
 

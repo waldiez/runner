@@ -87,6 +87,14 @@ services:
             redis-cli -p ${REDIS_PORT:-6379} ping
           fi
     logging: *common-logging
+
+  check-storage-permissions:
+    image: waldiez/runner:latest
+    entrypoint: ["chown", "-R", "user:user", "/home/user/app/waldiez_runner/storage"]
+    volumes: &waldiez-runner-volumes
+      - runner-storage-data:/home/user/app/waldiez_runner/storage
+    user: "root"
+    restart: "no"
   runner:
     container_name: waldiez-runner
     image: waldiez/runner:latest
@@ -140,8 +148,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes: &waldiez-runner-volumes
-      - runner-storage-data:/home/user/app/waldiez_runner/storage
+      check-storage-permissions:
+        condition: service_completed_successfully
+    volumes: *waldiez-runner-volumes
     healthcheck:
       <<: *common-healthcheck
       test:
