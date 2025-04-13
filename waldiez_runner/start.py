@@ -22,6 +22,7 @@ from waldiez_runner.config import ENV_PREFIX
 
 LOG = logging.getLogger(__name__)
 UVICORN_RELOAD_EXCLUDES = [
+    "examples/*",
     "waldiez_out/*",
     ".*",
     ".py[cod]",
