@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# SHA256: a60e5e1891db819894e1c165b9d11a56982ae18aa3a6b2eb2766b1cad21f150a
+# SHA256: ea7e8b4d21f0e0c43a2a718b62a26a6dad98bf69673219690677e232e5edd90e
 # shellcheck disable=SC2129,SC1091,SC1090,SC2086
 #
 # example direct usage from git:
@@ -639,3 +639,7 @@ echo
 echo "To stop and remove containers, volumes, and images:"
 echo "docker compose -f compose.yaml down --rmi all --volumes"
 echo
+#
+echo "You might also want to:"
+echo "docker cp waldiez-runner:/home/user/app/clients.json ."
+echo "to get the first two clients' (clients-api) and (tasks-api) details"
