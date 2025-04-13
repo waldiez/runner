@@ -213,10 +213,17 @@ class LocalStorage:
                 root_dir=str(parent_path),
                 base_dir=folder_name,
             )
+            content_disposition = f"attachment; filename={zip_path.name}"
             background_tasks.add_task(cleanup, temp_dir)
-
             return FileResponse(
-                archive, filename=zip_path.name, background=background_tasks
+                archive,
+                filename=zip_path.name,
+                media_type="application/zip",
+                background=background_tasks,
+                headers={
+                    "Content-Disposition": content_disposition,
+                    "X-Accel-Buffering": "no",
+                },
             )
         except (FileNotFoundError, NotADirectoryError) as error:
             LOG.error("Failed to generate archive: %s", error)

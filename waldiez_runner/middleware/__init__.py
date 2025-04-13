@@ -7,10 +7,10 @@ from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
+from .conditional_gzip import ConditionalGZipMiddleware
 from .extra_headers import ExtraHeadersMiddleware
 from .limiter import add_rate_limiter
 
@@ -45,7 +45,12 @@ def add_middlewares(app: FastAPI, settings: "Settings") -> None:
         allowed_hosts=settings.trusted_hosts,
         www_redirect=False,
     )
-    app.add_middleware(GZipMiddleware, minimum_size=1000)
+    app.add_middleware(
+        ConditionalGZipMiddleware,
+        exclude_patterns=[r"^/api/v1/tasks/.+/download$"],
+        minimum_size=1000,
+        compresslevel=9,
+    )
     app.add_middleware(
         ExtraHeadersMiddleware,
         csp=not settings.dev,

@@ -438,7 +438,7 @@ async def test_download_task(
     )
     assert (
         response.headers["content-disposition"]
-        == f'attachment; filename="{task.id}.zip"'
+        == f"attachment; filename={task.id}.zip"
     )
 
 
