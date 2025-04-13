@@ -2,6 +2,9 @@
 **/*
 # but not these ...
 !waldiez_runner/
+!waldiez_runner/**
+waldiez_runner/storage/*
+!waldiez_runner/storage/.gitkeep
 !scripts/
 !pyproject.toml
 !requirements/
