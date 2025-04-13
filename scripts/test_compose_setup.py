@@ -9,8 +9,9 @@ import subprocess
 import sys
 from typing import Any, List
 
-ALL_VM_BOXES = ["ubuntu", "debian", "fedora", "centos", "rocky", "arch"]
-
+ALL_VM_BOXES = ["ubuntu", "debian", "fedora", "centos", "rocky"]
+# https://portal.cloud.hashicorp.com/vagrant/discover/bento/debian-12
+NO_ARM64_BOXES = ["debian"]  # for virtualbox
 P_OPENED: List[subprocess.Popen[Any]] = []
 
 
@@ -25,7 +26,7 @@ def get_vm_boxes() -> List[str]:
     machine_lower = platform.machine().lower()
     if "x86_64" in machine_lower or "amd64" in machine_lower:
         return ALL_VM_BOXES
-    return [box for box in ALL_VM_BOXES if box not in ["debian", "arch"]]
+    return [box for box in ALL_VM_BOXES if box not in NO_ARM64_BOXES]
 
 
 AVAILABLE_VM_BOXES = get_vm_boxes()

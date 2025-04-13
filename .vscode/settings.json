@@ -33,7 +33,6 @@
         "anyio",
         "APIASGI",
         "appendonly",
-        "archlinux",
         "asgi",
         "asyncer",
         "asyncify",

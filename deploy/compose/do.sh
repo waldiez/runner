@@ -105,9 +105,6 @@ do_install() {
         centos|rhel|rocky|fedora)
             sudo dnf install -y $packages || sudo yum install -y ${packages}
             ;;
-        arch)
-            sudo pacman -Sy --noconfirm ${packages}
-            ;;
         *)
             echo "Unsupported OS: ${OS_ID}"
             exit 1
@@ -134,10 +131,6 @@ do_upgrade() {
             sudo dnf upgrade -y || sudo yum upgrade -y
             sudo dnf clean all
             ;;
-        arch)
-           sudo pacman-key --refresh-keys
-           sudo pacman -Syu --noconfirm
-            ;;
         *)
             echo "Unsupported OS: ${OS_ID}"
             exit 1
@@ -153,13 +146,12 @@ if ! command -v sudo >/dev/null 2>&1; then
     case "$OS_ID" in
         ubuntu|debian) apt update && apt install -y sudo ;;
         centos|rhel|rocky|fedora) yum install -y sudo || dnf install -y sudo ;;
-        arch) pacman -Sy --noconfirm sudo ;;
     esac
 fi
 get_sudo_group() {
     case "$OS_ID" in
         ubuntu|debian) echo "sudo" ;;
-        rhel|centos|rocky|fedora|arch) echo "wheel" ;;
+        rhel|centos|rocky|fedora) echo "wheel" ;;
         *) echo "sudo" ;;  # fallback
     esac
 }
@@ -300,32 +292,11 @@ if [ "$(id -u)" -eq 0 ]; then
 
     exec sudo -u "${SUDO_USER}" sh "${SCRIPT_COPY}"
 fi
-
-check_kernel_mismatch_on_arch() {
-    if [ "$OS_ID" = "arch" ]; then
-        running_kernel="$(uname -r)"
-        latest_kernel_pkg="$(pacman -Q linux | awk '{print $2}')"
-        latest_kernel_version="$(echo "$latest_kernel_pkg" | cut -d- -f1)"
-
-        if ! uname -r | grep -q "$latest_kernel_version"; then
-            echo "Running kernel ($running_kernel) does NOT match installed kernel ($latest_kernel_version)"
-            echo "A reboot is required to load the correct kernel modules."
-            echo "Please reboot and rerun the script."
-            touch "${HOME}/.waldiez_reboot_required"
-            exit 0
-        fi
-    fi
-}
 ##################################################################################################
 # If we are here, we are not root
 # continue as the sudo user
 echo "Running as user: $(whoami)"
 do_upgrade
-if [ "$OS_ID" = "arch" ]; then
-    # https://bbs.archlinux.org/viewtopic.php?id=250142
-    check_kernel_mismatch_on_arch
-fi
-[ -f "${HOME}/.waldiez_reboot_required" ] && rm -f "${HOME}/.waldiez_reboot_required"
 #
 ##################################################################################################
 # Base Packages
@@ -337,9 +308,6 @@ case "$OS_ID" in
         ;;
     centos|fedora|rhel|rocky)
         do_install python-unversioned-command
-        ;;
-    arch)
-        # nothing to do, already points to Python 3
         ;;
 esac
 ##################################################################################################
@@ -387,31 +355,10 @@ install_docker_rpm_family() {
     do_install docker-ce docker-ce-cli containerd.io docker-compose-plugin
     sudo systemctl enable --now docker
 }
-check_kernel_mismatch() {
-    if [ "$OS_ID" = "arch" ]; then
-        running_kernel="$(uname -r)"
-        latest_kernel_pkg="$(pacman -Q linux | awk '{print $2}')"
-        latest_kernel_version="$(echo "$latest_kernel_pkg" | cut -d- -f1)"
-
-        if ! uname -r | grep -q "$latest_kernel_version"; then
-            echo "Running kernel ($running_kernel) does NOT match installed kernel ($latest_kernel_version)"
-            echo "A reboot is required to load the correct kernel modules."
-            echo "Please reboot and rerun the script."
-            exit 1
-        fi
-    fi
-}
-install_docker_arch() {
-    # https://wiki.archlinux.org/title/Docker
-    sudo pacman -Sy --noconfirm docker docker docker-compose docker-buildx
-    sudo systemctl start docker
-    sudo systemctl enable docker
-}
 if ! command -v docker >/dev/null 2>&1; then
     case "$OS_ID" in
         ubuntu|debian) install_docker_deb_family ;;
         fedora|centos|rocky|rhel) install_docker_rpm_family ;;
-        arch) install_docker_arch ;;
         *)
             echo "Unsupported OS for Docker installation: $OS_ID"
             exit 1
@@ -440,7 +387,7 @@ fi
 #
 # Set Docker daemon log limits
 DAEMON_CONFIG_FILE="/etc/docker/daemon.json"
-TMP_DAEMON_CONFIG="__docker_daemon.json.tmp"
+TMP_DAEMON_CONFIG="_etc_docker_daemon.json"
 cat > "$TMP_DAEMON_CONFIG" <<EOF
 {
   "log-driver": "json-file",
@@ -453,6 +400,7 @@ EOF
 #
 if [ ! -f "$DAEMON_CONFIG_FILE" ] || ! cmp -s "$TMP_DAEMON_CONFIG" "$DAEMON_CONFIG_FILE"; then
     echo "Applying Docker daemon log configuration..."
+    sudo mkdir /etc/docker
     sudo cp "$TMP_DAEMON_CONFIG" "$DAEMON_CONFIG_FILE"
     sudo systemctl restart docker
 else
@@ -507,40 +455,33 @@ fi
 try_install_certbot() {
     #
     if ! command -v certbot >/dev/null 2>&1; then
-        # if arch, let's prefer packman
-        # https://wiki.archlinux.org/title/Certbot
-        if [ "$OS_ID" = "arch" ]; then
-            do_install certbot certbot-nginx
-        fi
-        # check again
-        if ! command -v certbot >/dev/null 2>&1; then
-            echo "Trying to install certbot via snap..."
-            if ! command -v snap >/dev/null 2>&1; then
-                do_install snapd
-                # https://snapcraft.io/install/certbot/rhel
-                # https://snapcraft.io/install/certbot/debian
-                # https://snapcraft.io/install/certbot/fedora
-                # https://snapcraft.io/install/certbot/centos
-                # https://snapcraft.io/docs/installing-snap-on-rocky
-                if [ "$OS_ID" = "rhel" ] || [ "$OS_ID" = "rocky" ] || [ "$OS_ID" = "centos" ] || [ "$OS_ID" = "fedora" ]; then
-                    sudo systemctl enable --now snapd.socket
-                else
-                    sudo systemctl enable --now snapd
-                fi
+        echo "Trying to install certbot via snap..."
+        if ! command -v snap >/dev/null 2>&1; then
+            do_install snapd
+            # https://snapcraft.io/install/certbot/rhel
+            # https://snapcraft.io/install/certbot/debian
+            # https://snapcraft.io/install/certbot/fedora
+            # https://snapcraft.io/install/certbot/centos
+            # https://snapcraft.io/docs/installing-snap-on-rocky
+            if [ "$OS_ID" = "rhel" ] || [ "$OS_ID" = "rocky" ] || [ "$OS_ID" = "centos" ] || [ "$OS_ID" = "fedora" ]; then
+                sudo systemctl enable --now snapd.socket
+            else
+                sudo systemctl enable --now snapd
             fi
-            if ! command -v snap >/dev/null 2>&1; then
-                echo "Could not find or install snap. Please install it manually and try again."
-                exit 1
-            fi
-            until snap list >/dev/null 2>&1; do
-                echo "Waiting for snapd to finish initializing..."
-                sleep 3
-            done
-            sudo ln -s /var/lib/snapd/snap /snap > /dev/null 2>&1 || true
-            sudo ln -s /snap/bin/certbot /usr/bin/certbot  > /dev/null 2>&1 || true
-            sudo snap install --classic certbot
         fi
+        if ! command -v snap >/dev/null 2>&1; then
+            echo "Could not find or install snap. Please install it manually and try again."
+            exit 1
+        fi
+        until snap list >/dev/null 2>&1; do
+            echo "Waiting for snapd to finish initializing..."
+            sleep 3
+        done
+        sudo ln -s /var/lib/snapd/snap /snap > /dev/null 2>&1 || true
+        sudo ln -s /snap/bin/certbot /usr/bin/certbot  > /dev/null 2>&1 || true
+        sudo snap install --classic certbot
     fi
+    # check again
     if ! command -v certbot >/dev/null 2>&1; then
         echo "Certbot is not installed. Please check your installation."
         exit 1
@@ -625,7 +566,7 @@ echo "WALDIEZ_RUNNER_REDIS_PASSWORD=wz-${redis_password}" >> .env
 echo "WALDIEZ_RUNNER_LOCAL_CLIENT_ID=wz-${client_id}" >> .env
 echo "WALDIEZ_RUNNER_LOCAL_CLIENT_SECRET=wz-${client_secret}" >> .env
 echo "WALDIEZ_RUNNER_DB_PASSWORD=wz-${db_password}" >> .env
-echo "WALDIEZ_RUNNER_SECRET_KEY=wz${secret_key}" >> .env
+echo "WALDIEZ_RUNNER_SECRET_KEY=wz-${secret_key}" >> .env
 echo "WALDIEZ_RUNNER_FORCE_SSL=1" >> .env
 #
 . ./.env

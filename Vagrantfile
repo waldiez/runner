@@ -1,5 +1,5 @@
 # Vagrantfile to spin up multiple Linux VMs for testing the Waldiez Runner setup script
-# Includes: Ubuntu, Debian, Fedora, CentOS, Rocky Linux, Arch
+# Includes: Ubuntu, Debian, Fedora, CentOS, Rocky Linux
 # cspell: disable
 
 # not in a release yet, so we patch here till then
@@ -20,7 +20,6 @@ Vagrant.configure("2") do |config|
     { name: "fedora", box: "bento/fedora-latest" },
     { name: "centos", box: "bento/centos-stream-10" },
     { name: "rocky", box: "bento/rockylinux-9"},
-    { name: "arch", box: "archlinux/archlinux" }
   ]
 
   boxes.each do |opts|
@@ -91,18 +90,7 @@ Vagrant.configure("2") do |config|
       vm_config.vm.provision "shell", inline: <<-SHELL
         echo "[#{opts[:name]}] Running setup script..."
         cd /home/vagrant
-        if [ -f "${HOME}/.waldiez_reboot_required" ]; then
-          echo "[waldiez] Resuming after reboot..."
-          rm -f "${HOME}/.waldiez_reboot_required"
-          DOMAIN_NAME=test.local sh ./do.sh --skip-certbot
-        else
-          echo "[waldiez] Initial setup, checking for reboot requirement..."
-          DOMAIN_NAME=test.local sh ./do.sh --skip-certbot
-          if [ -f .waldiez_reboot_marker ]; then
-            echo "[waldiez] Reboot required. Triggering reboot..."
-            sudo shutdown -r now
-          fi
-        fi
+        DOMAIN_NAME=waldiez.local sh ./do.sh --skip-certbot
         echo "[#{opts[:name]}] Setup complete. Validating..."
         docker info || exit 1
         docker compose -f compose.yaml config || exit 1
