@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# SHA256: c2e0adde5687e83104a7292c9e7610267c6660daeca8732bb2dc8da3a0e1d109
+# SHA256: a60e5e1891db819894e1c165b9d11a56982ae18aa3a6b2eb2766b1cad21f150a
 # shellcheck disable=SC2129,SC1091,SC1090,SC2086
 #
 # example direct usage from git:
@@ -434,7 +434,7 @@ EOF
 #
 if [ ! -f "$DAEMON_CONFIG_FILE" ] || ! cmp -s "$TMP_DAEMON_CONFIG" "$DAEMON_CONFIG_FILE"; then
     echo "Applying Docker daemon log configuration..."
-    sudo mkdir /etc/docker
+    sudo mkdir -p /etc/docker
     sudo cp "$TMP_DAEMON_CONFIG" "$DAEMON_CONFIG_FILE"
     sudo systemctl restart docker
 else
