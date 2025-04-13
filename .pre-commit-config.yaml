@@ -21,3 +21,9 @@ repos:
         types: [python]
         language: system
         pass_filenames: false
+      - id: update-do-sh-hash
+        name: Update do.sh SHA256 hash
+        entry: python3 scripts/update_hash.py
+        language: system
+        files: ^deploy/compose/do\.sh$
+        pass_filenames: false

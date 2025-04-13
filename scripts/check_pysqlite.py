@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0.
+# Copyright (c) 2024 - 2025 Waldiez and contributors.
+
 """Check if pysqlite3 is installed and if not, install it."""
 
 import os
