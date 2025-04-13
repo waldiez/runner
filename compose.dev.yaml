@@ -3,9 +3,14 @@
 volumes:
   runner-postgres-data-dev:
   runner-redis-data-dev:
+  runner-storage-data-dev:
 
 x-podman:
   in_pod: false
+
+x-waldiez-volumes: &waldiez-runner-volumes-dev
+  - .:/home/user/app
+  - runner-storage-data-dev:/home/user/app/waldiez_runner/storage
 
 x-logging: &common-logging
   options:
@@ -76,8 +81,7 @@ services:
       dockerfile: Containerfile.dev
     ports:
       - "8000:8000"
-    volumes: &waldiez-runner-volumes-dev
-      - .:/home/user/app
+    volumes: *waldiez-runner-volumes-dev
     environment: &waldiez-runner-env-dev
       - WALDIEZ_RUNNER_HOST=0.0.0.0
       - WALDIEZ_RUNNER_PORT=8000
@@ -103,7 +107,7 @@ services:
       - WALDIEZ_RUNNER_REDIS_SCHEME=redis
       - WALDIEZ_RUNNER_REDIS_PASSWORD=redis_password
       - WALDIEZ_RUNNER_REDIS_URL=
-      - WALDIEZ_RUNNER_DEV=0
+      - WALDIEZ_RUNNER_DEV=1
       - WALDIEZ_RUNNER_USE_LOCAL_AUTH=1
       - WALDIEZ_RUNNER_LOCAL_CLIENT_ID=f53ef9371c428a2e942429dcb24f1132cfedfc9cbbb1829c5c06a9ba4053b26b
       - WALDIEZ_RUNNER_LOCAL_CLIENT_SECRET=26e7fc463b47b8e87caff37a13e623a3938ad7aaf9787c98de92c8383e88fd20493e2a71bf6f05dab4ecaee107ed7eb52d8eeb4f4c79bffcd01310fe00c81d67
@@ -131,7 +135,6 @@ services:
 
   broker:
     container_name: waldiez-broker-dev
-    image: waldiez/runner:latest
     restart: unless-stopped
     init: true
     volumes: *waldiez-runner-volumes-dev
@@ -157,7 +160,6 @@ services:
 
   scheduler:
     container_name: waldiez-scheduler-dev
-    image: waldiez/runner:latest
     restart: unless-stopped
     init: true
     volumes: *waldiez-runner-volumes-dev
