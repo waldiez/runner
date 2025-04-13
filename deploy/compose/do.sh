@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+# SHA256: c2e0adde5687e83104a7292c9e7610267c6660daeca8732bb2dc8da3a0e1d109
 # shellcheck disable=SC2129,SC1091,SC1090,SC2086
 #
 # example direct usage from git:
@@ -23,6 +24,39 @@ EOF
     exit 0
 fi
 set -e
+SCRIPT_URL="https://raw.githubusercontent.com/waldiez/runner/refs/heads/main/deploy/compose/do.sh"
+###################################################################################################
+# Check if the script is being run from a terminal or streamed
+###################################################################################################
+if [ -z "$_WALDIEZ_DO_SH_RELOADED" ]; then
+    if ! [ -f "$0" ] || ! [ -s "$0" ]; then
+        if ! command -v curl >/dev/null 2>&1; then
+            echo "'curl' is required but not installed. Please install it and re-run the script."
+            exit 1
+        fi
+        # Pick a safe directory to save the downloaded script
+        _SAFE_DIR="${HOME:-$(pwd -P)}"
+        [ -w "$_SAFE_DIR" ] || _SAFE_DIR="$(pwd -P)"
+        [ -w "$_SAFE_DIR" ] || _SAFE_DIR="/tmp"
+        _TMP_SCRIPT="${_SAFE_DIR}/do.sh"
+        echo "Script is being streamed or piped. Downloading to $_TMP_SCRIPT for proper execution..."
+        curl -fsSL "${SCRIPT_URL}" -o "$_TMP_SCRIPT" || {
+            echo "Failed to download the script. Exiting."
+            exit 1
+        }
+        _EXPECTED_HASH="$(awk '/^# SHA256:/ { print $3 }' "$_TMP_SCRIPT")"
+        _DOWNLOADED_HASH="$(awk '!/^# SHA256:/ { print }' "$_TMP_SCRIPT" | sha256sum | awk '{print $1}')"
+        if [ "${_DOWNLOADED_HASH}" != "${_EXPECTED_HASH}" ]; then
+            echo "Checksum verification failed!"
+            echo "Expected: ${_EXPECTED_HASH}"
+            echo "Actual:   ${_DOWNLOADED_HASH}"
+            exit 1
+        fi
+        chmod +x "$_TMP_SCRIPT"
+        export _WALDIEZ_DO_SH_RELOADED=1
+        exec "$_TMP_SCRIPT" "$@"
+    fi
+fi
 #
 ##################################################################################################
 # Constants and Env Setup
@@ -38,7 +72,7 @@ if [ -f "$_ENV_FILE" ]; then
     . "$_ENV_FILE"
 fi
 #
-# non-interractive mode
+# non-interactive mode
 export DEBIAN_FRONTEND=noninteractive
 # Parse CLI arguments
 DOMAIN_NAME="${DOMAIN_NAME:-}"
