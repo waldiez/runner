@@ -23,13 +23,13 @@ repos:
         pass_filenames: false
       - id: update-do-sh-hash
         name: Auto-update do.sh SHA256 hash
-        entry: python3 scripts/update_hash.py
+        entry: python3 scripts/check_hash.py
         language: system
         files: ^deploy/compose/do\.sh$
         pass_filenames: false
       - id: verify-do-sh-hash
         name: Verify do.sh SHA256 hash
-        entry: python3 scripts/update_hash.py --check
+        entry: python3 scripts/check_hash.py --check
         language: system
         files: ^deploy/compose/do\.sh$
         pass_filenames: false
