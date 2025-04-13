@@ -39,6 +39,5 @@ clients.json
 !waldiez_runner/db
 waldiez_runner/storage/*
 !waldiez_runner/storage/.gitkeep
-examples/plain
 compose.yaml
 .vagrant/

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta content="#CB95FA" id="msapplication-TileColor" name="msapplication-TileColor" />
+  <meta name="msapplication-config" id="msapplication-config" content="/browserconfig.xml" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta
+      name="apple-mobile-web-app-status-bar-style"
+      media="(prefers-color-scheme: light)"
+      content="#fefefe"
+  />
+  <meta
+      name="apple-mobile-web-app-status-bar-style"
+      media="(prefers-color-scheme: dark)"
+      content="#1e2129"
+  />
+  <meta name="apple-mobile-web-app-title" content="Waldiez" />
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fefefe" />
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1e2129" />
+  <link rel="manifest" id="manifest" href="/site.webmanifest" />
+  <link rel="apple-touch-icon" id="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="mask-icon" id="mask-icon" href="/logo.svg" color="#CB95FA" />
+  <title>Simple Task Management Example</title>
+
+  <!-- Favicon -->
+  <link rel="icon" href="/favicon.ico" />
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="/static/css/main.css" />
+  <link rel="stylesheet" href="/static/css/chat.css" />
+  <link rel="stylesheet" href="/static/css/drawer.css" />
+  <link rel="stylesheet" href="/static/css/modal.css" />
+  <link rel="stylesheet" href="/static/css/dropzone.css" />
+  <link rel="stylesheet" href="/static/css/snackbar.css" />
+  <link rel="stylesheet" href="/static/css/tasks.css" />
+
+  <!-- Global Auth + Client Setup -->
+  <script type="module">
+    import { AuthManager, Client } from "/static/js/lib/index.js";
+
+    window.authManager = null;
+    window.client = null;
+
+    window.initializeAuthManager = (baseUrl, clientId, clientSecret, onAuthError, onGotToken) => {
+      window.authManager = new AuthManager(baseUrl, clientId, clientSecret, onAuthError, onGotToken);
+      window.client = new Client(baseUrl, window.authManager);
+    };
+
+    window.destroyAuthManager = () => {
+      if (window.client) {
+        window.client.closeWebSocket();
+        window.client = null;
+      }
+      if (window.authManager) {
+        window.authManager.logout();
+        window.authManager = null;
+      }
+    };
+
+    window.getAuthManager = () => window.authManager;
+    window.getClient = () => window.client;
+  </script>
+
+  <script>
+    function checkAuthentication() {
+      const unauthenticatedView = document.getElementById('unauthenticated-view');
+      const authenticatedView = document.getElementById('authenticated-view');
+      const authManager = window.getAuthManager();
+      const isAuthenticated = authManager && authManager.isAuthenticated();
+      if (isAuthenticated) {
+        authenticatedView.classList.remove('hidden');
+        unauthenticatedView.classList.add('hidden');
+      } else {
+        authenticatedView.classList.add('hidden');
+        unauthenticatedView.classList.remove('hidden');
+      }
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  </script>
+</head>
+
+<body>
+  <div id="app">
+    <div class="theme-toggle">
+      <button type="button" id="toggle-theme" class="clickable">🌙</button>
+    </div>
+
+    <!-- Unauthenticated View -->
+    <div id="unauthenticated-view" class="view">
+      <h1>Simple Task Management Example</h1>
+      <p>Please authenticate to continue.</p>
+      <input type="text" id="base_url" placeholder="Enter base URL" value="" />
+      <input type="text" id="client_id" placeholder="Enter client ID" value="" />
+      <input type="text" id="client_secret" placeholder="Enter client secret" value="" />
+      <button id="authenticate-btn">Authenticate</button>
+    </div>
+
+    <!-- Authenticated View -->
+    <div id="authenticated-view" class="view hidden">
+      <div id="drawer" class="drawer">
+        <div class="drawer-header">
+          <button type="button" id="toggle-drawer" class="clickable">☰</button>
+        </div>
+        <ul class="drawer-content">
+          <li class="clickable navigation active" id="home">
+            <div>🏡<div class="expanded-only">Home</div></div>
+          </li>
+          <li class="clickable navigation" id="tasks">
+            <div>📝<div class="expanded-only">Tasks</div></div>
+          </li>
+          <li class="clickable navigation" id="new-task">
+            <div>✨<div class="expanded-only">New Task</div></div>
+          </li>
+          <li class="clickable navigation" id="logout">
+            <div>🚪<div class="expanded-only">Logout</div></div>
+          </li>
+          <li class="clickable navigation hidden" id="task-chat-live">
+            <div>🤖<div class="expanded-only">Chat (Live)</div></div>
+          </li>
+          <li class="clickable navigation hidden" id="task-chat-static">
+            <div>📄<div class="expanded-only">Chat (View)</div></div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="main-content">
+        <div id="home-view">
+          <h1>Welcome!</h1>
+          <p>Click on the menu to navigate.</p>
+          <p>Click on the <strong>Tasks</strong> menu to view previous tasks.</p>
+          <p>Click on the <strong>New Task</strong> menu to trigger a new task.</p>
+          <p>Click on the <strong>Logout</strong> menu to logout.</p>
+        </div>
+
+        <div id="tasks-view" class="hidden">
+            <!-- Injected -->
+        </div>
+        <div id="new-task-view" class="hidden">
+          <!-- Injected -->
+        </div>
+        <div id="task-chat-live-view" class="hidden">
+          <div class="chat-container">
+            <div class="chat-box" id="chatBoxLive" data-awaiting-user-message="false"></div>
+            <div id="inputContainerLive" class="input-container hidden">
+              <input type="text" class="input-field" id="userInputLive" placeholder="Enter your message ..." />
+              <button class="send-btn" id="sendButtonLive">Send</button>
+            </div>
+          </div>
+        </div>
+        <div id="task-chat-static-view" class="hidden">
+          <div class="chat-container">
+            <div class="chat-box" id="chatBoxStatic"></div>
+            <div id="chatStaticInputs" class="chat-inputs"></div>
+          </div>
+        </div>
+        <div id="details-modal" class="modal hidden">
+          <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2>Task Details</h2>
+            <pre id="details-content" class="details-text">Loading...</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script type="module" src="/static/js/theme.js"></script>
+  <script type="module" src="/static/js/main.js"></script>
+  <script type="module" src="/static/js/tasks/index.js"></script>
+  <script type="module" src="/static/js/chat/index.js"></script>
+</body>
+</html>
