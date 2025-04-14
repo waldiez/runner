@@ -39,7 +39,7 @@ We currently support three development modes:
   Runs Redis, PostgreSQL, and the API server in containers via [compose.yaml](./devcontainer/compose.yaml).
 
 > [!TIP]
-> If switching between a containerized environment and a local one, we should make sure the automatically generated (.gitignored) .env file has the correct hosts for the redis and db hosts and the boolean flags for enabling or not redis and postgresql. We can call `python scripts/toggle.py` (or `make toggle`) to toggle between the two environments. This will also update the .env file with the correct values.
+> If switching between a containerized environment and a local one, we should make sure the automatically generated (.gitignored) .env file has the correct hosts for the redis and db hosts and the boolean flags for enabling or not redis and postgresql. We can call `python3 scripts/toggle.py` (or `make toggle`) to toggle between the two environments. This will also update the .env file with the correct values.
 >
 > After cloning the repo, run pre-commit install to enable auto-formatting and smoke testing before each commit. Or use `make some` to run format, lint, toggle, and test in one go.
 >
@@ -216,10 +216,10 @@ All-in-one:
 ```shell
 # if the test fails,
 # you can enable logging of the services too (suppressed by default):
-# python scripts/test.py --smoke --debug
+# python3 scripts/test.py --smoke --debug
 make smoke
 ### or (what make smoke does):
-# python scripts/test.py --smoke
+# python3 scripts/test.py --smoke
 ### or (what the above does):
 ## ensures no processes of uvicorn or taskiq exist.
 ## runs pre-start checks and initial-data generation.
@@ -227,7 +227,7 @@ make smoke
 ## in a background process:
 ## make dev-no-reload or make dev-no-reload-local [checks if in container to decide])
 ## in another foreground process:
-## calls the smoke test script python scripts/smoke.py
+## calls the smoke test script python3 scripts/smoke.py
 ```
 
 Or manually:
@@ -238,17 +238,17 @@ First, ensure the server is running in dev mode:
 make dev-no-reload
 ### or (what make dev-no-reload does):
 ### (pre-start checks for redis and postgres)
-# python scripts/pre_start.py --no-force-ssl --redis --postgres --dev
+# python3 scripts/pre_start.py --no-force-ssl --redis --postgres --dev
 ### initial data (ensure the first client for the clients-api audience exists)
-# python scripts/initial_data.py --redis --postgres --dev
+# python3 scripts/initial_data.py --redis --postgres --dev
 ### start the server in dev mode
-# python -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000  --trusted-hosts localhost --debug --no-force-ssl --redis --postgres --dev
+# python3 -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000  --trusted-hosts localhost --debug --no-force-ssl --redis --postgres --dev
 ```
 
 In another terminal (you may run it outside the container (e.g., on the host machine):
 
 ```shell
-python scripts/smoke.py
+python3 scripts/smoke.py
 ```
 
 The script will:
@@ -281,13 +281,13 @@ Before submitting any changes, try to ensure that the code is formatted, linted,
 make clean && make format && make lint && make test
 ### or (what the above does):
 ### Remove cache and other unnecessary files
-# python scripts/clean.py
+# python3 scripts/clean.py
 ### Format the code
-# python scripts/format.py
+# python3 scripts/format.py
 ### Lint the code
-# python scripts/lint.py
+# python3 scripts/lint.py
 ### Run the tests
-# python scripts/test.py
+# python3 scripts/test.py
 ```
 
 ### Roadmap
@@ -305,7 +305,7 @@ make clean && make format && make lint && make test
   - [ ] GCP Cloud Run
 - [ ] Example usage:
   - [x] An example using a JS client
-  - [ ] An example using a python client (streamlit?)
+  - [ ] An example using a python3 client (streamlit?)
 - [ ] Support other storage backends (e.g., S3, GCS, etc.)
 - [ ] Support other authentication methods (e.g., OIDC)
 - [ ] Support three modes of operation:

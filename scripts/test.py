@@ -428,16 +428,24 @@ def start_services(silently: bool = True) -> subprocess.Popen[Any]:
     make_target = "dev-no-reload"
     if not in_container():
         make_target += "-local"
-    with open(os.devnull, "w", encoding="utf-8") as devnull:
+    if silently:
+        with open(os.devnull, "w", encoding="utf-8") as devnull:
+            start_proc = subprocess.Popen(  # nosemgrep # nosec
+                ["make", make_target],
+                stdout=devnull,
+                stderr=devnull,
+                shell=False,
+                cwd=ROOT_DIR,
+                env=os.environ,
+            )
+    else:
         start_proc = subprocess.Popen(  # nosemgrep # nosec
             ["make", make_target],
-            stdout=devnull if silently else None,
-            stderr=devnull if silently else None,
             shell=False,
             cwd=ROOT_DIR,
             env=os.environ,
         )
-        return start_proc
+    return start_proc
 
 
 def run_smoke_tests() -> None:
@@ -457,6 +465,7 @@ def run_smoke_tests() -> None:
     drop_db_data()
 
     make_proc = start_services("--debug" not in sys.argv)
+    time.sleep(5)
     background_sub_proc = threading.Thread(target=make_proc.wait, daemon=True)
     background_sub_proc.start()
 

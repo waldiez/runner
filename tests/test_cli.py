@@ -49,7 +49,7 @@ def test_version() -> None:
 
 
 def test_python_m() -> None:
-    """Test python -m."""
+    """Test python3 -m."""
     # just to cover __main__.py
     result = subprocess.run(
         [sys.executable, "-m", "waldiez_runner", "--version"],
@@ -92,7 +92,7 @@ def test_trusted_hosts_empty(mock_start_uvicorn: MagicMock) -> None:
 @patch(f"{MODULE_TO_PATCH}.start_all")
 def test_dev_mode(mock_start_all: MagicMock) -> None:
     """Test dev mode."""
-    result = runner.invoke(app, ["--dev"] + get_valid_args())
+    result = runner.invoke(app, ["--all"] + get_valid_args())
     assert result.exit_code == 0
 
 

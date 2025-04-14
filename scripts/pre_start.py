@@ -38,16 +38,18 @@ DOT_ENV_PATH = ROOT_DIR / ".env"
 
 os.environ["PYTHONUNBUFFERED"] = "1"
 
-if DOT_ENV_PATH.exists():
-    load_dotenv(DOT_ENV_PATH, override=True)
-else:
-    DOT_ENV_PATH.touch()
 try:
     from waldiez_runner.config import ENV_PREFIX, SettingsManager
 except ImportError:
     sys.path.append(str(ROOT_DIR))
     from waldiez_runner.config import ENV_PREFIX, SettingsManager
 
+
+if DOT_ENV_PATH.exists():
+    load_dotenv(DOT_ENV_PATH, override=True)
+else:
+    SettingsManager.load_settings().save()
+    load_dotenv(DOT_ENV_PATH, override=True)
 
 os.environ[f"{ENV_PREFIX}TESTING"] = "false"
 
@@ -254,6 +256,8 @@ def main() -> None:
         "yes",
         "1",
     )
+    if "--dev" in sys.argv:
+        testing = False
     if not testing:
         LOG.info("Performing pre-start actions")
         ensure_secrets()

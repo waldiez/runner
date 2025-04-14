@@ -20,6 +20,9 @@
     "mypy-type-checker.args": ["--config pyproject.toml"],
     "markdown.extension.toc.orderedList": false,
     "markdown.extension.toc.updateOnSave": false,
+    "yaml.customTags": [
+        "tag:yaml.org,2002:python/name:pymdownx.superfences.fence_code_format"
+    ],
     "cSpell.words": [
         "aconnect",
         "addgroup",

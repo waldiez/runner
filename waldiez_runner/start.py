@@ -10,7 +10,6 @@ import os
 import signal
 import subprocess
 import sys
-from multiprocessing import Process
 from pathlib import Path
 from types import FrameType
 from typing import Any, Dict, List, Tuple
@@ -265,15 +264,15 @@ def start_broker_and_scheduler(
         scheduler_process.terminate()
 
 
-def start_all(
+def get_uvicorn_command(
     host: str,
     port: int,
     reload: bool,
     log_level: LogLevel,
-    logging_config: Dict[str, Any],
-    skip_redis: bool,
-) -> None:
-    """Start both the uvicorn server and the worker.
+    module_name: str,
+    cwd: str,
+) -> List[str]:
+    """Get the Uvicorn command.
 
     Parameters
     ----------
@@ -285,16 +284,66 @@ def start_all(
         Whether to reload the server when the code changes.
     log_level : LogLevel
         The log level to use.
-    logging_config : Dict[str, Any]
-        The logging configuration.
-    skip_redis : bool
-        Whether to skip using Redis.
+    module_name : str
+        The module name.
+    cwd : str
+        The current working directory.
+
+    Returns
+    -------
+    List[str]
+        The Uvicorn command arguments.
     """
-    LOG.info("Starting the server and the worker")
-    this_dir = Path(__file__).parent
-    module_name = this_dir.name
-    cwd = str(this_dir.parent)
-    worker_args = [
+    uvicorn_cmd = [
+        "uvicorn",
+        f"{module_name}.main:app",
+        "--host",
+        host,
+        "--port",
+        str(port),
+        "--log-level",
+        log_level.lower(),
+        "--app-dir",
+        cwd,
+        "--ws",
+        "websockets",
+        "--proxy-headers",
+        "--forwarded-allow-ips",
+        "*",
+    ]
+    if reload:
+        uvicorn_cmd += [
+            "--reload",
+            "--reload-dir",
+            cwd,
+            *[f"--reload-include={x}" for x in ["waldiez_runner/**/*.py"]],
+            *[f"--reload-exclude={x}" for x in UVICORN_RELOAD_EXCLUDES],
+        ]
+    return uvicorn_cmd
+
+
+def get_worker_command(
+    module_name: str,
+    reload: bool,
+    log_level: LogLevel,
+) -> List[str]:
+    """Get the Taskiq worker command.
+
+    Parameters
+    ----------
+    module_name : str
+        The module name.
+    reload : bool
+        Whether to reload the server when the code changes.
+    log_level : LogLevel
+        The log level to use.
+
+    Returns
+    -------
+    List[str]
+        The Taskiq worker command arguments.
+    """
+    worker_cmd = [
         "taskiq",
         "worker",
         "--workers",
@@ -303,55 +352,114 @@ def start_all(
         log_level.upper(),
         f"{module_name}.worker:broker",
     ]
-    if reload:  # pragma: no-branch
-        worker_args.append("--reload")
-    scheduler_args = [
+    if reload:
+        worker_cmd.append("--reload")
+    return worker_cmd
+
+
+def get_scheduler_command(
+    module_name: str,
+    log_level: LogLevel,
+) -> List[str]:
+    """Get the Taskiq scheduler command.
+
+    Parameters
+    ----------
+    module_name : str
+        The module name.
+    log_level : LogLevel
+        The log level to use.
+
+    Returns
+    -------
+    List[str]
+        The Taskiq scheduler command arguments.
+    """
+    scheduler_cmd = [
         "taskiq",
         "scheduler",
         "--log-level",
         log_level.upper(),
         f"{module_name}.worker:scheduler",
     ]
+    return scheduler_cmd
+
+
+def start_all(
+    host: str,
+    port: int,
+    reload: bool,
+    log_level: LogLevel,
+    skip_redis: bool,
+) -> None:
+    """Start all services (Uvicorn, Taskiq Worker, Scheduler).
+
+    Parameters
+    ----------
+    host : str
+        The host to bind the server to.
+    port : int
+        The port to bind the server to.
+    reload : bool
+        Whether to reload the server when the code changes.
+    log_level : LogLevel
+        The log level to use.
+    skip_redis : bool
+        Whether to skip using Redis.
+    """
+    LOG.info("Starting all services (Uvicorn, Taskiq Worker, Scheduler)")
+    module_name, cwd = get_module_and_cwd()
+
+    # Environment
+    env = os.environ.copy()
+    if skip_redis:
+        env[f"{ENV_PREFIX}NO_REDIS"] = "true"
+        env[f"{ENV_PREFIX}REDIS"] = "false"
+
+    # Build process commands
+    uvicorn_cmd = get_uvicorn_command(
+        host=host,
+        port=port,
+        reload=reload,
+        log_level=log_level,
+        module_name=module_name,
+        cwd=cwd,
+    )
+    worker_cmd = get_worker_command(
+        module_name=module_name,
+        reload=reload,
+        log_level=log_level,
+    )
+    scheduler_cmd = get_scheduler_command(
+        module_name=module_name,
+        log_level=log_level,
+    )
 
     processes = [
-        Process(
-            target=start_uvicorn,
-            name="FastAPI",
-            args=(host, port, reload, log_level, logging_config),
-        ),
-        Process(
-            target=run_worker,
-            name="TaskiqWorker",
-            args=(worker_args, cwd, skip_redis),
-        ),
-        Process(
-            target=run_scheduler,
-            name="TaskiqScheduler",
-            args=(scheduler_args, cwd, skip_redis),
-        ),
+        subprocess.Popen(uvicorn_cmd, cwd=cwd, env=env),
+        subprocess.Popen(worker_cmd, cwd=cwd, env=env),
+        subprocess.Popen(scheduler_cmd, cwd=cwd, env=env),
     ]
-
-    for proc in processes:
-        proc.start()
 
     # pylint: disable=unused-argument
     def shutdown_all(signum: int, frame: FrameType | None) -> None:
-        """Shutdown all processes.
-        Parameters
-        ----------
-        signum : int
-            The signal number.
-        frame : FrameType
-            The current stack frame.
-        """
-        print("\n[DEV] Shutting down all services...")
+        print("\n[DEV] Shutting down all subprocesses...")
         for proc in processes:
-            proc.terminate()
-            proc.join(timeout=1)
+            if proc.poll() is None:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
         sys.exit(0)
 
+    # Register shutdown
     signal.signal(signal.SIGINT, shutdown_all)
     signal.signal(signal.SIGTERM, shutdown_all)
 
-    for proc in processes:
-        proc.join()
+    # Wait for all processes
+    try:
+        for proc in processes:
+            proc.wait()
+    except KeyboardInterrupt:
+        shutdown_all(signal.SIGINT, None)

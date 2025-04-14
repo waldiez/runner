@@ -269,6 +269,8 @@ def main() -> None:
         "yes",
         "1",
     )
+    if "--dev" in sys.argv:
+        testing = False
     if not testing:
         run_migrations()
         ensure_clients_api_client()

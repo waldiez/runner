@@ -20,7 +20,7 @@ help:
 	@echo " docs                 Generate the documentation"
 	@echo " docs-live            Generate the documentation in 'live' mode"
 	@echo " clean                Remove unneeded files (__pycache__, .mypy_cache, etc.)"
-	@echo " build                Build the python package"
+	@echo " build                Build the python3 package"
 	@echo " image                Generate container image"
 	@echo " drop                 Drop all the database tables and types"
 	@echo " local                Start the server in development mode locally (no external services)"
@@ -36,109 +36,118 @@ help:
 
 .PHONY: format
 format:
-	python scripts/format.py --no-deps
+	python3 scripts/format.py --no-deps
 
 .PHONY: lint
 lint:
-	python scripts/lint.py --no-deps
+	python3 scripts/lint.py --no-deps
 
 .PHONY: forlint
 forlint: format lint
 
 .PHONY: clean
 clean:
-	python scripts/clean.py
+	python3 scripts/clean.py
 
 .PHONY: requirements
 requirements:
-	python scripts/requirements.py
+	python3 scripts/requirements.py
 
 
 .PHONY: test
 test:
-	python scripts/test.py
+	python3 scripts/test.py
 	@echo "html report: file://`pwd`/${.REPORTS_DIR}/html/index.html"
 
 .PHONY: docs
 docs:
-	python -m mkdocs build -d site
+	python3 -m mkdocs build -d site
 	@echo "open:   file://`pwd`/site/index.html"
-	@echo "or use: \`python -m http.server --directory site\`"
+	@echo "or use: \`python3 -m http.server --directory site\`"
 
 .PHONY: docs-live
 docs-live:
-	python -m pip install -r requirements/docs.txt
-	python -m mkdocs serve --watch mkdocs.yml --watch docs --watch waldiez --dev-addr localhost:8400
+	python3 -m pip install -r requirements/docs.txt
+	python3 -m mkdocs serve --watch mkdocs.yml --watch docs --watch waldiez_runner --dev-addr localhost:8400
 
 .PHONY: build
 build:
-	python -c 'import os; os.makedirs("dist", exist_ok=True); os.makedirs("build", exist_ok=True)'
-	python -c 'import shutil; shutil.rmtree("dist", ignore_errors=True); shutil.rmtree("build", ignore_errors=True)'
-	python -m pip install --upgrade pip wheel
-	python -m pip install -r requirements/main.txt
-	python -m pip install build twine
-	python -m build --sdist --wheel --outdir dist/
-	python -m twine check dist/*.whl
-	python -c 'import shutil; shutil.rmtree("build", ignore_errors=True)'
-	@echo "Now you can upload the package with: \`python -m twine upload dist/*\`"
+	python3 -c 'import os; os.makedirs("dist", exist_ok=True); os.makedirs("build", exist_ok=True)'
+	python3 -c 'import shutil; shutil.rmtree("dist", ignore_errors=True); shutil.rmtree("build", ignore_errors=True)'
+	python3 -m pip install --upgrade pip wheel
+	python3 -m pip install -r requirements/main.txt
+	python3 -m pip install build twine
+	python3 -m build --sdist --wheel --outdir dist/
+	python3 -m twine check dist/*.whl
+	python3 -c 'import shutil; shutil.rmtree("build", ignore_errors=True)'
+	@echo "Now you can upload the package with: \`python3 -m twine upload dist/*\`"
 
 .PHONY: image
 image:
-	python scripts/image.py
+	python3 scripts/image.py
 
 
 .PHONY: secrets
 secrets:
-	python scripts/pre_start.py --secrets --no-force-ssl --dev
+	python3 scripts/pre_start.py --secrets --no-force-ssl --dev
 
 
 .PHONY: drop
 drop:
-	python scripts/drop.py
+	python3 scripts/drop.py
 
-
-.PHONY: local
-local:
-	python scripts/pre_start.py --no-force-ssl --no-redis --no-postgres --dev
-	python scripts/initial_data.py --no-force-ssl --no-redis --no-postgres --dev
-	python -m waldiez_runner --reload --debug --no-force-ssl --no-redis --no-postgres --dev
-
-
-.PHONY: dev
-dev:
-	python scripts/pre_start.py --no-force-ssl --redis --postgres --dev
-	python scripts/initial_data.py --redis --postgres --dev
-	python -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --reload --debug --no-force-ssl --redis --postgres --dev
-
-.PHONY: dev-no-debug
-dev-no-debug:
-	python scripts/pre_start.py --no-force-ssl --redis --postgres --dev
-	python scripts/initial_data.py --redis --postgres --dev
-	python -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --log-level info --no-debug --no-force-ssl --redis --postgres --dev
-
-.PHONY: dev-no-reload
-dev-no-reload:
-	python scripts/pre_start.py --no-force-ssl --redis --postgres --dev
-	python scripts/initial_data.py --redis --postgres --dev
-	python -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000  --trusted-hosts localhost --debug --no-force-ssl --redis --postgres --dev
-
-.PHONY: dev-no-reload-local
-dev-no-reload-local:
-	python scripts/pre_start.py --no-force-ssl --no-redis --no-postgres --dev
-	python scripts/initial_data.py --no-force-ssl --no-redis --no-postgres --dev
-	python -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --debug --no-force-ssl --no-redis --no-postgres --dev
 
 .PHONY: toggle
 toggle:
-	python scripts/toggle.py
+	python3 scripts/toggle.py
 	@echo "Now you can run the server with: \`make dev\`, \`make dev-no-reload\`, \`make dev-no-debug\`, or \`make local\`"
-	@echo "or use: \`python -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --reload --debug --no-force-ssl --redis --postgres --dev\`"
-	@echo "or use: \`python -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --debug --no-force-ssl --no-redis --no-postgres --dev\`"
+	@echo "or use: \`python3 -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --reload --debug --no-force-ssl --redis --postgres --dev --all\`"
+	@echo "or use: \`python3 -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --debug --no-force-ssl --no-redis --no-postgres --dev --all\`"
+
+
+.PHONY: toggle-local
+toggle-local:
+	python3 scripts/toggle.py --mode local
+	@echo "Now you can run the server with: \`make dev-no-reload-local\` or \`make local\`"
+	@echo "or use: \`python3 -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --reload --debug --no-force-ssl --no-redis --no-postgres --dev --all\`"
+
+.PHONY: local
+local: toggle-local
+	python3 scripts/pre_start.py --no-force-ssl --no-redis --no-postgres --dev
+	python3 scripts/initial_data.py --no-force-ssl --no-redis --no-postgres --dev
+	python3 -m waldiez_runner --reload --debug --no-force-ssl --no-redis --no-postgres --dev --all
+
+
+.PHONY: dev-no-reload-local
+dev-no-reload-local:
+	python3 scripts/toggle.py --mode local
+	python3 scripts/pre_start.py --no-force-ssl --no-redis --no-postgres --dev
+	python3 scripts/initial_data.py --no-force-ssl --no-redis --no-postgres --dev
+	python3 -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --debug --no-force-ssl --no-redis --no-postgres --dev --all
+
+
+.PHONY: dev
+dev: toggle
+	python3 scripts/pre_start.py --no-force-ssl --redis --postgres --dev
+	python3 scripts/initial_data.py --redis --postgres --dev
+	python3 -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --reload --debug --no-force-ssl --redis --postgres --dev --all
+
+.PHONY: dev-no-debug
+dev-no-debug: toggle
+	python3 scripts/pre_start.py --no-force-ssl --redis --postgres --dev
+	python3 scripts/initial_data.py --redis --postgres --dev
+	python3 -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --log-level info --no-debug --no-force-ssl --redis --postgres --dev --all
+
+.PHONY: dev-no-reload
+dev-no-reload: toggle
+	python3 scripts/pre_start.py --no-force-ssl --redis --postgres --dev
+	python3 scripts/initial_data.py --redis --postgres --dev
+	python3 -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000  --trusted-hosts localhost --debug --no-force-ssl --redis --postgres --dev --all
 
 
 .PHONY: smoke
 smoke: toggle
-	python scripts/test.py --smoke
+	python3 scripts/test.py --smoke
 
 .PHONY: some
 some: requirements forlint test smoke

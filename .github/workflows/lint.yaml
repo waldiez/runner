@@ -28,7 +28,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Display Python version
-        run: python -c "import sys; print(sys.version)"
+        run: python3 -c "import sys; print(sys.version)"
 
       - name: Install dependencies
         run: |
@@ -36,4 +36,4 @@ jobs:
           pip install -r requirements/main.txt -r requirements/dev.txt -r requirements/test.txt
 
       - name: Lint
-        run: python scripts/lint.py
+        run: python3 scripts/lint.py

@@ -80,8 +80,9 @@ RUN pip install --upgrade pip
 COPY --chown=user:user requirements /home/user/requirements
 RUN pip install -r /home/user/requirements/all.txt && rm -rf /home/user/requirements
 
-COPY scripts /home/user/app/scripts
-RUN python3 /home/user/app/scripts/check_pysqlite.py
+COPY scripts/check_pysqlite.py /home/user/app/check_pysqlite.py
+RUN python3 /home/user/app/check_pysqlite.py && \
+    rm -rf /home/user/app/check_pysqlite.py
 
 WORKDIR /home/user/app
 
@@ -95,4 +96,4 @@ VOLUME /home/user/app/waldiez_runner/storage
 ENV TINI_SUBREAPER=true
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
-CMD ["/home/user/app/scripts/start.sh", "drop"]
+CMD ["/home/user/app/scripts/start.sh", "dev"]

@@ -2,7 +2,7 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
 # pylint: disable=missing-return-doc,missing-param-doc
-"""Test waldiez_runner.dev.*."""
+"""Test waldiez_runner.start.*."""
 
 import os
 import signal
@@ -91,9 +91,9 @@ def test_start_broker_and_scheduler(mock_run_process: MagicMock) -> None:
 
 @patch(f"{MODULE_TO_PATCH}.sys.exit")
 @patch(f"{MODULE_TO_PATCH}.signal.signal")
-@patch(f"{MODULE_TO_PATCH}.Process")
+@patch(f"{MODULE_TO_PATCH}.subprocess.Popen")
 def test_start_all(
-    mock_process_class: MagicMock,
+    mock_popen: MagicMock,
     mock_signal: MagicMock,
     mock_sys_exit: MagicMock,
 ) -> None:
@@ -101,7 +101,8 @@ def test_start_all(
     mock_uvicorn_process = MagicMock()
     mock_worker_process = MagicMock()
     mock_scheduler_process = MagicMock()
-    mock_process_class.side_effect = [
+
+    mock_popen.side_effect = [
         mock_uvicorn_process,
         mock_worker_process,
         mock_scheduler_process,
@@ -113,14 +114,19 @@ def test_start_all(
         reload=True,
         log_level=LogLevel.INFO,
         skip_redis=True,
-        logging_config={},
     )
 
-    assert mock_process_class.call_count == 3
-    mock_uvicorn_process.start.assert_called_once()
-    mock_worker_process.start.assert_called_once()
-    mock_scheduler_process.start.assert_called_once()
+    # Assert three processes are started
+    assert mock_popen.call_count == 3
+    mock_uvicorn_process.wait.assert_called_once()
+    mock_worker_process.wait.assert_called_once()
+    mock_scheduler_process.wait.assert_called_once()
+
+    # Signal handlers registered
     mock_signal.assert_any_call(signal.SIGINT, mock.ANY)
+    mock_signal.assert_any_call(signal.SIGTERM, mock.ANY)
+
+    # Should not exit immediately
     mock_sys_exit.assert_not_called()
 
 

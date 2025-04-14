@@ -9,7 +9,7 @@ set -e  # Fail on error
 # scripts root (where this file is): /home/user/scripts
 HERE="$(dirname "$(readlink -f "$0")")"
 ROOT_DIR="$(dirname "$HERE")"
-DROP_DB=false
+DEV="false"
 
 pre_start_checks() {
     if [ -f "${HERE}/pre_start.py" ]; then
@@ -41,15 +41,31 @@ get_log_level() {
 }
 
 start_uvicorn() {
+    if [ "$DEV" = "true" ] && [ -f "${ROOT_DIR}/.env" ]; then
+        echo "Removing .env file..."
+        # the keys should be in env variables (not in env)
+        # the .env file will be automatically created by the app
+        rm -f "${ROOT_DIR}/.env" || true
+    fi
     pre_start_checks
-    if [ "$DROP_DB" = true ] && [ -f "${HERE}/drop.py" ]; then
+    if [ "$DEV" = true ] && [ -f "${HERE}/drop.py" ]; then
         echo "Dropping database..."
         python3 "${HERE}/drop.py" --force
     fi
     initial_data_setup
     echo "Starting uvicorn server..."
-    # no args, it will load the configuration from the environment
-    python3 -m waldiez_runner
+    if [ "${DEV}" = "true" ]; then
+        # make sure WALDIEZ_RUNNER_DEV is set to 1
+        if [ -f "${ROOT_DIR}/.env" ]; then
+            # shellcheck disable=SC1091
+            . "${ROOT_DIR}/.env"
+        fi
+        sed -i "s/^WALDIEZ_RUNNER_DEV=.*/WALDIEZ_RUNNER_DEV=1/" "${ROOT_DIR}/.env"
+        python3 -m waldiez_runner --dev
+    else
+        # no args, it will load the configuration from the environment
+        python3 -m waldiez_runner
+    fi
 }
 
 start_broker() {
@@ -108,8 +124,8 @@ main() {
         worker)
             start_broker_and_scheduler
             ;;
-        drop)
-            DROP_DB=true
+        dev)
+            DEV="true"
             start_uvicorn
             ;;
         *)

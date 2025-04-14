@@ -232,6 +232,11 @@ def run(
         default="--reload" in sys.argv,
         help="Reload the server on file changes",
     ),
+    all: bool = typer.Option(
+        False,
+        "--all",
+        help="Start all services (broker, scheduler, and uvicorn)",
+    ),
     dev: bool = typer.Option(
         False,
         "--dev",
@@ -298,13 +303,12 @@ def run(
     logger.debug("Effective settings: %s", settings.model_dump_json(indent=2))
     settings.save()
     skip_redis = settings.redis is False
-    if dev:
+    if all:
         start_all(
             host,
             port,
             reload,
             log_level,
-            logging_config=logging_config,
             skip_redis=skip_redis,
         )
     elif worker or (broker and scheduler):

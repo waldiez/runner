@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# SHA256: ea7e8b4d21f0e0c43a2a718b62a26a6dad98bf69673219690677e232e5edd90e
+# SHA256: f91e41947dc0b433274d0b23f9ae09ae26f6100d0ed65dbad36b9fb695aa3ee0
 # shellcheck disable=SC2129,SC1091,SC1090,SC2086
 #
 # example direct usage from git:
@@ -577,7 +577,7 @@ fi
 git clone https://github.com/waldiez/runner.git runner_tmp
 cd runner_tmp
 cp compose.example.yaml ../compose.yaml
-python scripts/image.py --container-command docker
+python3 scripts/image.py --container-command docker
 cd ..
 rm -rf runner_tmp
 #
@@ -586,11 +586,11 @@ rm -rf runner_tmp
 echo "WALDIEZ_RUNNER_DOMAIN_NAME=${DOMAIN_NAME}" > .env
 chmod 600 .env
 #
-client_id="$(python -c 'import secrets; secrets;print(secrets.token_hex(32))')"
-client_secret="$(python -c 'import secrets; secrets;print(secrets.token_hex(64))')"
-redis_password="$(python -c 'import secrets; secrets;print(secrets.token_hex(8))')"
-db_password="$(python -c 'import secrets; secrets;print(secrets.token_hex(8))')"
-secret_key="$(python -c 'import secrets; secrets;print(secrets.token_hex(64))')"
+client_id="$(python3 -c 'import secrets; secrets;print(secrets.token_hex(32))')"
+client_secret="$(python3 -c 'import secrets; secrets;print(secrets.token_hex(64))')"
+redis_password="$(python3 -c 'import secrets; secrets;print(secrets.token_hex(8))')"
+db_password="$(python3 -c 'import secrets; secrets;print(secrets.token_hex(8))')"
+secret_key="$(python3 -c 'import secrets; secrets;print(secrets.token_hex(64))')"
 #
 # to .env
 echo "REDIS_PASSWORD=wz-${redis_password}" >> .env

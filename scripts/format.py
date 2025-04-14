@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
-"""Run python formatters."""
+"""Run python3 formatters."""
 
 import shutil
 import subprocess  # nosemgrep # nosec
@@ -116,7 +116,7 @@ def run_ruff() -> None:
 
 
 def main() -> None:
-    """Run python formatters."""
+    """Run python3 formatters."""
     if "--no-deps" not in sys.argv:
         ensure_requirements()
     run_isort()
