@@ -64,8 +64,9 @@ markdown_extensions:
         - name: mermaid
           class: mermaid
           # yamllint disable
-          format: !!python/name:pymdownx.superfences.fence_code_format ""
-          # yamllint enable
+          format: !!python/name:mermaid2.fence_mermaid_custom # yamllint enable
+
+
   - pymdownx.tabbed:
       alternate_style: true
   - mdx_include:
@@ -74,15 +75,51 @@ markdown_extensions:
 extra_css:
   - static/css/main.css
 
+plugins:
+  - search:
+      lang: en
+  - mermaid2
+  - minify_html
+  - macros
+  - autorefs
+  - privacy
+  - mkdocstrings:
+      enabled: true
+      default_handler: python
+      handlers:
+        python:
+          paths: [.]
+          import:
+            - url: https://docs.python.org/3/objects.inv
+              domains: [std, py]
+            - https://typing-extensions.readthedocs.io/en/latest/objects.inv
+          options:
+            filters:
+              - "!^_"
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            docstring_options:
+              ignore_init_summary: true
+            merge_init_into_class: true
+            docstring_style: numpy
+            show_submodules: true
+            show_root_heading: false
+            show_signature_annotations: true
+            show_signature: true
+            signature_crossrefs: true
+            show_source: true
+            group_by_category: false
+            show_category_heading: true
+            inherited_members: false
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
-  # - Architecture: architecture.md
-  # - API:
-  #     - REST & WebSocket: api.md
-  #     - Clients & Auth: clients.md
-  #     - Tasks: tasks.md
-  #     - Live WebSocket Chat: websocket.md
+  - Architecture: architecture.md
+  - API:
+      - Clients & Auth: clients.md
+      - Tasks: tasks.md
+      - WebSocket: websocket.md
+  # - Examples: examples.md
   # - Deployment:
   #     - Overview: deployment/index.md
   #     - Docker & Compose: deployment/docker.md
@@ -90,4 +127,4 @@ nav:
   #     - Cloud Storage: deployment/cloud.md
   # - Configuration: configuration.md
   # - Contributing: contributing.md
-  # - Changelog: changelog.md
+  # - Reference (mkdocstrings)
