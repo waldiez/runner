@@ -21,7 +21,8 @@
     "markdown.extension.toc.orderedList": false,
     "markdown.extension.toc.updateOnSave": false,
     "yaml.customTags": [
-        "tag:yaml.org,2002:python/name:pymdownx.superfences.fence_code_format"
+        "tag:yaml.org,2002:python/name:pymdownx.superfences.fence_code_format",
+        "tag:yaml.org,2002:python/name:mermaid2.fence_mermaid_custom"
     ],
     "cSpell.words": [
         "aconnect",
@@ -63,6 +64,7 @@
         "Containerfile",
         "coro",
         "cpus",
+        "crossrefs",
         "CTYPE",
         "customise",
         "cweijan",
@@ -204,6 +206,7 @@
         "rmtree",
         "rockylinux",
         "rootdir",
+        "rpds",
         "SAVEHIST",
         "scriptrunner",
         "sdist",
