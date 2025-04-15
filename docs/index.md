@@ -4,12 +4,14 @@
 
 Built with:
 
-- [Waldiez](https://github.com/waldiez/waldiez) + [ag2](https://github.com/ag2ai/ag2) + [FastStream](https://github.com/ag2ai/faststream)  
-  for isolated flow execution and streaming
+- [Waldiez](https://github.com/waldiez/waldiez) + [ag2](https://github.com/ag2ai/ag2) + [FastStream](https://github.com/ag2ai/faststream) for isolated flow execution and streaming
 - [FastAPI](https://fastapi.tiangolo.com/) for the API
 - [Taskiq](https://taskiq.readthedocs.io/) for async task management
 - [Redis](https://redis.io/) for message and log streaming
 - [PostgreSQL](https://www.postgresql.org/) for task/client persistence
+
+![Overview](static/images/overview_light.svg#only-light)
+![Overview](static/images/overview_dark.svg#only-dark)
 
 ---
 
