@@ -42,7 +42,6 @@ help:
 	@echo " some                 Some (not all) of the above: requirements, forlint, test, toggle, smoke"
 	@echo ""
 
-
 .PHONY: format
 format:
 	$(PYTHON) scripts/format.py --no-deps
@@ -61,7 +60,6 @@ clean:
 .PHONY: requirements
 requirements:
 	$(PYTHON) scripts/requirements.py
-
 
 .PHONY: test
 test:
@@ -95,24 +93,17 @@ build:
 image:
 	$(PYTHON) scripts/image.py
 
-
 .PHONY: secrets
 secrets:
 	$(PYTHON) scripts/pre_start.py --secrets --no-force-ssl --dev
-
 
 .PHONY: drop
 drop:
 	$(PYTHON) scripts/drop.py
 
-
 .PHONY: toggle
 toggle:
 	$(PYTHON) scripts/toggle.py
-	@echo "Now you can run the server with: \`make dev\`, \`make dev-no-reload\`, \`make dev-no-debug\`, or \`make local\`"
-	@echo "or use: \`$(PYTHON) -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --reload --debug --no-force-ssl --redis --postgres --dev --all\`"
-	@echo "or use: \`$(PYTHON) -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --debug --no-force-ssl --no-redis --no-postgres --dev --all\`"
-
 
 .PHONY: toggle-local
 toggle-local:
@@ -121,41 +112,37 @@ toggle-local:
 	@echo "or use: \`$(PYTHON) -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --reload --debug --no-force-ssl --no-redis --no-postgres --dev --all\`"
 
 .PHONY: local
-local: toggle-local
+local: toggle-local drop
 	$(PYTHON) scripts/pre_start.py --no-force-ssl --no-redis --no-postgres --dev
 	$(PYTHON) scripts/initial_data.py --no-force-ssl --no-redis --no-postgres --dev
 	$(PYTHON) -m waldiez_runner --reload --debug --no-force-ssl --no-redis --no-postgres --dev --all
 
-
 .PHONY: dev-no-reload-local
-dev-no-reload-local:
-	$(PYTHON) scripts/toggle.py --mode local
+dev-no-reload-local: toggle-local drop
 	$(PYTHON) scripts/pre_start.py --no-force-ssl --no-redis --no-postgres --dev
 	$(PYTHON) scripts/initial_data.py --no-force-ssl --no-redis --no-postgres --dev
 	$(PYTHON) -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --debug --no-force-ssl --no-redis --no-postgres --dev --all
 
-
 .PHONY: dev
-dev: toggle
+dev: toggle drop
 	$(PYTHON) scripts/pre_start.py --no-force-ssl --redis --postgres --dev
 	$(PYTHON) scripts/initial_data.py --redis --postgres --dev
 	$(PYTHON) -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --reload --debug --no-force-ssl --redis --postgres --dev --all
 
 .PHONY: dev-no-debug
-dev-no-debug: toggle
+dev-no-debug: toggle drop
 	$(PYTHON) scripts/pre_start.py --no-force-ssl --redis --postgres --dev
 	$(PYTHON) scripts/initial_data.py --redis --postgres --dev
 	$(PYTHON) -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --log-level info --no-debug --no-force-ssl --redis --postgres --dev --all
 
 .PHONY: dev-no-reload
-dev-no-reload: toggle
+dev-no-reload: toggle drop
 	$(PYTHON) scripts/pre_start.py --no-force-ssl --redis --postgres --dev
 	$(PYTHON) scripts/initial_data.py --redis --postgres --dev
 	$(PYTHON) -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000  --trusted-hosts localhost --debug --no-force-ssl --redis --postgres --dev --all
 
-
 .PHONY: smoke
-smoke: toggle
+smoke: toggle drop
 	$(PYTHON) scripts/test.py --smoke
 
 .PHONY: some
