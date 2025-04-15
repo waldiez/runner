@@ -11,6 +11,13 @@ from typing import Any, Callable, Coroutine, Dict
 from ._tasks_api import TasksAPIClient
 from ._websockets import AsyncWebSocketClient, SyncWebSocketClient
 from .client_base import BaseClient
+from .models import (
+    TaskCreateRequest,
+    TaskItemsRequest,
+    TaskItemsResponse,
+    TaskResponse,
+    UserInputRequest,
+)
 
 
 # pylint: disable=too-many-public-methods
@@ -146,19 +153,21 @@ class TasksClient(BaseClient):
 
     def list_tasks(
         self,
-        params: Dict[str, Any] | None = None,
-    ) -> Dict[str, Any]:
+        params: TaskItemsRequest | Dict[str, Any] | None = None,
+    ) -> TaskItemsResponse:
         """List tasks synchronously.
 
         Parameters
         ----------
-        params : Dict[str, Any] | None, optional
-            The query parameters, by default None
+        params : TaskItemsRequest | Dict[str, Any] | None, optional
+            The query parameters for pagination, by default None
+            (see TaskItemsRequest for details)
 
         Returns
         -------
-        Dict[str, Any]
+        TaskItemsResponse
             The response JSON
+            (see TaskItemsResponse for details)
 
         Raises
         ------
@@ -166,26 +175,34 @@ class TasksClient(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        return self.tasks.list_tasks(params)  # type: ignore
+        params_dict: Dict[str, Any] | None
+        if params is None:
+            params_dict = None
+        elif isinstance(params, dict):
+            params_dict = TaskItemsRequest.model_validate(params).model_dump(
+                exclude_none=True
+            )
+        else:
+            params_dict = params.model_dump(exclude_none=True)
+        response = self.tasks.list_tasks(params_dict)  # type: ignore
+        return TaskItemsResponse.model_validate(response)
 
     def trigger_task(
-        self, file_data: bytes, file_name: str, input_timeout: int = 180
-    ) -> Dict[str, Any]:
+        self,
+        task_data: TaskCreateRequest | Dict[str, Any],
+    ) -> TaskResponse:
         """Trigger a new task synchronously.
 
         Parameters
         ----------
-        file_data : bytes
-            The file data
-        file_name : str
-            The file name
-        input_timeout : int, optional
-            The input timeout in seconds, by default 180
+        task_data : TaskCreateRequest | Dict[str, Any]
+            The task data
 
         Returns
         -------
-        Dict[str, Any]
+        TaskResponse
             The response JSON
+            (see TaskResponse for details)
 
         Raises
         ------
@@ -193,13 +210,22 @@ class TasksClient(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        return self.tasks.trigger_task(  # type: ignore
+        if isinstance(task_data, dict):
+            task_data = TaskCreateRequest.model_validate(task_data)
+        file_data = task_data.file_data
+        file_name = task_data.file_name
+        input_timeout = task_data.input_timeout
+        if isinstance(file_data, BytesIO):
+            # If file_data is a BytesIO object, read its content
+            file_data = file_data.getvalue()
+        response = self.tasks.trigger_task(  # type: ignore
             file_data,
             file_name,
             input_timeout=input_timeout,
         )
+        return TaskResponse.model_validate(response)
 
-    def get_task_status(self, task_id: str) -> Dict[str, Any]:
+    def get_task_status(self, task_id: str) -> TaskResponse:
         """Retrieve the status of a task synchronously.
 
         Parameters
@@ -218,27 +244,23 @@ class TasksClient(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        return self.tasks.get_task_status(task_id)  # type: ignore
+        response = self.tasks.get_task_status(task_id)  # type: ignore
+        return TaskResponse.model_validate(response)
 
     def send_user_input(
         self,
-        task_id: str,
-        user_input: str,
-        request_id: str,
+        request_data: UserInputRequest | Dict[str, Any],
         use_rest: bool = False,
     ) -> None:
         """Send user input to a task synchronously.
 
         Parameters
         ----------
-        task_id : str
-            The task ID
-        user_input : str
-            The user input
-        request_id : str
-            The request ID
+        request_data : UserInputRequest | Dict[str, Any]
+            The user input request data
         use_rest : bool, optional
-            Whether to use REST API, by default False
+            Whether to use REST API instead of first trying WebSocket,
+            by default False
 
         Raises
         ------
@@ -246,6 +268,11 @@ class TasksClient(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
+        if isinstance(request_data, dict):
+            request_data = UserInputRequest.model_validate(request_data)
+        task_id = request_data.task_id
+        user_input = request_data.data
+        request_id = request_data.request_id
         sent = False
         if use_rest is False:  # pragma: no branch
             # first check/try using websockets
@@ -290,8 +317,8 @@ class TasksClient(BaseClient):
         self._ensure_configured()
         return self.tasks.download_task_results(task_id)  # type: ignore
 
-    def cancel_task(self, task_id: str) -> Dict[str, Any]:
-        """Cancel or delete a task synchronously.
+    def cancel_task(self, task_id: str) -> TaskResponse:
+        """Cancel a task synchronously.
 
         Parameters
         ----------
@@ -300,7 +327,7 @@ class TasksClient(BaseClient):
 
         Returns
         -------
-        Dict[str, Any]
+        TaskResponse
             The response JSON
 
         Raises
@@ -309,7 +336,8 @@ class TasksClient(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        return self.tasks.cancel_task(task_id)  # type: ignore
+        response = self.tasks.cancel_task(task_id)  # type: ignore
+        return TaskResponse.model_validate(response)
 
     def delete_task(self, task_id: str, force: bool = False) -> None:
         """Delete a task synchronously.
@@ -403,19 +431,19 @@ class TasksClient(BaseClient):
 
     async def a_list_tasks(
         self,
-        params: Dict[str, Any] | None = None,
-    ) -> Dict[str, Any]:
+        params: TaskItemsRequest | Dict[str, Any] | None = None,
+    ) -> TaskItemsResponse:
         """List tasks asynchronously.
 
         Parameters
         ----------
-        params : Dict[str, Any] | None, optional
-            The query parameters, by default None
-
+        params : TaskItemsRequest | Dict[str, Any] | None, optional
+            The query parameters for pagination, by default None
+            (see TaskItemsRequest for details)
         Returns
         -------
-        Dict[str, Any]
-            The response JSON
+        TaskItemsResponse
+            The (paginated) task items response
 
         Raises
         ------
@@ -423,29 +451,35 @@ class TasksClient(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        return await self.tasks.a_list_tasks(params)  # type: ignore
+        params_dict: Dict[str, Any] | None
+        if params is None:
+            params_dict = None
+        elif isinstance(params, dict):
+            params_dict = TaskItemsRequest.model_validate(params).model_dump(
+                exclude_none=True
+            )
+        else:
+            params_dict = params.model_dump(exclude_none=True)
+        response = await self.tasks.a_list_tasks(params_dict)  # type: ignore
+        return TaskItemsResponse.model_validate(response)
 
     async def a_trigger_task(
         self,
-        file_data: BytesIO,
-        file_name: str,
-        input_timeout: int = 180,
-    ) -> Dict[str, Any]:
+        task_data: TaskCreateRequest | Dict[str, Any],
+    ) -> TaskResponse:
         """Trigger a new task asynchronously.
 
         Parameters
         ----------
-        file_data : BytesIO
-            The file data
-        file_name : str
-            The file name
-        input_timeout : int, optional
-            The input timeout in seconds, by default 180
+        task_data : TaskCreateRequest | Dict[str, Any]
+            The task data
+            (see TaskCreateRequest for details)
 
         Returns
         -------
-        Dict[str, Any]
+        TaskResponse
             The response JSON
+            (see TaskResponse for details)
 
         Raises
         ------
@@ -453,13 +487,19 @@ class TasksClient(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        return await self.tasks.a_trigger_task(  # type: ignore
-            file_data,  # type: ignore
+        if isinstance(task_data, dict):
+            task_data = TaskCreateRequest.model_validate(task_data)
+        file_data = task_data.file_data
+        file_name = task_data.file_name
+        input_timeout = task_data.input_timeout
+        response = await self.tasks.a_trigger_task(  # type: ignore
+            file_data,
             file_name,
             input_timeout=input_timeout,
         )
+        return TaskResponse.model_validate(response)
 
-    async def a_get_task_status(self, task_id: str) -> Dict[str, Any]:
+    async def a_get_task_status(self, task_id: str) -> TaskResponse:
         """Retrieve the status of a task asynchronously.
 
         Parameters
@@ -469,8 +509,9 @@ class TasksClient(BaseClient):
 
         Returns
         -------
-        Dict[str, Any]
+        TaskResponse
             The response JSON
+            (see TaskResponse for details)
 
         Raises
         ------
@@ -478,27 +519,23 @@ class TasksClient(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        return await self.tasks.a_get_task_status(task_id)  # type: ignore
+        response = await self.tasks.a_get_task_status(task_id)  # type: ignore
+        return TaskResponse.model_validate(response)
 
     async def a_send_user_input(
         self,
-        task_id: str,
-        user_input: str,
-        request_id: str,
+        request_data: UserInputRequest | Dict[str, Any],
         use_rest: bool = False,
     ) -> None:
         """Send user input to a task asynchronously.
 
         Parameters
         ----------
-        task_id : str
-            The task ID
-        user_input : str
-            The user input
-        request_id : str
-            The request ID
+        request_data : UserInputRequest | Dict[str, Any]
+            The user input request data
         use_rest : bool, optional
-            Whether to use REST API, by default False
+            Whether to use REST API instead of first trying WebSocket,
+            by default False
 
         Raises
         ------
@@ -506,6 +543,11 @@ class TasksClient(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
+        if isinstance(request_data, dict):
+            request_data = UserInputRequest.model_validate(request_data)
+        task_id = request_data.task_id
+        user_input = request_data.data
+        request_id = request_data.request_id
         sent = False
         if use_rest is False:  # pragma: no branch
             # first check/try using websockets
@@ -550,7 +592,7 @@ class TasksClient(BaseClient):
         self._ensure_configured()
         return await self.tasks.a_download_task_results(task_id)  # type: ignore
 
-    async def a_cancel_task(self, task_id: str) -> Dict[str, Any]:
+    async def a_cancel_task(self, task_id: str) -> TaskResponse:
         """Cancel or delete a task asynchronously.
 
         Parameters
@@ -560,8 +602,9 @@ class TasksClient(BaseClient):
 
         Returns
         -------
-        Dict[str, Any]
+        TaskResponse
             The response JSON
+            (see TaskResponse for details)
 
         Raises
         ------
@@ -569,7 +612,8 @@ class TasksClient(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        return await self.tasks.a_cancel_task(task_id)  # type: ignore
+        response = await self.tasks.a_cancel_task(task_id)  # type: ignore
+        return TaskResponse.model_validate(response)
 
     async def a_delete_task(self, task_id: str, force: bool = False) -> None:
         """Delete a task asynchronously.

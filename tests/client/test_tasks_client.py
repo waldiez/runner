@@ -12,12 +12,12 @@ import pytest
 from pytest_httpx import HTTPXMock
 from pytest_mock import MockerFixture
 
-from waldiez_runner.client.auth import CustomAuth
+from waldiez_runner.client.auth import Auth
 from waldiez_runner.client.tasks_client import TasksClient
 
 
 @pytest.fixture(name="tasks_client")
-def tasks_client_fixture(auth: CustomAuth) -> TasksClient:
+def tasks_client_fixture(auth: Auth) -> TasksClient:
     """Return a new TasksClient instance."""
     client = TasksClient()
     assert auth.base_url is not None
@@ -47,12 +47,13 @@ def test_ensure_configured_raises() -> None:
 
 def test_list_tasks(httpx_mock: HTTPXMock, tasks_client: TasksClient) -> None:
     """Test listing tasks."""
+    response_dict = {"items": [], "total": 0, "page": 1, "size": 50, "pages": 1}
     httpx_mock.add_response(
         method="GET",
         url=f"{tasks_client.base_url}/api/v1/tasks",
-        json={"items": [], "total": 0},
+        json=response_dict,
     )
-    assert tasks_client.list_tasks() == {"items": [], "total": 0}
+    assert tasks_client.list_tasks().model_dump() == response_dict
 
 
 def test_delete_all_tasks(
@@ -86,10 +87,23 @@ def test_trigger_task(httpx_mock: HTTPXMock, tasks_client: TasksClient) -> None:
     httpx_mock.add_response(
         method="POST",
         url=f"{tasks_client.base_url}/api/v1/tasks?input_timeout=10",
-        json={"task_id": "123"},
+        json={
+            "id": "123",
+            "created_at": "2023-10-01T00:00:00Z",
+            "updated_at": "2023-10-01T00:00:00Z",
+            "client_id": "client_id",
+            "flow_id": "flow_id",
+            "filename": "file.txt",
+            "status": "RUNNING",
+            "input_timeout": 10,
+            "input_request_id": None,
+            "results": None,
+        },
     )
-    resp = tasks_client.trigger_task(b"data", "file.txt", input_timeout=10)
-    assert resp["task_id"] == "123"
+    resp = tasks_client.trigger_task(
+        {"file_data": b"data", "file_name": "file.txt", "input_timeout": 10}
+    ).model_dump()
+    assert resp["id"] == "123"
 
 
 def test_send_user_input_ws(
@@ -98,7 +112,13 @@ def test_send_user_input_ws(
     """Test sending user input via WebSocket."""
     mock_send = mocker.patch.object(tasks_client.ws_sync, "send")
     mocker.patch.object(tasks_client.ws_sync, "is_listening", return_value=True)
-    tasks_client.send_user_input("task1", "input", "req1")
+    tasks_client.send_user_input(
+        {
+            "task_id": "task1",
+            "request_id": "req1",
+            "data": "input",
+        }
+    )
     mock_send.assert_called_once()
 
 
@@ -114,7 +134,13 @@ def test_send_user_input_rest_fallback(
     mocker.patch.object(
         tasks_client.ws_sync, "is_listening", return_value=False
     )
-    tasks_client.send_user_input("task1", "fallback", "req2")
+    tasks_client.send_user_input(
+        {
+            "task_id": "task1",
+            "request_id": "req1",
+            "data": "input",
+        }
+    )
 
 
 def test_is_listening_false() -> None:
@@ -167,7 +193,13 @@ async def test_a_send_user_input_ws(
     mocker.patch.object(
         tasks_client.ws_async, "is_listening", return_value=True
     )
-    await tasks_client.a_send_user_input("task1", "input", "req1")
+    await tasks_client.a_send_user_input(
+        {
+            "task_id": "task1",
+            "request_id": "req1",
+            "data": "input",
+        }
+    )
     mock_send.assert_awaited_once()
 
 
@@ -235,7 +267,7 @@ def test_configure_skips_tasks_ws_setup() -> None:
 
 def test_send_user_input_fallback_on_ws_error(
     httpx_mock: HTTPXMock,
-    auth: CustomAuth,
+    auth: Auth,
 ) -> None:
     """Test sending user input falls back on WebSocket error."""
     httpx_mock.add_response(
@@ -255,7 +287,14 @@ def test_send_user_input_fallback_on_ws_error(
         side_effect=Exception("fail"),
     )
 
-    client.send_user_input("task1", "hello", "req123")
+    client.send_user_input(
+        {
+            "task_id": "task1",
+            "request_id": "req123",
+            "data": "hello",
+        }
+    )
+    client.ws_sync.send.assert_called_once()  # type: ignore
 
 
 def test_start_ws_listener_exits_if_already_listening(
@@ -272,24 +311,34 @@ def test_start_ws_listener_exits_if_already_listening(
 
 def test_cancel_task(
     httpx_mock: HTTPXMock,
-    auth: CustomAuth,
+    auth: Auth,
 ) -> None:
     """Test canceling a task."""
     httpx_mock.add_response(
         method="POST",
         url="http://localhost:8000/api/v1/tasks/task1/cancel",
-        json={"status": "canceled"},
+        json={
+            "id": "task1",
+            "created_at": "2023-10-01T00:00:00Z",
+            "updated_at": "2023-10-01T00:00:00Z",
+            "client_id": "client_id",
+            "flow_id": "flow_id",
+            "filename": "file.txt",
+            "status": "CANCELLED",
+            "input_request_id": None,
+            "input_timeout": 10,
+        },
         status_code=200,
     )
     client = TasksClient()
     client.configure("http://localhost:8000", "id", "secret")
     response = client.cancel_task("task1")
-    assert response["status"] == "canceled"
+    assert response.model_dump()["status"] == "CANCELLED"
 
 
 def test_delete_task(
     httpx_mock: HTTPXMock,
-    auth: CustomAuth,
+    auth: Auth,
 ) -> None:
     """Test deleting a task."""
     httpx_mock.add_response(
@@ -304,7 +353,7 @@ def test_delete_task(
 
 def test_force_delete_task(
     httpx_mock: HTTPXMock,
-    auth: CustomAuth,
+    auth: Auth,
 ) -> None:
     """Test force deleting a task."""
     httpx_mock.add_response(
@@ -319,23 +368,35 @@ def test_force_delete_task(
 
 def test_get_task_status(
     httpx_mock: HTTPXMock,
-    auth: CustomAuth,
+    auth: Auth,
 ) -> None:
     """Test retrieving task status."""
     httpx_mock.add_response(
         method="GET",
         url="http://localhost:8000/api/v1/tasks/task1",
-        json={"status": "RUNNING"},
+        json={
+            "id": "task1",
+            "created_at": "2023-10-01T00:00:00Z",
+            "updated_at": "2023-10-01T00:00:00Z",
+            "client_id": "client_id",
+            "flow_id": "flow_id",
+            "filename": "file.txt",
+            "status": "RUNNING",
+            "input_timeout": 10,
+            "input_request_id": None,
+            "results": None,
+        },
+        status_code=200,
     )
     client = TasksClient()
     client.configure("http://localhost:8000", "id", "secret")
-    status = client.get_task_status("task1")
+    status = client.get_task_status("task1").model_dump()
     assert status["status"] == "RUNNING"
 
 
 def test_download_task_results(
     httpx_mock: HTTPXMock,
-    auth: CustomAuth,
+    auth: Auth,
 ) -> None:
     """Test downloading task results (sync)."""
     httpx_mock.add_response(
@@ -350,7 +411,7 @@ def test_download_task_results(
 
 
 def test_send_user_input_fallback_to_rest(
-    mocker: MockerFixture, httpx_mock: HTTPXMock, auth: CustomAuth
+    mocker: MockerFixture, httpx_mock: HTTPXMock, auth: Auth
 ) -> None:
     """Test REST fallback if WebSocket is not active (sync)."""
     httpx_mock.add_response(
@@ -361,7 +422,13 @@ def test_send_user_input_fallback_to_rest(
     client = TasksClient()
     client.configure("http://localhost:8000", "id", "secret")
     mocker.patch.object(client.ws_sync, "is_listening", return_value=False)
-    client.send_user_input("task1", "data", "req-id")
+    client.send_user_input(
+        {
+            "task_id": "task1",
+            "request_id": "req-id",
+            "data": "user input",
+        }
+    )
 
 
 @pytest.mark.asyncio
@@ -400,24 +467,32 @@ async def test_a_is_listening_no_ws() -> None:
 @pytest.mark.anyio
 async def test_a_list_tasks(
     httpx_mock: HTTPXMock,
-    auth: CustomAuth,
+    auth: Auth,
 ) -> None:
     """Test listing tasks asynchronously."""
+    response_dict = {
+        "items": [],
+        "total": 0,
+        "page": 1,
+        "size": 50,
+        "pages": 1,
+    }
     httpx_mock.add_response(
         method="GET",
         url="http://localhost:8000/api/v1/tasks",
-        json={"items": [], "total": 0},
+        json=response_dict,
     )
     client = TasksClient()
     client.configure("http://localhost:8000", "id", "secret")
-    tasks = await client.a_list_tasks()
-    assert tasks == {"items": [], "total": 0}
+    response = await client.a_list_tasks()
+    tasks = response.model_dump()
+    assert tasks == response_dict
 
 
 @pytest.mark.anyio
 async def test_a_delete_task(
     httpx_mock: HTTPXMock,
-    auth: CustomAuth,
+    auth: Auth,
 ) -> None:
     """Test deleting a task asynchronously."""
     httpx_mock.add_response(
@@ -433,7 +508,7 @@ async def test_a_delete_task(
 @pytest.mark.anyio
 async def test_a_force_delete_task(
     httpx_mock: HTTPXMock,
-    auth: CustomAuth,
+    auth: Auth,
 ) -> None:
     """Test force deleting a task asynchronously."""
     httpx_mock.add_response(
@@ -483,11 +558,22 @@ async def test_a_cancel_task(
     httpx_mock.add_response(
         method="POST",
         url=f"{tasks_client.base_url}/api/v1/tasks/task1/cancel",
-        json={"status": "canceled"},
+        json={
+            "id": "task1",
+            "created_at": "2023-10-01T00:00:00Z",
+            "updated_at": "2023-10-01T00:00:00Z",
+            "client_id": "client_id",
+            "flow_id": "flow_id",
+            "filename": "file.txt",
+            "status": "CANCELLED",
+            "input_timeout": 10,
+            "input_request_id": None,
+            "results": None,
+        },
         status_code=200,
     )
     response = await tasks_client.a_cancel_task("task1")
-    assert response["status"] == "canceled"
+    assert response.model_dump()["status"] == "CANCELLED"
 
 
 @pytest.mark.anyio
@@ -514,10 +600,22 @@ async def test_a_get_task_status(
     httpx_mock.add_response(
         method="GET",
         url=f"{tasks_client.base_url}/api/v1/tasks/task1",
-        json={"status": "RUNNING"},
+        json={
+            "id": "task1",
+            "created_at": "2023-10-01T00:00:00Z",
+            "updated_at": "2023-10-01T00:00:00Z",
+            "client_id": "client_id",
+            "flow_id": "flow_id",
+            "filename": "file.txt",
+            "status": "RUNNING",
+            "input_timeout": 10,
+            "input_request_id": None,
+            "results": None,
+        },
     )
-    status = await tasks_client.a_get_task_status("task1")
-    assert status["status"] == "RUNNING"
+    response = await tasks_client.a_get_task_status("task1")
+    task = response.model_dump()
+    assert task["status"] == "RUNNING"
 
 
 @pytest.mark.anyio
@@ -529,15 +627,29 @@ async def test_a_trigger_task(
     httpx_mock.add_response(
         method="POST",
         url=f"{tasks_client.base_url}/api/v1/tasks?input_timeout=10",
-        json={"task_id": "12345"},
+        json={
+            "id": "12345",
+            "created_at": "2023-10-01T00:00:00Z",
+            "updated_at": "2023-10-01T00:00:00Z",
+            "client_id": "client_id",
+            "flow_id": "flow_id",
+            "filename": "file.txt",
+            "status": "PENDING",
+            "input_timeout": 10,
+            "input_request_id": None,
+            "results": None,
+        },
         status_code=200,
     )
     response = await tasks_client.a_trigger_task(
-        b"file_data",  # type: ignore[arg-type]
-        "test.txt",
-        input_timeout=10,
+        {
+            "file_data": b"data",
+            "file_name": "test.txt",
+            "input_timeout": 10,
+        }
     )
-    assert response["task_id"] == "12345"
+    task = response.model_dump()
+    assert task["id"] == "12345"
 
 
 @pytest.mark.asyncio
@@ -576,4 +688,10 @@ async def test_a_send_user_input_fallback_to_rest(
     mocker.patch.object(
         tasks_client.ws_async, "is_listening", return_value=False
     )
-    await tasks_client.a_send_user_input("task1", "data", "req-id")
+    await tasks_client.a_send_user_input(
+        {
+            "task_id": "task1",
+            "request_id": "req-id",
+            "data": "user input",
+        }
+    )

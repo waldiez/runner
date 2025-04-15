@@ -9,16 +9,16 @@ import pytest
 from pytest_httpx import HTTPXMock
 
 from waldiez_runner.client._clients_api import ClientsAPIClient
-from waldiez_runner.client.auth import CustomAuth
+from waldiez_runner.client.auth import Auth
 
 
 @pytest.fixture(name="client")
-def client_fixture(auth: CustomAuth) -> ClientsAPIClient:
+def client_fixture(auth: Auth) -> ClientsAPIClient:
     """Return a new ClientsAPIClient instance."""
     return ClientsAPIClient(auth)
 
 
-def test_configure(client: ClientsAPIClient, auth: CustomAuth) -> None:
+def test_configure(client: ClientsAPIClient, auth: Auth) -> None:
     """Test client configuration."""
     assert client._auth == auth
     assert client._auth.base_url == "http://localhost:8000"
@@ -26,7 +26,7 @@ def test_configure(client: ClientsAPIClient, auth: CustomAuth) -> None:
 
 def test_configure_raises_without_base_url() -> None:
     """Test that configure raises if base_url is not set."""
-    auth = CustomAuth()
+    auth = Auth()
     auth._base_url = None
 
     client = ClientsAPIClient(auth=None)

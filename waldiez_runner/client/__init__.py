@@ -6,14 +6,48 @@
 
 """Simple waldiez serve sync and async clients."""
 
-from .auth import CustomAuth as WaldiezServeAuth
-from .auth import TokensResponse
-from .clients_admin import ClientsAdmin as WaldiezServeClientsAdmin
-from .tasks_client import TasksClient as WaldiezServeTasksClient
+from .auth import Auth
+from .clients_admin import ClientsAdmin
+from .models import (
+    ClientAudience,
+    ClientCreateRequest,
+    ClientCreateResponse,
+    ClientItemsRequest,
+    ClientItemsResponse,
+    ClientResponse,
+    PaginatedRequest,
+    PaginatedResponse,
+    RefreshTokenRequest,
+    TaskCreateRequest,
+    TaskItemsRequest,
+    TaskItemsResponse,
+    TaskResponse,
+    TaskStatus,
+    TokensRequest,
+    TokensResponse,
+    UserInputRequest,
+)
+from .tasks_client import TasksClient
 
 __all__ = [
-    "WaldiezServeAuth",
-    "WaldiezServeClientsAdmin",
-    "WaldiezServeTasksClient",
+    "Auth",
+    "ClientsAdmin",
+    "TasksClient",
+    "ClientAudience",
+    "ClientCreateRequest",
+    "ClientCreateResponse",
+    "ClientItemsRequest",
+    "ClientItemsResponse",
+    "ClientResponse",
+    "PaginatedRequest",
+    "PaginatedResponse",
+    "TaskItemsRequest",
+    "TaskItemsResponse",
+    "TaskCreateRequest",
+    "TaskResponse",
+    "TaskStatus",
+    "RefreshTokenRequest",
+    "TokensRequest",
     "TokensResponse",
+    "UserInputRequest",
 ]

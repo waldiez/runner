@@ -26,6 +26,7 @@ jobs:
         with:
           python-version: 3.12
       - run: pip install -r requirements/docs.txt -r requirements/main.txt
+      - run: cp examples/jupyter/task_demo.ipynb docs/examples/task_demo.ipynb
       - run: mkdocs gh-deploy --config-file mkdocs.yml --force
 
   deploy-docs:

@@ -9,10 +9,11 @@ import logging
 from asyncio import Lock
 from typing import TYPE_CHECKING, AsyncIterator
 
+from fastapi.exceptions import HTTPException
 from sqlalchemy.engine import Connection as ConnectionPoolEntry
 from sqlalchemy.engine.interfaces import DBAPIConnection
 from sqlalchemy.event import listen
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import IntegrityError, InvalidRequestError, OperationalError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -122,6 +123,8 @@ class DatabaseManager:
             If the database connection fails after all retries.
         BaseException
             If an error occurs during the session.
+        HTTPException
+            If an invalid request is made to the database.
         """
         if self.session_maker is None:  # pragma: no cover
             raise RuntimeError("Database not initialized. Call setup() first.")
@@ -153,6 +156,12 @@ class DatabaseManager:
                             retries,
                         )
                         raise
+                except (IntegrityError, InvalidRequestError) as e:
+                    LOG.error("Invalid db execution: %s", e)
+                    raise HTTPException(
+                        status_code=400, detail={"Invalid request"}
+                    ) from e
+
                 except BaseException as e:
                     LOG.error("Unexpected error during session: %s", e)
                     await session.rollback()

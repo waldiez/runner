@@ -11,16 +11,16 @@ import pytest
 from pytest_httpx import HTTPXMock
 
 from waldiez_runner.client._tasks_api import TasksAPIClient
-from waldiez_runner.client.auth import CustomAuth
+from waldiez_runner.client.auth import Auth
 
 
 @pytest.fixture(name="client")
-def client_fixture(auth: CustomAuth) -> TasksAPIClient:
+def client_fixture(auth: Auth) -> TasksAPIClient:
     """Return a new TasksAPIClient instance."""
     return TasksAPIClient(auth)
 
 
-def test_configure(client: TasksAPIClient, auth: CustomAuth) -> None:
+def test_configure(client: TasksAPIClient, auth: Auth) -> None:
     """Test client configuration."""
     assert client._auth == auth
     assert client._auth.base_url == "http://localhost:8000"
@@ -28,7 +28,7 @@ def test_configure(client: TasksAPIClient, auth: CustomAuth) -> None:
 
 def test_configure_raises_without_base_url() -> None:
     """Test that configure raises if base_url is not set."""
-    auth = CustomAuth()
+    auth = Auth()
     auth._base_url = None
 
     client = TasksAPIClient(auth=None)
@@ -199,7 +199,7 @@ def test_http_error_handling(
         client.trigger_task(b"file_data", "test.txt")
 
 
-def test_handle_error_sync_callback(auth: CustomAuth) -> None:
+def test_handle_error_sync_callback(auth: Auth) -> None:
     """Test _handle_error with sync callback."""
     messages: list[str] = []
 
@@ -395,7 +395,7 @@ async def test_async_http_error_handling(
 
 
 @pytest.mark.anyio
-async def test_handle_error_async_callback(auth: CustomAuth) -> None:
+async def test_handle_error_async_callback(auth: Auth) -> None:
     """Test _handle_error with async callback."""
     messages: list[str] = []
 

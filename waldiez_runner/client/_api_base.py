@@ -6,7 +6,7 @@ import asyncio
 import inspect
 from typing import Any, Callable, Coroutine
 
-from .auth import CustomAuth
+from .auth import Auth
 
 
 class BaseAPIClient:
@@ -24,7 +24,7 @@ class BaseAPIClient:
 
     def __init__(
         self,
-        auth: CustomAuth | None,
+        auth: Auth | None,
         on_error: (
             Callable[[str], None]
             | Callable[[str], Coroutine[Any, Any, None]]
@@ -52,7 +52,7 @@ class BaseAPIClient:
         if auth:
             self.configure(auth)
 
-    def configure(self, auth: CustomAuth) -> None:
+    def configure(self, auth: Auth) -> None:
         """Configure the client.
 
         Parameters

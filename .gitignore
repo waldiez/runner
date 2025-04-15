@@ -33,6 +33,7 @@ dmypy.json
 **/*.sqlite3
 **/*.
 **/waldiez_out/
+/docs/examples/*.ipynb
 db.session.sql
 clients.json
 .devcontainer/.zsh_history

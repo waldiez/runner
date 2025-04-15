@@ -12,20 +12,10 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncGenerator, Callable, Coroutine, Dict, Generator
 
 import httpx
-from typing_extensions import TypedDict
+
+from .models import TokensResponse
 
 LOG = logging.getLogger(__name__)
-
-
-class TokensResponse(TypedDict):
-    """Tokens response."""
-
-    access_token: str
-    refresh_token: str
-    token_type: str
-    expires_at: str
-    refresh_expires_at: str
-    audience: str
 
 
 def get_default_base_url(passed_url: str) -> str:
@@ -45,7 +35,7 @@ def get_default_base_url(passed_url: str) -> str:
     return f"{url_parts.scheme}://{url_parts.netloc}"
 
 
-class CustomAuth(httpx.Auth):
+class Auth(httpx.Auth):
     """Custom authentication class."""
 
     def __init__(
@@ -175,7 +165,7 @@ class CustomAuth(httpx.Auth):
                 self._fetch_token()
                 if not self._tokens_response:  # pragma: no cover
                     return ""
-                return self._tokens_response.get("access_token", "")
+                return self._tokens_response.access_token
             if not self._tokens_response or self.is_token_expired():
                 if self.is_refresh_token_expired():
                     self._fetch_token()
@@ -183,7 +173,7 @@ class CustomAuth(httpx.Auth):
                     self._refresh_access_token()
             if not self._tokens_response:
                 return ""
-            return self._tokens_response.get("access_token", "")
+            return self._tokens_response.access_token
 
     def sync_auth_flow(
         self, request: httpx.Request
@@ -220,7 +210,7 @@ class CustomAuth(httpx.Auth):
                 await self._async_fetch_token()
                 if not self._tokens_response:  # pragma: no cover
                     return ""
-                return self._tokens_response.get("access_token", "")
+                return self._tokens_response.access_token
             if not self._tokens_response or self.is_token_expired():
                 if self.is_refresh_token_expired():
                     await self._async_fetch_token()
@@ -228,7 +218,7 @@ class CustomAuth(httpx.Auth):
                     await self._async_refresh_access_token()
             if not self._tokens_response:
                 return ""
-            return self._tokens_response.get("access_token", "")
+            return self._tokens_response.access_token
 
     async def async_auth_flow(
         self, request: httpx.Request
@@ -283,15 +273,15 @@ class CustomAuth(httpx.Auth):
         bool
             True if the token is expired, False otherwise
         """
-        if not self._tokens_response or key not in self._tokens_response:
+        if not self._tokens_response:
             return True  # No token means it's effectively expired
-
+        response_dump = self._tokens_response.model_dump()
         now_str = (
             datetime.now(timezone.utc)
             .isoformat(timespec="milliseconds")
             .replace("+00:00", "Z")
         )
-        value = self._tokens_response.get(key, now_str)
+        value = response_dump.get(key, now_str)
         if not value or not isinstance(value, str):  # pragma: no cover
             LOG.error("Invalid value for key '%s': '%s'", key, value)
             return True
@@ -302,7 +292,8 @@ class CustomAuth(httpx.Auth):
             ).replace(tzinfo=timezone.utc)
         except ValueError:  # pragma: no cover
             LOG.error("Invalid datetime format for key '%s': '%s'", key, value)
-            self._tokens_response[key] = now_str  # type: ignore
+            response_dump["expires_at"] = now_str
+            self._tokens_response = TokensResponse.model_validate(response_dump)
             return True
 
         return datetime.now(timezone.utc) >= expires_at_dt - timedelta(
@@ -334,7 +325,7 @@ class CustomAuth(httpx.Auth):
             return
         if response.status_code == 200:
             self._tokens_response = self._parse_token_response(response.json())
-            self._handle_token(self._tokens_response["access_token"])
+            self._handle_token(self._tokens_response.access_token)
         else:
             self._handle_error(f"Token fetch failed: {response.text}")
 
@@ -361,16 +352,13 @@ class CustomAuth(httpx.Auth):
 
         if response.status_code == 200:
             self._tokens_response = self._parse_token_response(response.json())
-            self._handle_token(self._tokens_response["access_token"])
+            self._handle_token(self._tokens_response.access_token)
         else:
             self._handle_error(f"Token fetch failed: {response.text}")
 
     def _refresh_access_token(self) -> None:
         """Refresh the access token (synchronous)."""
-        if (
-            not self._tokens_response
-            or "refresh_token" not in self._tokens_response
-        ):
+        if not self._tokens_response or not self._tokens_response.refresh_token:
             self._handle_error("No refresh token available for renewal.")
             return
         if not self.refresh_token_endpoint:  # pragma: no cover
@@ -379,7 +367,7 @@ class CustomAuth(httpx.Auth):
         try:
             response = httpx.post(
                 self.refresh_token_endpoint,
-                data={"refresh_token": self._tokens_response["refresh_token"]},
+                data={"refresh_token": self._tokens_response.refresh_token},
             )
         except httpx.HTTPError as exc:  # pragma: no cover
             self._handle_error(f"Failed to fetch token: {exc}")
@@ -387,16 +375,13 @@ class CustomAuth(httpx.Auth):
 
         if response.status_code == 200:
             self._tokens_response = self._parse_token_response(response.json())
-            self._handle_token(self._tokens_response["access_token"])
+            self._handle_token(self._tokens_response.access_token)
         else:  # pragma: no cover
             self._handle_error(f"Failed to refresh token: {response.text}")
 
     async def _async_refresh_access_token(self) -> None:
         """Refresh the access token (asynchronous)."""
-        if (
-            not self._tokens_response
-            or "refresh_token" not in self._tokens_response
-        ):
+        if not self._tokens_response or not self._tokens_response.access_token:
             self._handle_error("No refresh token available for renewal.")
             return
         if not self.refresh_token_endpoint:  # pragma: no cover
@@ -406,9 +391,7 @@ class CustomAuth(httpx.Auth):
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     self.refresh_token_endpoint,
-                    data={
-                        "refresh_token": self._tokens_response["refresh_token"]
-                    },
+                    data={"refresh_token": self._tokens_response.refresh_token},
                     timeout=30,
                 )
         except httpx.HTTPError as exc:  # pragma: no cover
@@ -416,7 +399,7 @@ class CustomAuth(httpx.Auth):
             return
         if response.status_code == 200:
             self._tokens_response = self._parse_token_response(response.json())
-            self._handle_token(self._tokens_response["access_token"])
+            self._handle_token(self._tokens_response.access_token)
         else:  # pragma: no cover
             self._handle_error(f"Failed to refresh token: {response.text}")
 
@@ -451,14 +434,16 @@ class CustomAuth(httpx.Auth):
             .isoformat(timespec="milliseconds")
             .replace("+00:00", "Z")
         )
-
+        audience = data.get("audience", "tasks-api")
+        if audience not in ["tasks-api", "clients-api"]:
+            audience = "tasks-api"
         return TokensResponse(
             access_token=data["access_token"],
             refresh_token=data["refresh_token"],
             token_type=data["token_type"],
             expires_at=expires_at,
             refresh_expires_at=refresh_expires_at,
-            audience=data.get("audience", ""),
+            audience=audience,
         )
 
     def _handle_error(self, message: str) -> None:

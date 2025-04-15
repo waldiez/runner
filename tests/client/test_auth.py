@@ -13,13 +13,13 @@ import pytest
 from pytest import LogCaptureFixture
 from pytest_httpx import HTTPXMock
 
-from waldiez_runner.client.auth import CustomAuth, TokensResponse
+from waldiez_runner.client import Auth, TokensResponse
 
 
 @pytest.fixture(name="auth")
-def auth_fixture() -> CustomAuth:
-    """Return a new CustomAuth instance."""
-    auth = CustomAuth()
+def auth_fixture() -> Auth:
+    """Return a new Auth instance."""
+    auth = Auth()
     auth.configure(
         "client_id", "client_secret", base_url="http://localhost:8000"
     )
@@ -32,18 +32,20 @@ def valid_token_response_fixture() -> TokensResponse:
     now = datetime.now(timezone.utc)
     expires_at = now + timedelta(seconds=3600)
     refresh_expires_at = now + timedelta(days=30)
-    return {
-        "access_token": "valid_access_token",  # nosemgrep # nosec
-        "refresh_token": "valid_refresh_token",  # nosemgrep # nosec
-        "token_type": "bearer",
-        "expires_at": expires_at.isoformat(timespec="milliseconds").replace(
-            "+00:00", "Z"
-        ),
-        "refresh_expires_at": refresh_expires_at.isoformat(
-            timespec="milliseconds"
-        ).replace("+00:00", "Z"),
-        "audience": "test",
-    }
+    return TokensResponse.model_validate(
+        {
+            "access_token": "valid_access_token",  # nosemgrep # nosec
+            "refresh_token": "valid_refresh_token",  # nosemgrep # nosec
+            "token_type": "bearer",
+            "expires_at": expires_at.isoformat(timespec="milliseconds").replace(
+                "+00:00", "Z"
+            ),
+            "refresh_expires_at": refresh_expires_at.isoformat(
+                timespec="milliseconds"
+            ).replace("+00:00", "Z"),
+            "audience": "tasks-api",
+        }
+    )
 
 
 @pytest.fixture(name="expired_token_response")
@@ -52,22 +54,24 @@ def expired_token_response_fixture() -> TokensResponse:
     now = datetime.now(timezone.utc)
     expired_at = now - timedelta(seconds=3600)
     refresh_expired_at = now - timedelta(days=30)
-    return {
-        "access_token": "expired_access_token",  # nosemgrep # nosec
-        "refresh_token": "expired_refresh_token",  # nosemgrep # nosec
-        "token_type": "bearer",
-        "expires_at": expired_at.isoformat(timespec="milliseconds").replace(
-            "+00:00", "Z"
-        ),
-        "refresh_expires_at": refresh_expired_at.isoformat(
-            timespec="milliseconds"
-        ).replace("+00:00", "Z"),
-        "audience": "test",
-    }
+    return TokensResponse.model_validate(
+        {
+            "access_token": "expired_access_token",  # nosemgrep # nosec
+            "refresh_token": "expired_refresh_token",  # nosemgrep # nosec
+            "token_type": "bearer",
+            "expires_at": expired_at.isoformat(timespec="milliseconds").replace(
+                "+00:00", "Z"
+            ),
+            "refresh_expires_at": refresh_expired_at.isoformat(
+                timespec="milliseconds"
+            ).replace("+00:00", "Z"),
+            "audience": "tasks-api",
+        }
+    )
 
 
 def test_sync_fetch_token(
-    auth: CustomAuth,
+    auth: Auth,
     valid_token_response: TokensResponse,
     httpx_mock: HTTPXMock,
 ) -> None:
@@ -77,7 +81,7 @@ def test_sync_fetch_token(
     httpx_mock.add_response(
         method="POST",
         url="http://localhost:8000/auth/token",
-        json=valid_token_response,
+        json=valid_token_response.model_dump(),
         status_code=200,
     )
 
@@ -86,12 +90,13 @@ def test_sync_fetch_token(
     assert token == "valid_access_token"  # nosemgrep # nosec
     assert auth._tokens_response
     assert (
-        auth._tokens_response["access_token"] == "valid_access_token"
-    )  # nosemgrep # nosec
+        auth._tokens_response.access_token
+        == "valid_access_token"  # nosemgrep # nosec
+    )
 
 
 def test_sync_token_expired(
-    auth: CustomAuth,
+    auth: Auth,
     expired_token_response: TokensResponse,
     valid_token_response: TokensResponse,
     httpx_mock: HTTPXMock,
@@ -101,7 +106,7 @@ def test_sync_token_expired(
     httpx_mock.add_response(
         method="POST",
         url="http://localhost:8000/auth/token",
-        json=valid_token_response,
+        json=valid_token_response.model_dump(),
         status_code=200,
     )
 
@@ -110,23 +115,24 @@ def test_sync_token_expired(
     assert token == "valid_access_token"  # nosemgrep # nosec
     assert auth._tokens_response
     assert (
-        auth._tokens_response["access_token"] == "valid_access_token"
-    )  # nosemgrep # nosec
+        auth._tokens_response.access_token
+        == "valid_access_token"  # nosemgrep # nosec
+    )
 
 
 def test_sync_token_refresh_not_expired(
-    auth: CustomAuth,
+    auth: Auth,
     valid_token_response: TokensResponse,
     httpx_mock: HTTPXMock,
 ) -> None:
     """Test that not expired tokens are not refreshed."""
     auth._tokens_response = valid_token_response
-    auth._tokens_response["expires_at"] = (
+    auth._tokens_response.expires_at = (
         (datetime.now(timezone.utc) - timedelta(seconds=3600))
         .isoformat(timespec="milliseconds")
         .replace("+00:00", "Z")
     )
-    auth._tokens_response["refresh_expires_at"] = (
+    auth._tokens_response.refresh_expires_at = (
         (datetime.now(timezone.utc) + timedelta(days=30))
         .isoformat(timespec="milliseconds")
         .replace("+00:00", "Z")
@@ -134,7 +140,7 @@ def test_sync_token_refresh_not_expired(
     httpx_mock.add_response(
         method="POST",
         url="http://localhost:8000/auth/token/refresh",
-        json=valid_token_response,
+        json=valid_token_response.model_dump(),
         status_code=200,
     )
 
@@ -142,13 +148,14 @@ def test_sync_token_refresh_not_expired(
     assert token == "valid_access_token"  # nosemgrep # nosec
     assert auth._tokens_response
     assert (
-        auth._tokens_response["access_token"] == "valid_access_token"
-    )  # nosemgrep # nosec
+        auth._tokens_response.access_token
+        == "valid_access_token"  # nosemgrep # nosec
+    )
 
 
 @pytest.mark.anyio
 async def test_async_fetch_token(
-    auth: CustomAuth,
+    auth: Auth,
     valid_token_response: TokensResponse,
     httpx_mock: HTTPXMock,
 ) -> None:
@@ -158,7 +165,7 @@ async def test_async_fetch_token(
     httpx_mock.add_response(
         method="POST",
         url="http://localhost:8000/auth/token",
-        json=valid_token_response,
+        json=valid_token_response.model_dump(),
         status_code=200,
     )
 
@@ -166,12 +173,13 @@ async def test_async_fetch_token(
     assert token == "valid_access_token"  # nosemgrep # nosec
     assert auth._tokens_response
     assert (
-        auth._tokens_response["access_token"] == "valid_access_token"
-    )  # nosemgrep # nosec
+        auth._tokens_response.access_token
+        == "valid_access_token"  # nosemgrep # nosec
+    )
 
 
 def test_sync_invalid_client(
-    auth: CustomAuth,
+    auth: Auth,
     httpx_mock: HTTPXMock,
 ) -> None:
     """Test handling of invalid client credentials (sync)."""
@@ -193,7 +201,7 @@ def test_sync_invalid_client(
 
 
 def test_sync_http_error(
-    auth: CustomAuth,
+    auth: Auth,
     httpx_mock: HTTPXMock,
 ) -> None:
     """Test handling of HTTP errors when fetching tokens."""
@@ -216,7 +224,7 @@ def test_sync_http_error(
 
 @pytest.mark.anyio
 async def test_async_invalid_client(
-    auth: CustomAuth,
+    auth: Auth,
     httpx_mock: HTTPXMock,
 ) -> None:
     """Test handling of invalid client credentials (async)."""
@@ -239,7 +247,7 @@ async def test_async_invalid_client(
 
 @pytest.mark.anyio
 async def test_async_http_error(
-    auth: CustomAuth,
+    auth: Auth,
     httpx_mock: HTTPXMock,
 ) -> None:
     """Test handling of HTTP errors when fetching tokens asynchronously."""
@@ -261,7 +269,7 @@ async def test_async_http_error(
 
 
 def test_force_sync_fetch_token(
-    auth: CustomAuth,
+    auth: Auth,
     valid_token_response: TokensResponse,
     httpx_mock: HTTPXMock,
 ) -> None:
@@ -269,7 +277,7 @@ def test_force_sync_fetch_token(
     httpx_mock.add_response(
         method="POST",
         url="http://localhost:8000/auth/token",
-        json=valid_token_response,
+        json=valid_token_response.model_dump(),
         status_code=200,
     )
     token = auth.sync_get_token(force=True)
@@ -278,7 +286,7 @@ def test_force_sync_fetch_token(
 
 @pytest.mark.anyio
 async def test_force_async_fetch_token(
-    auth: CustomAuth,
+    auth: Auth,
     valid_token_response: TokensResponse,
     httpx_mock: HTTPXMock,
 ) -> None:
@@ -286,28 +294,30 @@ async def test_force_async_fetch_token(
     httpx_mock.add_response(
         method="POST",
         url="http://localhost:8000/auth/token",
-        json=valid_token_response,
+        json=valid_token_response.model_dump(),
         status_code=200,
     )
     token = await auth.async_get_token(force=True)
     assert token == "valid_access_token"  # nosemgrep # nosec
 
 
-def test_is_expired_invalid_datetime(auth: CustomAuth) -> None:
+def test_is_expired_invalid_datetime(auth: Auth) -> None:
     """Test _is_expired with invalid datetime format."""
-    auth._tokens_response = {
-        "expires_at": "not-a-datetime",
-        "refresh_expires_at": "still-not-a-date",
-        "access_token": "abc",
-        "refresh_token": "def",
-        "token_type": "bearer",
-        "audience": "x",
-    }
+    auth._tokens_response = TokensResponse.model_validate(
+        {
+            "expires_at": "not-a-datetime",
+            "refresh_expires_at": "still-not-a-date",
+            "access_token": "abc",
+            "refresh_token": "def",
+            "token_type": "bearer",
+            "audience": "tasks-api",
+        }
+    )
     assert auth.is_token_expired()
     assert auth.is_refresh_token_expired()
 
 
-def test_handle_token_sync(auth: CustomAuth) -> None:
+def test_handle_token_sync(auth: Auth) -> None:
     """Test _handle_token with sync callback."""
     called = []
 
@@ -320,7 +330,7 @@ def test_handle_token_sync(auth: CustomAuth) -> None:
 
 
 @pytest.mark.anyio
-async def test_handle_token_async(auth: CustomAuth) -> None:
+async def test_handle_token_async(auth: Auth) -> None:
     """Test _handle_token with async callback."""
 
     result = {}
@@ -335,7 +345,7 @@ async def test_handle_token_async(auth: CustomAuth) -> None:
 
 
 def test_fetch_token_missing_client(
-    auth: CustomAuth,
+    auth: Auth,
     caplog: LogCaptureFixture,
 ) -> None:
     """Missing client ID and secret leads to error."""
@@ -346,7 +356,7 @@ def test_fetch_token_missing_client(
 
 
 def test_fetch_token_missing_endpoint(
-    auth: CustomAuth,
+    auth: Auth,
     caplog: LogCaptureFixture,
 ) -> None:
     """Missing token endpoint triggers error."""
@@ -358,54 +368,42 @@ def test_fetch_token_missing_endpoint(
 
 
 @pytest.mark.anyio
-async def test_async_fetch_token_missing_client(auth: CustomAuth) -> None:
+async def test_async_fetch_token_missing_client(auth: Auth) -> None:
     auth._client_id = None
     auth._client_secret = None
     await auth._async_fetch_token()  # Should not raise
 
 
 @pytest.mark.anyio
-async def test_async_refresh_token_missing(auth: CustomAuth) -> None:
+async def test_async_refresh_token_missing(auth: Auth) -> None:
     auth._tokens_response = {}  # type: ignore[assignment]
     await auth._async_refresh_access_token()  # Should not raise
 
 
-def test_sync_refresh_token_missing(auth: CustomAuth) -> None:
+def test_sync_refresh_token_missing(auth: Auth) -> None:
     auth._tokens_response = {}  # type: ignore[assignment]
     auth._refresh_access_token()  # Should not raise
 
 
-def test_parse_token_response_with_missing_fields(auth: CustomAuth) -> None:
-    """Test fallback/default values in token parsing."""
-    raw = {
-        "access_token": "abc",
-        "refresh_token": "def",
-        "token_type": "bearer",
-    }
-    parsed = auth._parse_token_response(raw)
-    assert parsed["access_token"] == "abc"
-    assert parsed["audience"] == ""
-    assert "expires_at" in parsed
-
-
 @pytest.mark.anyio
 async def test_async_refresh_access_token_success(
-    auth: CustomAuth,
+    auth: Auth,
     valid_token_response: TokensResponse,
     httpx_mock: HTTPXMock,
 ) -> None:
     """Test refreshing access token asynchronously (200 OK)."""
-    auth._tokens_response = {
-        "refresh_token": "valid_refresh_token",  # nosec
-    }  # type: ignore
+    auth._tokens_response = valid_token_response
 
     httpx_mock.add_response(
         method="POST",
         url="http://localhost:8000/auth/token/refresh",
-        json=valid_token_response,
+        json=valid_token_response.model_dump(),
         status_code=200,
     )
 
     await auth._async_refresh_access_token()
     assert auth._tokens_response is not None
-    assert auth._tokens_response["access_token"] == "valid_access_token"
+    assert (
+        auth._tokens_response.access_token
+        == "valid_access_token"  # nosemgrep # nosec
+    )

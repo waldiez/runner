@@ -15,7 +15,7 @@ import websockets.asyncio.client
 import websockets.sync.client
 from websockets.exceptions import ConnectionClosed, InvalidStatus
 
-from .auth import CustomAuth
+from .auth import Auth
 
 LOG = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class SyncWebSocketClient:
 
     def __init__(
         self,
-        auth: CustomAuth,
+        auth: Auth,
         reconnect: bool = True,
         max_retries: int = 5,
     ) -> None:
@@ -265,7 +265,7 @@ class AsyncWebSocketClient:
 
     def __init__(
         self,
-        auth: CustomAuth,
+        auth: Auth,
         reconnect: bool = True,
         max_retries: int = 5,
     ) -> None:

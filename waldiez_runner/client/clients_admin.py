@@ -6,6 +6,14 @@ from typing import Any, Callable, Coroutine, Dict, List
 
 from ._clients_api import ClientsAPIClient
 from .client_base import BaseClient
+from .models import (
+    ClientAudience,
+    ClientCreateRequest,
+    ClientCreateResponse,
+    ClientItemsRequest,
+    ClientItemsResponse,
+    ClientResponse,
+)
 
 
 class ClientsAdmin(BaseClient):
@@ -111,23 +119,41 @@ class ClientsAdmin(BaseClient):
                 on_error=self.on_error,
             )
 
-    def list_clients(self) -> Dict[str, Any]:
+    def list_clients(
+        self,
+        params: ClientItemsRequest | Dict[str, Any] | None = None,
+    ) -> ClientItemsResponse:
         """Retrieve the list of clients synchronously.
+
+        Parameters
+        ----------
+        params : ClientItemsRequest | Dict[str, Any] | None, optional
+            The request (pagination) parameters, by default None
+            If None, defaults to ClientItemsRequest with default values
 
         Returns
         -------
-        Dict[str, Any]
-            The response JSON
-
+        CLientItemsResponse
+            The paginated clients response ("items" key in JSON)
         Raises
         ------
         ValueError
             If the client is not configured
         """
         self._ensure_configured()
-        return self.clients.list_clients()  # type: ignore
+        params_dict: Dict[str, Any] | None
+        if params is None:
+            params_dict = None
+        elif isinstance(params, dict):
+            params_dict = ClientItemsRequest.model_validate(params).model_dump(
+                exclude_none=True
+            )
+        else:
+            params_dict = params.model_dump(exclude_none=True)
+        response = self.clients.list_clients(params=params_dict)  # type: ignore
+        return ClientItemsResponse.model_validate(response)
 
-    def get_client(self, client_id: str) -> Dict[str, Any]:
+    def get_client(self, client_id: str) -> ClientResponse:
         """Retrieve a specific client synchronously.
 
         Parameters
@@ -137,8 +163,8 @@ class ClientsAdmin(BaseClient):
 
         Returns
         -------
-        Dict[str, Any]
-            The response JSON
+        ClientResponse
+            The client response
 
         Raises
         ------
@@ -146,23 +172,24 @@ class ClientsAdmin(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        return self.clients.get_client(client_id)  # type: ignore
+        response = self.clients.get_client(client_id)  # type: ignore
+        return ClientResponse.model_validate(response)
 
     def create_client(
         self,
-        client_data: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        client_data: ClientCreateRequest | Dict[str, Any],
+    ) -> ClientCreateResponse:
         """Create a new client synchronously.
 
         Parameters
         ----------
-        client_data : Dict[str, Any]
+        client_data : ClientCreateRequest | Dict[str, Any]
             The client data
 
         Returns
         -------
-        Dict[str, Any]
-            The response JSON
+        ClientCreateResponse
+            The client create response
 
         Raises
         ------
@@ -170,28 +197,34 @@ class ClientsAdmin(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        return self.clients.create_client(  # type: ignore
-            client_data=client_data,
+        client_create: ClientCreateRequest = (
+            client_data
+            if not isinstance(client_data, dict)
+            else ClientCreateRequest.model_validate(client_data)
         )
+        response = self.clients.create_client(  # type: ignore
+            client_data=client_create.model_dump(exclude_none=True),
+        )
+        return ClientCreateResponse.model_validate(response)
 
     def update_client(
         self,
         client_id: str,
-        update_data: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        description: str | None = None,
+    ) -> ClientResponse:
         """Update an existing client synchronously.
 
         Parameters
         ----------
         client_id : str
             The client ID
-        update_data : Dict[str, Any]
-            The data to update the client with
+        description : str | None, optional
+            The client description, by default None
 
         Returns
         -------
-        Dict[str, Any]
-            The response JSON
+        ClientResponse
+            The client response
 
         Raises
         ------
@@ -199,10 +232,14 @@ class ClientsAdmin(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        return self.clients.update_client(  # type: ignore
+        update_data = {
+            "description": description,
+        }
+        response = self.clients.update_client(  # type: ignore
             client_id=client_id,
             update_data=update_data,
         )
+        return ClientResponse.model_validate(response)
 
     def delete_client(self, client_id: str) -> None:
         """Delete a client synchronously.
@@ -220,13 +257,15 @@ class ClientsAdmin(BaseClient):
         self._ensure_configured()
         self.clients.delete_client(client_id)  # type: ignore
 
-    def delete_clients(self, audiences: List[str] | None) -> None:
+    def delete_clients(self, audiences: List[ClientAudience] | None) -> None:
         """Delete multiple clients synchronously.
 
         Parameters
         ----------
-        audiences : List[str] | None, optional
-            The audiences to filter.
+        audiences : List[ClientAudience] | None, optional
+            The audiences to filter for deletion.
+            If None, all clients will be deleted.
+            (not the one used for this request) )
 
         Raises
         ------
@@ -236,13 +275,13 @@ class ClientsAdmin(BaseClient):
         self._ensure_configured()
         self.clients.delete_clients(audiences)  # type: ignore
 
-    async def a_list_clients(self) -> Dict[str, Any]:
+    async def a_list_clients(self) -> ClientItemsResponse:
         """Retrieve the list of clients asynchronously.
 
         Returns
         -------
-        Dict[str, Any]
-            The response JSON
+        ClientItemsResponse
+            The paginated clients response ("items" key in JSON)
 
         Raises
         ------
@@ -250,9 +289,10 @@ class ClientsAdmin(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        return await self.clients.a_list_clients()  # type: ignore
+        response = await self.clients.a_list_clients()  # type: ignore
+        return ClientItemsResponse.model_validate(response)
 
-    async def a_get_client(self, client_id: str) -> Dict[str, Any]:
+    async def a_get_client(self, client_id: str) -> ClientResponse:
         """Retrieve a specific client asynchronously.
 
         Parameters
@@ -262,8 +302,8 @@ class ClientsAdmin(BaseClient):
 
         Returns
         -------
-        Dict[str, Any]
-            The response JSON
+        ClientResponse
+            The client response
 
         Raises
         ------
@@ -271,12 +311,13 @@ class ClientsAdmin(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        return await self.clients.a_get_client(client_id)  # type: ignore
+        response = await self.clients.a_get_client(client_id)  # type: ignore
+        return ClientResponse.model_validate(response)
 
     async def a_create_client(
         self,
-        client_data: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        client_data: ClientCreateRequest | Dict[str, Any],
+    ) -> ClientCreateResponse:
         """Create a new client asynchronously.
 
         Parameters
@@ -286,8 +327,8 @@ class ClientsAdmin(BaseClient):
 
         Returns
         -------
-        Dict[str, Any]
-            The response JSON
+        ClientCreateResponse
+            The client create response
 
         Raises
         ------
@@ -295,28 +336,34 @@ class ClientsAdmin(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        return await self.clients.a_create_client(  # type: ignore
-            client_data=client_data,
+        client_create: ClientCreateRequest = (
+            client_data
+            if not isinstance(client_data, dict)
+            else ClientCreateRequest.model_validate(client_data)
         )
+        response = await self.clients.a_create_client(  # type: ignore
+            client_data=client_create.model_dump(exclude_none=True),
+        )
+        return ClientCreateResponse.model_validate(response)
 
     async def a_update_client(
         self,
         client_id: str,
-        client_data: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        description: str | None = None,
+    ) -> ClientResponse:
         """Update an existing client asynchronously.
 
         Parameters
         ----------
         client_id : str
             The client ID
-        client_data : Dict[str, Any]
-            The client data
+        description : str | None, optional
+            The client description, by default None
 
         Returns
         -------
-        Dict[str, Any]
-            The response JSON
+        ClientResponse
+            The client response
 
         Raises
         ------
@@ -324,10 +371,14 @@ class ClientsAdmin(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        return await self.clients.a_update_client(  # type: ignore
+        update_data = {
+            "description": description,
+        }
+        response = await self.clients.a_update_client(  # type: ignore
             client_id=client_id,
-            update_data=client_data,
+            update_data=update_data,
         )
+        return ClientResponse.model_validate(response)
 
     async def a_delete_client(self, client_id: str) -> None:
         """Delete a client asynchronously.
