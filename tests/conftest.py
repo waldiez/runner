@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from waldiez_runner.client.auth import CustomAuth
+from waldiez_runner.client.auth import Auth
 from waldiez_runner.config import Settings, SettingsManager
 from waldiez_runner.models import (
     Base,
@@ -203,9 +203,9 @@ def a_fake_redis_fixture() -> fakeredis.aioredis.FakeRedis:
 
 
 @pytest.fixture(name="auth")
-def auth_fixture(httpx_mock: HTTPXMock) -> CustomAuth:
+def auth_fixture(httpx_mock: HTTPXMock) -> Auth:
     """Return a new CustomAuth instance."""
-    auth = CustomAuth()
+    auth = Auth()
     auth.configure(
         "client_id", "client_secret", base_url="http://localhost:8000"
     )

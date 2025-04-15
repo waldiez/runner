@@ -19,7 +19,7 @@ from waldiez_runner.client._websockets import (
     AsyncWebSocketClient,
     SyncWebSocketClient,
 )
-from waldiez_runner.client.auth import CustomAuth
+from waldiez_runner.client.auth import Auth
 
 
 @patch("websockets.sync.client.connect")
@@ -73,7 +73,7 @@ def test_sync_listen_message(mock_connect: MagicMock, auth: MagicMock) -> None:
 def test_sync_listen_retries(
     mock_sleep: MagicMock,
     mock_connect: MagicMock,
-    auth: CustomAuth,
+    auth: Auth,
 ) -> None:
     """Test that retries stop after max_retries is exceeded."""
     mock_connect.side_effect = Exception("fail")
@@ -105,7 +105,7 @@ def test_sync_listen_retries(
 
 
 @patch("websockets.sync.client.connect")
-def test_sync_stop(mock_connect: MagicMock, auth: CustomAuth) -> None:
+def test_sync_stop(mock_connect: MagicMock, auth: Auth) -> None:
     """Test stopping the client from outside."""
     ws_mock = MagicMock()
     ws_mock.recv.side_effect = TimeoutError()
@@ -125,9 +125,7 @@ def test_sync_stop(mock_connect: MagicMock, auth: CustomAuth) -> None:
 
 
 @patch("websockets.sync.client.connect")
-def test_sync_listen_1006_handled(
-    mock_connect: MagicMock, auth: CustomAuth
-) -> None:
+def test_sync_listen_1006_handled(mock_connect: MagicMock, auth: Auth) -> None:
     """Test 404 error is handled and stops the listener."""
 
     # pylint: disable=too-few-public-methods
@@ -171,9 +169,7 @@ def test_sync_listen_1006_handled(
 
 @patch("time.sleep", return_value=None)
 @patch("websockets.sync.client.connect")
-def test_sync_listen_1008_retry(
-    mock_connect: MagicMock, auth: CustomAuth
-) -> None:
+def test_sync_listen_1008_retry(mock_connect: MagicMock, auth: Auth) -> None:
     """Test that 1008 (auth error) causes a retry (token refresh)."""
     call_count = 0
 
@@ -253,7 +249,7 @@ async def test_async_send_message(
 @patch("websockets.asyncio.client.connect")
 async def test_async_listen_in_task_true(
     mock_connect: AsyncMock,
-    auth: CustomAuth,
+    auth: Auth,
 ) -> None:
     """Test listen with in_task=True using internal task management."""
     ws_mock = AsyncMock()
@@ -280,7 +276,7 @@ async def test_async_listen_in_task_true(
 @patch("websockets.asyncio.client.connect")
 async def test_async_listen_in_task_false(
     mock_connect: AsyncMock,
-    auth: CustomAuth,
+    auth: Auth,
 ) -> None:
     """Test listen using asyncio.create_task manually (not in_task=True)."""
     ws_mock = AsyncMock()
@@ -316,7 +312,7 @@ async def test_async_listen_in_task_false(
 async def test_async_listen_retries(
     mock_connect: AsyncMock,
     mock_sleep: AsyncMock,
-    auth: CustomAuth,
+    auth: Auth,
 ) -> None:
     """Test retries stop after exceeding max_retries."""
     mock_connect.side_effect = Exception("fail")
@@ -341,7 +337,7 @@ async def test_async_listen_retries(
 @patch("websockets.asyncio.client.connect")
 async def test_async_stop(
     mock_connect: AsyncMock,
-    auth: CustomAuth,
+    auth: Auth,
 ) -> None:
     """Test stopping the async listener."""
     ws_mock = AsyncMock()
@@ -366,7 +362,7 @@ async def test_async_stop(
 async def test_async_listen_1008_retry(
     mock_connect: AsyncMock,
     mock_sleep: AsyncMock,
-    auth: CustomAuth,
+    auth: Auth,
 ) -> None:
     """Test that 1008 triggers token refresh and retry."""
 
@@ -403,7 +399,7 @@ async def test_async_listen_1008_retry(
 @patch("websockets.asyncio.client.connect")
 async def test_async_listen_status_error(
     mock_connect: AsyncMock,
-    auth: CustomAuth,
+    auth: Auth,
 ) -> None:
     """Test generic InvalidStatus error is passed to on_error."""
 
@@ -457,7 +453,7 @@ def test_sync_already_listening_does_not_start_again(
 
 
 @pytest.mark.asyncio
-async def test_async_already_listening_skips_listen(auth: CustomAuth) -> None:
+async def test_async_already_listening_skips_listen(auth: Auth) -> None:
     """Test that async client does not restart if already listening."""
     client = AsyncWebSocketClient(auth=auth)
     client.listener_task = asyncio.create_task(asyncio.sleep(10))

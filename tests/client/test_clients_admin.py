@@ -8,12 +8,12 @@
 import pytest
 from pytest_httpx import HTTPXMock
 
-from waldiez_runner.client.auth import CustomAuth
+from waldiez_runner.client.auth import Auth
 from waldiez_runner.client.clients_admin import ClientsAdmin
 
 
 @pytest.fixture(name="clients_admin")
-def clients_admin_fixture(auth: CustomAuth) -> ClientsAdmin:
+def clients_admin_fixture(auth: Auth) -> ClientsAdmin:
     """Return a new ClientsAdmin instance."""
     assert auth.base_url is not None
     assert auth.client_id is not None
@@ -47,9 +47,15 @@ def test_list_clients(
     httpx_mock.add_response(
         method="GET",
         url=f"{clients_admin.base_url}/api/v1/clients",
-        json={"items": [], "total": 0},
+        json={"items": [], "total": 0, "page": 1, "size": 50, "pages": 1},
     )
-    assert clients_admin.list_clients() == {"items": [], "total": 0}
+    assert clients_admin.list_clients().model_dump() == {
+        "items": [],
+        "total": 0,
+        "page": 1,
+        "size": 50,
+        "pages": 1,
+    }
 
 
 def test_get_client(
@@ -60,9 +66,9 @@ def test_get_client(
     httpx_mock.add_response(
         method="GET",
         url=f"{clients_admin.base_url}/api/v1/clients/client123",
-        json={"client_id": "client123"},
+        json={"client_id": "client123", "id": "id", "audience": "tasks-api"},
     )
-    result = clients_admin.get_client("client123")
+    result = clients_admin.get_client("client123").model_dump()
     assert result["client_id"] == "client123"
 
 
@@ -74,10 +80,22 @@ def test_create_client(
     httpx_mock.add_response(
         method="POST",
         url=f"{clients_admin.base_url}/api/v1/clients",
-        json={"client_id": "created"},
+        json={
+            "description": "new_description",
+            "client_id": "created",
+            "audience": "tasks-api",
+            "id": "client1",
+            "client_secret": "super_secret",  # nosemgrep # nosec
+        },
     )
-    result = clients_admin.create_client({"name": "created"})
+    result = clients_admin.create_client(
+        {
+            "client_id": "created",
+            "description": "new_description",
+        }
+    ).model_dump()
     assert result["client_id"] == "created"
+    assert result["description"] == "new_description"
 
 
 def test_update_client(
@@ -88,10 +106,17 @@ def test_update_client(
     httpx_mock.add_response(
         method="PATCH",
         url=f"{clients_admin.base_url}/api/v1/clients/client123",
-        json={"client_id": "client123", "name": "updated"},
+        json={
+            "client_id": "client123",
+            "description": "updated",
+            "id": "id",
+            "audience": "tasks-api",
+        },
     )
-    result = clients_admin.update_client("client123", {"name": "updated"})
-    assert result["name"] == "updated"
+    result = clients_admin.update_client(
+        "client123", description="updated"
+    ).model_dump()
+    assert result["description"] == "updated"
 
 
 def test_delete_client(
@@ -114,15 +139,16 @@ def test_delete_clients(
     clients_admin: ClientsAdmin,
 ) -> None:
     """Test deleting multiple clients synchronously."""
-    url = (
-        f"{clients_admin.base_url}/api/v1/clients?audiences=aud1&audiences=aud2"
+    audiences = "&".join(
+        f"audiences={audience}" for audience in ["tasks-api", "clients-api"]
     )
+    url = f"{clients_admin.base_url}/api/v1/clients?{audiences}"
     httpx_mock.add_response(
         method="DELETE",
         url=url,
         status_code=204,
     )
-    clients_admin.delete_clients(["aud1", "aud2"])
+    clients_admin.delete_clients(["tasks-api", "clients-api"])
 
 
 @pytest.mark.anyio
@@ -134,10 +160,10 @@ async def test_a_list_clients(
     httpx_mock.add_response(
         method="GET",
         url=f"{clients_admin.base_url}/api/v1/clients",
-        json={"items": [], "total": 0},
+        json={"items": [], "total": 0, "page": 1, "size": 50, "pages": 1},
     )
     result = await clients_admin.a_list_clients()
-    assert result["items"] == []
+    assert result.items == []
 
 
 @pytest.mark.anyio
@@ -149,10 +175,10 @@ async def test_a_get_client(
     httpx_mock.add_response(
         method="GET",
         url=f"{clients_admin.base_url}/api/v1/clients/client123",
-        json={"client_id": "client123"},
+        json={"client_id": "client123", "id": "id", "audience": "tasks-api"},
     )
     result = await clients_admin.a_get_client("client123")
-    assert result["client_id"] == "client123"
+    assert result.client_id == "client123"
 
 
 @pytest.mark.anyio
@@ -164,28 +190,38 @@ async def test_a_create_client(
     httpx_mock.add_response(
         method="POST",
         url=f"{clients_admin.base_url}/api/v1/clients",
-        json={"client_id": "new"},
+        json={
+            "client_id": "new",
+            "id": "id",
+            "audience": "tasks-api",
+            "client_secret": "super_secret",  # nosemgrep # nosec
+        },
     )
-    result = await clients_admin.a_create_client({"name": "new"})
-    assert result["client_id"] == "new"
+    result = await clients_admin.a_create_client({"client_id": "new"})
+    assert result.client_id == "new"
 
 
 @pytest.mark.anyio
 async def test_a_update_client(
     httpx_mock: HTTPXMock,
-    auth: CustomAuth,
+    auth: Auth,
     clients_admin: ClientsAdmin,
 ) -> None:
     """Test updating a client asynchronously."""
     httpx_mock.add_response(
         method="PATCH",
         url=f"{clients_admin.base_url}/api/v1/clients/client123",
-        json={"client_id": "client123", "name": "updated"},
+        json={
+            "client_id": "client123",
+            "description": "updated",
+            "id": "id",
+            "audience": "tasks-api",
+        },
     )
     result = await clients_admin.a_update_client(
-        "client123", {"name": "updated"}
+        "client123", description="updated"
     )
-    assert result["name"] == "updated"
+    assert result.description == "updated"
 
 
 @pytest.mark.anyio

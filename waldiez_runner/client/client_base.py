@@ -12,7 +12,7 @@ from typing import Any, Callable, Coroutine, Type
 
 from typing_extensions import Self
 
-from .auth import CustomAuth
+from .auth import Auth
 
 
 class BaseClient:
@@ -66,7 +66,7 @@ class BaseClient:
         self.base_url: str | None = base_url
         self.client_id: str | None = client_id
         self.client_secret: str | None = client_secret
-        self.auth: CustomAuth | None = None
+        self.auth: Auth | None = None
         self.on_auth_token = on_auth_token
         self.on_auth_error = on_auth_error
         self.on_error = on_error
@@ -191,7 +191,7 @@ class BaseClient:
         self.on_auth_token = on_auth_token or self.on_auth_token
         self.on_auth_error = on_auth_error or self.on_auth_error
         self.on_error = on_error or self.on_error
-        self.auth = CustomAuth(
+        self.auth = Auth(
             base_url=base_url,
             on_error=self.on_auth_error,
             on_token=self.on_auth_token,
