@@ -48,56 +48,58 @@ We currently support three development modes:
 ## Architecture
 
 Here's a high-level overview of the architecture:
-
 ```mermaid
 sequenceDiagram
     participant Client
     participant API
+    participant FastStream
     participant TaskiqWorker
-    participant TaskApp
     participant Redis
-    participant Postgres
+    participant DB
     participant Storage
-    participant Filesystem
     participant WebSocket
+    participant AppInVenv
 
-    Client->>API: POST /api/v1/tasks (includes a .waldiez flow file and (optionally) an input_timeout)
-    API->>Postgres: Create task (status: pending)
+    Client->>API: POST /api/v1/tasks
+    API->>DB: Create task
     API->>Storage: Save uploaded file
     API->>TaskiqWorker: Enqueue job
 
-    TaskiqWorker-->>Storage: Copy file locally (if needed)
-    TaskiqWorker->>Filesystem: Create venv and copy app files
-    TaskiqWorker->>Postgres: Update status to running
-    TaskiqWorker->>TaskApp: Start subprocess (FastStream app)
+    TaskiqWorker->>Storage: Create venv and copy app files
+    TaskiqWorker->>DB: Update task status to running
+    TaskiqWorker->>AppInVenv: Start subprocess
 
-    loop Task flow
-        TaskApp->>Redis: Publish input_request
-        alt Waiting for user input
-            Redis-->>TaskApp: Deliver input_response
+    loop Task execution
+        AppInVenv->>FastStream: Publish input_request
+        FastStream->>Redis: task:{task_id}:input_request
+
+        alt User responds
+            Redis-->>FastStream: task:{task_id}:input_response
+            FastStream-->>AppInVenv: Deliver input
         else Timeout
-            Note over TaskApp: Use default input (<empty response>)
+            AppInVenv-->>FastStream: Use default input
         end
-        TaskApp->>Redis: Publish output
+
+        AppInVenv->>FastStream: Publish output
+        FastStream->>Redis: Stream to task:{task_id}:output and task-output
     end
 
     opt WebSocket
-        Client->>WebSocket: Connect to /ws/task_id
+        Client->>WebSocket: Connect to /ws/{task_id}
+        WebSocket->>Redis: Read from task:{task_id}:output
+        Redis-->>WebSocket: Forward output or input_request
         Client-->>WebSocket: Send input
-        WebSocket->>Redis: Publish input_response
-        Redis-->>WebSocket: Stream output & input_request
-        WebSocket-->>Client: Deliver output & prompts
+        WebSocket->>Redis: task:{task_id}:input_response
     end
 
-    opt HTTP Input (fallback)
-        Client->>API: POST /api/v1/tasks/task_id/input
-        API->>Redis: Publish input_response
+    opt HTTP Input
+        Client->>API: POST /api/v1/tasks/{task_id}/input
+        API->>Redis: task:{task_id}:input_response
     end
 
-    alt Task completes / fails / cancelled
-        TaskiqWorker->>Postgres: Update task status
-        TaskiqWorker->>Filesystem: Cleanup task files
-        TaskiqWorker->>Storage: Upload results (if needed)
+    alt Task completes/fails/cancelled
+        TaskiqWorker->>DB: Update task status
+        TaskiqWorker->>Storage: Move results and clean up
     end
 ```
 
