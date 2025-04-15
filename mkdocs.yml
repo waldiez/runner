@@ -63,9 +63,11 @@ markdown_extensions:
       custom_fences:
         - name: mermaid
           class: mermaid
+          # fmt: off
           # yamllint disable
-          format: !!python/name:mermaid2.fence_mermaid_custom # yamllint enable
-
+          format: !!python/name:mermaid2.fence_mermaid_custom
+          # yamllint enable
+          # fmt: on
 
   - pymdownx.tabbed:
       alternate_style: true
@@ -83,6 +85,7 @@ plugins:
   - macros
   - autorefs
   - privacy
+  - mkdocs-jupyter
   - mkdocstrings:
       enabled: true
       default_handler: python
@@ -119,12 +122,13 @@ nav:
       - Clients & Auth: clients.md
       - Tasks: tasks.md
       - WebSocket: websocket.md
-  # - Examples: examples.md
-  # - Deployment:
-  #     - Overview: deployment/index.md
-  #     - Docker & Compose: deployment/docker.md
-  #     - Production: deployment/production.md
-  #     - Cloud Storage: deployment/cloud.md
-  # - Configuration: configuration.md
-  # - Contributing: contributing.md
-  # - Reference (mkdocstrings)
+      - Examples:
+          - Task Demo: examples/task_demo.ipynb
+          # - Deployment:
+          #     - Overview: deployment/index.md
+          #     - Docker & Compose: deployment/docker.md
+          #     - Production: deployment/production.md
+          #     - Cloud Storage: deployment/cloud.md
+          # - Configuration: configuration.md
+          # - Contributing: contributing.md
+          # - Reference (mkdocstrings)

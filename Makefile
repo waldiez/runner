@@ -68,7 +68,9 @@ test:
 
 .PHONY: docs
 docs:
+	$(PYTHON) -c "import os; import shutil; src=os.path.join('examples', 'jupyter', 'task_demo.ipynb'); dst=os.path.join('docs', 'examples', 'task_demo.ipynb'); os.makedirs(os.path.dirname(dst), exist_ok=True); shutil.copyfile(src, dst)"
 	$(PYTHON) -m mkdocs build -d site
+	$(PYTHON) -c "import os; dst=os.path.join('docs', 'examples', 'task_demo.ipynb');os.remove(dst) if os.path.exists(dst) else ..."
 	@echo "open:   file://`pwd`/site/index.html"
 	@echo "or use: \`$(PYTHON) -m http.server --directory site\`"
 
