@@ -148,7 +148,7 @@ class Auth(httpx.Auth):
         if base_url is not None:
             self._base_url = get_default_base_url(base_url)
 
-    def sync_get_token(self, force: bool = False) -> str:
+    def sync_get_token(self, force: bool = False) -> str | None:
         """Get a valid access token (synchronous).
 
         Parameters
@@ -157,22 +157,25 @@ class Auth(httpx.Auth):
             Force a new token fetch, by default False
         Returns
         -------
-        str
-            The access token
+        str, optional
+            The access token, or None if not available
         """
         with self._sync_lock:
             if force:
                 self._fetch_token()
                 if not self._tokens_response:  # pragma: no cover
-                    return ""
+                    return None
                 return self._tokens_response.access_token
             if not self._tokens_response or self.is_token_expired():
                 if self.is_refresh_token_expired():
                     self._fetch_token()
                 else:
                     self._refresh_access_token()
-            if not self._tokens_response:
-                return ""
+            if (
+                not self._tokens_response
+                or not self._tokens_response.access_token
+            ):
+                return None
             return self._tokens_response.access_token
 
     def sync_auth_flow(
@@ -193,7 +196,7 @@ class Auth(httpx.Auth):
         request.headers["Authorization"] = f"Bearer {self.sync_get_token()}"
         yield request
 
-    async def async_get_token(self, force: bool = False) -> str:
+    async def async_get_token(self, force: bool = False) -> str | None:
         """Get a valid access token (asynchronous).
 
         Parameters
@@ -202,22 +205,28 @@ class Auth(httpx.Auth):
             Force a new token fetch, by default False
         Returns
         -------
-        str
-            The access token
+        str, optional
+            The access token, or None if not available
         """
         async with self._async_lock:
             if force:
                 await self._async_fetch_token()
-                if not self._tokens_response:  # pragma: no cover
-                    return ""
+                if (
+                    not self._tokens_response
+                    or not self._tokens_response.access_token
+                ):  # pragma: no cover
+                    return None
                 return self._tokens_response.access_token
             if not self._tokens_response or self.is_token_expired():
                 if self.is_refresh_token_expired():
                     await self._async_fetch_token()
                 else:  # pragma: no cover
                     await self._async_refresh_access_token()
-            if not self._tokens_response:
-                return ""
+            if (
+                not self._tokens_response
+                or not self._tokens_response.access_token
+            ):
+                return None
             return self._tokens_response.access_token
 
     async def async_auth_flow(

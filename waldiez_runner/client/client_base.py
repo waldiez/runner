@@ -10,9 +10,11 @@ import inspect
 from types import TracebackType
 from typing import Any, Callable, Coroutine, Type
 
+import httpx
 from typing_extensions import Self
 
 from .auth import Auth
+from .models import StatusResponse
 
 
 class BaseClient:
@@ -227,8 +229,8 @@ class BaseClient:
             return False  # pragma: no cover
         # pylint: disable=broad-exception-caught
         try:
-            self.auth.sync_get_token()
-            return True
+            token = self.auth.sync_get_token()
+            return token is not None
         except BaseException as err:  # pragma: no cover
             self._handle_auth_error(f"Error authenticating: {err}")
             return False
@@ -250,11 +252,90 @@ class BaseClient:
             return False  # pragma: no cover
         # pylint: disable=broad-exception-caught
         try:
-            await self.auth.async_get_token()
-            return True
+            token = await self.auth.async_get_token()
+            return token is not None
         except BaseException as err:  # pragma: no cover
             self._handle_auth_error(f"Error authenticating: {err}")
             return False
+
+    def get_status(self) -> StatusResponse | None:
+        """Get the server's status.
+
+        Returns
+        -------
+        StatusResponse, optional
+            The server status response, or None if an error occurred
+
+        Raises
+        ------
+        ValueError
+            If the client is not configured
+        """
+        self._ensure_configured()
+        if not self.auth:
+            raise ValueError(
+                "Client is not configured. Call `configure()` first."
+            )
+        # pylint: disable=broad-exception-caught
+        try:
+            with httpx.Client(
+                auth=self.auth,
+                base_url=self.auth.base_url,  # type: ignore
+            ) as client:
+                response = client.get("/status")
+                response.raise_for_status()
+            return StatusResponse.model_validate(response.json())
+        except httpx.HTTPStatusError as err:
+            if err.response.status_code == 401:
+                error_msg = err.response.json().get(
+                    "detail", "Unauthorized access."
+                )
+                self._handle_auth_error(error_msg)
+            else:
+                self._handle_error(f"Error: {err}")
+        except httpx.RequestError as err:
+            self._handle_error(f"Error: {err}")
+        except Exception as err:  # pragma: no cover
+            self._handle_error(f"Error: {err}")
+        return None
+
+    async def a_get_status(self) -> StatusResponse | None:
+        """Get the server's status asynchronously.
+
+        Returns
+        -------
+        StatusResponse, optional
+            The server status response, or None if an error occurred
+
+        Raises
+        ------
+        ValueError
+            If the client is not configured
+        """
+        self._ensure_configured()
+        if not self.auth:
+            raise ValueError(
+                "Client is not configured. Call `configure()` first."
+            )
+        # pylint: disable=broad-exception-caught
+        try:
+            async with httpx.AsyncClient(
+                auth=self.auth,
+                base_url=self.auth.base_url,  # type: ignore
+            ) as client:
+                response = await client.get("/status")
+                response.raise_for_status()
+                return StatusResponse.model_validate(response.json())
+        except httpx.HTTPStatusError as err:
+            if err.response.status_code == 401:
+                self._handle_auth_error("Unauthorized access.")
+            else:
+                self._handle_error(f"Error: {err}")
+        except httpx.RequestError as err:
+            self._handle_error(f"Error: {err}")
+        except Exception as err:
+            self._handle_error(f"Error: {err}")
+        return None
 
     def _handle_auth_error(self, message: str) -> None:
         """Handle authentication errors.

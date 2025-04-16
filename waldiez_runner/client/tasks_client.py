@@ -187,7 +187,7 @@ class TasksClient(BaseClient):
         response = self.tasks.list_tasks(params_dict)  # type: ignore
         return TaskItemsResponse.model_validate(response)
 
-    def trigger_task(
+    def create_task(
         self,
         task_data: TaskCreateRequest | Dict[str, Any],
     ) -> TaskResponse:
@@ -218,7 +218,7 @@ class TasksClient(BaseClient):
         if isinstance(file_data, BytesIO):
             # If file_data is a BytesIO object, read its content
             file_data = file_data.getvalue()
-        response = self.tasks.trigger_task(  # type: ignore
+        response = self.tasks.create_task(  # type: ignore
             file_data,
             file_name,
             input_timeout=input_timeout,
@@ -463,7 +463,7 @@ class TasksClient(BaseClient):
         response = await self.tasks.a_list_tasks(params_dict)  # type: ignore
         return TaskItemsResponse.model_validate(response)
 
-    async def a_trigger_task(
+    async def a_create_task(
         self,
         task_data: TaskCreateRequest | Dict[str, Any],
     ) -> TaskResponse:
@@ -492,7 +492,7 @@ class TasksClient(BaseClient):
         file_data = task_data.file_data
         file_name = task_data.file_name
         input_timeout = task_data.input_timeout
-        response = await self.tasks.a_trigger_task(  # type: ignore
+        response = await self.tasks.a_create_task(  # type: ignore
             file_data,
             file_name,
             input_timeout=input_timeout,

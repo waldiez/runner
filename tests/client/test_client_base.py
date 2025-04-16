@@ -8,10 +8,14 @@ import asyncio
 from typing import Any, Coroutine, List
 from unittest.mock import AsyncMock, MagicMock
 
+import httpx
 import pytest
+from pytest_httpx import HTTPXMock
 from pytest_mock import MockerFixture
 
+from waldiez_runner.client.auth import Auth
 from waldiez_runner.client.client_base import BaseClient
+from waldiez_runner.client.models import StatusResponse
 
 
 @pytest.fixture(name="base_client")
@@ -265,3 +269,141 @@ class DummyLoop:
     def create_task(self, coro: Coroutine[Any, Any, None]) -> None:
         """Create a task."""
         asyncio.get_event_loop().run_until_complete(coro)
+
+
+def test_get_status_success(httpx_mock: HTTPXMock, auth: Auth) -> None:
+    """Test get_status returns valid StatusResponse on success."""
+
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{auth.base_url}/status",
+        json={
+            "healthy": True,
+            "active_tasks": 2,
+            "pending_tasks": 1,
+            "max_capacity": 4,
+            "cpu_count": 8,
+            "cpu_percent": 35.5,
+            "total_memory": 16000000000,
+            "used_memory": 8000000000,
+            "memory_percent": 50,
+        },
+        status_code=200,
+    )
+
+    client = BaseClient()
+    client.configure(
+        base_url=auth.base_url,  # type: ignore
+        client_id=auth.client_id,  # type: ignore
+        client_secret=auth.client_secret,  # type: ignore
+    )
+    result = client.get_status()
+
+    assert isinstance(result, StatusResponse)
+    assert result.healthy is True
+    assert result.cpu_percent == 35.5
+
+
+@pytest.mark.anyio
+async def test_a_get_status_success(httpx_mock: HTTPXMock, auth: Auth) -> None:
+    """Test a_get_status returns valid StatusResponse on success."""
+
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{auth.base_url}/status",
+        json={
+            "healthy": True,
+            "active_tasks": 2,
+            "pending_tasks": 1,
+            "max_capacity": 4,
+            "cpu_count": 8,
+            "cpu_percent": 35.5,
+            "total_memory": 16000000000,
+            "used_memory": 8000000000,
+            "memory_percent": 50,
+        },
+        status_code=200,
+    )
+
+    client = BaseClient()
+    client.configure(
+        base_url=auth.base_url,  # type: ignore
+        client_id=auth.client_id,  # type: ignore
+        client_secret=auth.client_secret,  # type: ignore
+    )
+    result = await client.a_get_status()
+
+    assert isinstance(result, StatusResponse)
+    assert result.memory_percent == 50
+
+
+def test_get_status_unauthorized(httpx_mock: HTTPXMock, auth: Auth) -> None:
+    """Test get_status handles 401 Unauthorized error."""
+    called: List[str] = []
+
+    def on_auth_error(msg: str) -> None:
+        called.append(msg)
+
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{auth.base_url}/status",
+        json={"detail": "Unauthorized"},
+        status_code=401,
+    )
+
+    client = BaseClient(on_auth_error=on_auth_error)
+    client.configure(
+        base_url=auth.base_url,  # type: ignore
+        client_id=auth.client_id,  # type: ignore
+        client_secret=auth.client_secret,  # type: ignore
+    )
+    client.get_status()
+
+    assert any("Unauthorized" in msg for msg in called)
+
+
+def test_get_status_request_error(httpx_mock: HTTPXMock, auth: Auth) -> None:
+    """Test get_status handles network errors (RequestError)."""
+    called: List[str] = []
+
+    def on_error(msg: str) -> None:
+        called.append(msg)
+
+    httpx_mock.add_exception(httpx.RequestError("Network failure"))
+
+    client = BaseClient(on_error=on_error)
+    client.configure(
+        base_url=auth.base_url,  # type: ignore
+        client_id=auth.client_id,  # type: ignore
+        client_secret=auth.client_secret,  # type: ignore
+    )
+    client.get_status()
+
+    assert any("Network failure" in msg for msg in called)
+
+
+def test_get_status_generic_exception(
+    httpx_mock: HTTPXMock, auth: Auth
+) -> None:
+    """Test get_status handles unexpected exception gracefully."""
+    called: List[str] = []
+
+    def on_error(msg: str) -> None:
+        called.append(msg)
+
+    httpx_mock.add_exception(RuntimeError("Something exploded"))
+
+    client = BaseClient(on_error=on_error)
+    client.configure(
+        base_url=auth.base_url,  # type: ignore
+        client_id=auth.client_id,  # type: ignore
+        client_secret=auth.client_secret,  # type: ignore
+    )
+
+    # Should not raise
+    try:
+        client.get_status()
+    except RuntimeError:
+        pytest.fail("get_status should not raise an exception")
+
+    assert any("Something exploded" in msg for msg in called)
