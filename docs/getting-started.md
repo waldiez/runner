@@ -21,7 +21,7 @@ This setup includes:
 - **Redis** + **PostgreSQL**
 - **Taskiq** worker + scheduler
 - **Nginx** reverse proxy
-- A simple static example in `examples/plain`
+- A simple static example in `examples/html`
 
 Once started, you can access:
 

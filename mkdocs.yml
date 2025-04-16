@@ -114,21 +114,46 @@ plugins:
             group_by_category: false
             show_category_heading: true
             inherited_members: false
+
+# yamllint disable
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Architecture: architecture.md
-  - API:
-      - Clients & Auth: clients.md
+  - Usage:
+      - Clients & Authentication: clients.md
       - Tasks: tasks.md
       - WebSocket: websocket.md
       - Examples:
-          - Task Demo: examples/task_demo.ipynb
-          # - Deployment:
-          #     - Overview: deployment/index.md
-          #     - Docker & Compose: deployment/docker.md
-          #     - Production: deployment/production.md
-          #     - Cloud Storage: deployment/cloud.md
-          # - Configuration: configuration.md
-          # - Contributing: contributing.md
-          # - Reference (mkdocstrings)
+        # - Overview: examples/index.md
+        # - HTML + JS (Vanilla): examples/html/README.md
+        # - Streamlit App: examples/streamlit/README.md
+        # - CLI Usage: examples/cli/README.md
+        - Task Demo (Jupyter Notebook): examples/task_demo.ipynb
+
+  # - Configuration:
+  #     - Environment Variables: config/env.md
+  #     - Settings Overview: config/settings.md
+  #     - Storage Options (Local/S3/...): config/storage.md
+  #     - Rate Limits / Timeouts: config/limits.md
+
+  # - Deployment:
+  #     - Docker / Compose: deployment/docker.md
+  #     - Kubernetes (WIP): deployment/k8s.md
+  #     - System Requirements: deployment/system.md
+
+  # - Contributing:
+  #     - Overview: contributing/index.md
+  #     - Dev Setup & Commands: contributing/dev.md
+  #     - VS Code DevContainer: contributing/devcontainer.md
+  #     - Style Guide: contributing/style.md
+  #     - Testing & Coverage: contributing/testing.md
+  #     - Docs / MkDocs Guide: contributing/docs.md
+
+  # - Reference:
+  #     - Python Client: reference/client.md
+  #    # - Core API (TaskService, models...): reference/api.md
+
+  # - Changelog: changelog.md
+  # - License: license.md
+# yamllint enable

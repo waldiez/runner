@@ -187,7 +187,7 @@ services:
       - "80:80"
     volumes:
       - ./nginx/dev.conf:/etc/nginx/nginx.conf:ro
-      - ./examples/plain:/var/www/html:ro
+      - ./examples/html:/var/www/html:ro
     depends_on:
       runner:
         condition: service_healthy

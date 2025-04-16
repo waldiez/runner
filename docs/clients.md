@@ -133,7 +133,7 @@ Only tokens issued for the `clients-api` audience have access to these routes.
 
 ## Where It’s Used
 
-- 🔐 The **example UI** (`examples/plain/`) requires a `tasks-api` client to authenticate.
+- 🔐 The **example UI** (`examples/html/`) requires a `tasks-api` client to authenticate.
 - 🔧 Swagger UI supports authentication via the lock icon (`/docs`).
 - 🧪 All scripts or test clients should load their credentials from `clients.json`.
 
