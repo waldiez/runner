@@ -119,7 +119,7 @@ dev = [
 ]
 test = [
     "asgi-lifespan==2.1.0",
-    "greenlet==3.1.1",
+    "greenlet==3.2.0",
     "httpx<1",
     "httpx_ws==0.7.2",
     "moto[s3]==5.1.3",
