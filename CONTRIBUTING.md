@@ -48,6 +48,7 @@ We currently support three development modes:
 ## Architecture
 
 Here's a high-level overview of the architecture:
+
 ```mermaid
 sequenceDiagram
     participant Client
@@ -307,6 +308,7 @@ make clean && make format && make lint && make test
   - [ ] GCP Cloud Run
 - [ ] Example usage:
   - [x] An example using a JS client
+  - [x] A Jupyter example use the provided client
   - [ ] An example using a python3 client (streamlit?)
 - [ ] Support other storage backends (e.g., S3, GCS, etc.)
 - [ ] Support other authentication methods (e.g., OIDC)
