@@ -10,6 +10,10 @@ labels: bug
 
 <!-- Include keywords that might help others with the same problem find this issue -->
 
+## Description
+
+<!-- Describe the bug -->
+
 ## Expected Behavior
 
 <!-- How did you expect to happen? -->
