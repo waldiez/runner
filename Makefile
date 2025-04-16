@@ -66,16 +66,20 @@ test:
 	$(PYTHON) scripts/test.py
 	@echo "html report: file://`pwd`/${.REPORTS_DIR}/html/index.html"
 
-.PHONY: docs
-docs:
+.PHONY: .before-docs
+.before-docs:
 	$(PYTHON) -c "import os; import shutil; src=os.path.join('examples', 'jupyter', 'task_demo.ipynb'); dst=os.path.join('docs', 'examples', 'task_demo.ipynb'); os.makedirs(os.path.dirname(dst), exist_ok=True); shutil.copyfile(src, dst)"
+	$(PYTHON) -m pip install -r requirements/docs.txt
+
+.PHONY: docs
+docs: .before-docs
 	$(PYTHON) -m mkdocs build -d site
 	$(PYTHON) -c "import os; dst=os.path.join('docs', 'examples', 'task_demo.ipynb');os.remove(dst) if os.path.exists(dst) else ..."
 	@echo "open:   file://`pwd`/site/index.html"
 	@echo "or use: \`$(PYTHON) -m http.server --directory site\`"
 
 .PHONY: docs-live
-docs-live:
+docs-live: .before-docs
 	$(PYTHON) -m pip install -r requirements/docs.txt
 	$(PYTHON) -m mkdocs serve --watch mkdocs.yml --watch docs --watch waldiez_runner --dev-addr localhost:8400
 

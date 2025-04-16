@@ -49,7 +49,7 @@ def test_list_tasks(client: TasksAPIClient, httpx_mock: HTTPXMock) -> None:
     assert response == {"items": [{"id": "1"}, {"id": "2"}], "total": 2}
 
 
-def test_trigger_task(client: TasksAPIClient, httpx_mock: HTTPXMock) -> None:
+def test_create_task(client: TasksAPIClient, httpx_mock: HTTPXMock) -> None:
     """Test triggering a task."""
     httpx_mock.add_response(
         method="POST",
@@ -57,7 +57,7 @@ def test_trigger_task(client: TasksAPIClient, httpx_mock: HTTPXMock) -> None:
         json={"task_id": "12345"},
         status_code=200,
     )
-    response = client.trigger_task(b"file_data", "test.txt", input_timeout=10)
+    response = client.create_task(b"file_data", "test.txt", input_timeout=10)
     assert response == {"task_id": "12345"}
 
 
@@ -181,7 +181,7 @@ def test_invalid_client_config() -> None:
     """Test initializing the client without auth."""
     client = TasksAPIClient(auth=None)
     with pytest.raises(ValueError, match="Client is not configured"):
-        client.trigger_task(b"file_data", "test.txt")
+        client.create_task(b"file_data", "test.txt")
 
 
 def test_http_error_handling(
@@ -196,7 +196,7 @@ def test_http_error_handling(
     )
 
     with pytest.raises(httpx.HTTPError):
-        client.trigger_task(b"file_data", "test.txt")
+        client.create_task(b"file_data", "test.txt")
 
 
 def test_handle_error_sync_callback(auth: Auth) -> None:
@@ -228,7 +228,7 @@ async def test_a_list_tasks(
 
 
 @pytest.mark.anyio
-async def test_a_trigger_task(
+async def test_a_create_task(
     client: TasksAPIClient, httpx_mock: HTTPXMock
 ) -> None:
     """Test triggering a task asynchronously."""
@@ -239,7 +239,7 @@ async def test_a_trigger_task(
         status_code=200,
     )
 
-    response = await client.a_trigger_task(
+    response = await client.a_create_task(
         b"file_data", "test.txt", input_timeout=10
     )
     assert response == {"task_id": "12345"}
@@ -391,7 +391,7 @@ async def test_async_http_error_handling(
     )
 
     with pytest.raises(httpx.HTTPError):
-        await client.a_trigger_task(b"file_data", "test.txt")
+        await client.a_create_task(b"file_data", "test.txt")
 
 
 @pytest.mark.anyio

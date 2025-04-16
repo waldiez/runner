@@ -14,7 +14,7 @@ try:
 except ImportError:
     from typing_extensions import Annotated, Literal  # type: ignore
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 Items = TypeVar("Items")
 
@@ -23,7 +23,49 @@ ClientAudience = Literal["tasks-api", "clients-api"]
 """The possible audiences for a client."""
 
 
-class TokensResponse(BaseModel):
+class ModelBase(BaseModel):
+    """Base model to inherit."""
+
+    model_config = ConfigDict(
+        extra="ignore",
+    )
+
+
+class StatusResponse(ModelBase):
+    """Server status type."""
+
+    healthy: Annotated[
+        bool, Field(..., description="whether the app is up and running")
+    ]
+    active_tasks: Annotated[
+        int, Field(..., description="Number of active tasks")
+    ]
+    pending_tasks: Annotated[
+        int, Field(..., description="Number of pending tasks")
+    ]
+    max_capacity: Annotated[
+        int,
+        Field(..., description="The maximum number of parallel active tasks"),
+    ]
+    cpu_count: Annotated[
+        Optional[int], Field(..., description="Number of cpus")
+    ]
+    cpu_percent: Annotated[
+        float, Field(..., description="CPU usage percentage")
+    ]
+    total_memory: Annotated[
+        int, Field(..., description="The total memory on the host.")
+    ]
+    used_memory: Annotated[
+        int, Field(..., description="The used memory on the host.")
+    ]
+    memory_percent: Annotated[
+        int,
+        Field(..., description="The used memory in percentage on the host."),
+    ]
+
+
+class TokensResponse(ModelBase):
     """Tokens response."""
 
     access_token: Annotated[
@@ -49,7 +91,7 @@ class TokensResponse(BaseModel):
     ]
 
 
-class TokensRequest(BaseModel):
+class TokensRequest(ModelBase):
     """Token request."""
 
     client_id: Annotated[
@@ -64,7 +106,7 @@ class TokensRequest(BaseModel):
     ]
 
 
-class RefreshTokenRequest(BaseModel):
+class RefreshTokenRequest(ModelBase):
     """Refresh token request."""
 
     refresh_token: Annotated[
@@ -76,7 +118,7 @@ class RefreshTokenRequest(BaseModel):
     ]
 
 
-class PaginatedResponse(BaseModel, Generic[Items]):
+class PaginatedResponse(ModelBase, Generic[Items]):
     """Paginated response structure used in Waldiez Runner."""
 
     items: List[Items] = Field(..., description="List of returned items")
@@ -86,7 +128,7 @@ class PaginatedResponse(BaseModel, Generic[Items]):
     pages: int = Field(..., description="Total number of pages")
 
 
-class PaginatedRequest(BaseModel):
+class PaginatedRequest(ModelBase):
     """Generic pagination request model."""
 
     page: Annotated[
@@ -106,7 +148,7 @@ class TaskStatus(str, Enum):
     WAITING_FOR_INPUT = "WAITING_FOR_INPUT"
 
 
-class TaskCreateRequest(BaseModel):
+class TaskCreateRequest(ModelBase):
     """Request model for creating a new task."""
 
     # file_data: bytes, file_name: str, input_timeout: int = 180
@@ -127,7 +169,7 @@ class TaskCreateRequest(BaseModel):
     ] = 180
 
 
-class TaskResponse(BaseModel):
+class TaskResponse(ModelBase):
     """Response returned when interacting with tasks."""
 
     id: Annotated[str, Field(..., description="Unique task identifier")]
@@ -160,7 +202,7 @@ class TaskResponse(BaseModel):
     ]
 
 
-class UserInputRequest(BaseModel):
+class UserInputRequest(ModelBase):
     """Request model for user input."""
 
     task_id: Annotated[
@@ -176,7 +218,7 @@ class UserInputRequest(BaseModel):
 
 
 # -- Client Models --
-class ClientCreateRequest(BaseModel):
+class ClientCreateRequest(ModelBase):
     """Request model for creating a new client."""
 
     client_id: Annotated[
@@ -203,7 +245,7 @@ class ClientCreateRequest(BaseModel):
     ] = None
 
 
-class ClientResponse(BaseModel):
+class ClientResponse(ModelBase):
     """Base response model for a client."""
 
     id: Annotated[

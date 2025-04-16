@@ -53,7 +53,7 @@ class TasksAPIClient(BaseAPIClient):
             raise e
         return response.json()
 
-    def trigger_task(
+    def create_task(
         self, file_data: bytes, file_name: str, input_timeout: int = 180
     ) -> Dict[str, Any]:
         """Trigger a task.
@@ -344,7 +344,7 @@ class TasksAPIClient(BaseAPIClient):
             raise e
         return response.json()
 
-    async def a_trigger_task(
+    async def a_create_task(
         self,
         file_data: bytes,
         file_name: str,

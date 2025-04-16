@@ -82,8 +82,8 @@ def test_force_delete_all_tasks(
     tasks_client.delete_all_tasks(force=True)
 
 
-def test_trigger_task(httpx_mock: HTTPXMock, tasks_client: TasksClient) -> None:
-    """Test triggering a task."""
+def test_create_task(httpx_mock: HTTPXMock, tasks_client: TasksClient) -> None:
+    """Test creating a task."""
     httpx_mock.add_response(
         method="POST",
         url=f"{tasks_client.base_url}/api/v1/tasks?input_timeout=10",
@@ -100,7 +100,7 @@ def test_trigger_task(httpx_mock: HTTPXMock, tasks_client: TasksClient) -> None:
             "results": None,
         },
     )
-    resp = tasks_client.trigger_task(
+    resp = tasks_client.create_task(
         {"file_data": b"data", "file_name": "file.txt", "input_timeout": 10}
     ).model_dump()
     assert resp["id"] == "123"
@@ -619,7 +619,7 @@ async def test_a_get_task_status(
 
 
 @pytest.mark.anyio
-async def test_a_trigger_task(
+async def test_a_create_task(
     httpx_mock: HTTPXMock,
     tasks_client: TasksClient,
 ) -> None:
@@ -641,7 +641,7 @@ async def test_a_trigger_task(
         },
         status_code=200,
     )
-    response = await tasks_client.a_trigger_task(
+    response = await tasks_client.a_create_task(
         {
             "file_data": b"data",
             "file_name": "test.txt",
