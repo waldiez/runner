@@ -150,8 +150,8 @@ nav:
   #     - Testing & Coverage: contributing/testing.md
   #     - Docs / MkDocs Guide: contributing/docs.md
 
-  # - Reference:
-  #     - Python Client: reference/client.md
+  - Reference:
+      - Client: reference/client.md
   #    # - Core API (TaskService, models...): reference/api.md
 
   # - Changelog: changelog.md
