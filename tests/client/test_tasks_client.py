@@ -82,7 +82,7 @@ def test_force_delete_all_tasks(
     tasks_client.delete_all_tasks(force=True)
 
 
-def test_crate_task(httpx_mock: HTTPXMock, tasks_client: TasksClient) -> None:
+def test_create_task(httpx_mock: HTTPXMock, tasks_client: TasksClient) -> None:
     """Test creating a task."""
     httpx_mock.add_response(
         method="POST",
