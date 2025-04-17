@@ -85,7 +85,7 @@ plugins:
   - mermaid2:
       javascript: static/js/mermaid.min.js
       arguments:
-          securityLevel: 'loose'
+        securityLevel: 'loose'
   - minify_html
   - macros
   - autorefs
