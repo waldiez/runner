@@ -1,9 +1,5 @@
-# Architecture
 
-Waldiez Runner orchestrates the execution of [Waldiez](https://github.com/waldiez/waldiez) flows in isolated environments (e.g. virtualenvs), with full support for live input/output streaming and task management via HTTP or WebSocket.
-
-It uses a modular architecture composed of:
-
+Waldiez Runner uses a modular, event-driven orchestration architecture to execute multi-agent ([Waldiez](https://github.com/waldiez/waldiez)) flows in isolated environments (e.g. virtualenvs) with real-time input/output via Redis and WebSocket. It is composed of several components that work together to manage task execution, input/output handling, and result storage:
 
 | Component     | Description |
 |---------------|-------------|
@@ -18,33 +14,66 @@ It uses a modular architecture composed of:
 
 ```mermaid
 graph TD
-  A[Client] -->|HTTP| B[FastAPI]
-  A -->|WebSocket| G[WebSocket Router]
+  %% ========== Client ==========
+  Client["🧑‍💻 Client <br>(Web / Python / CLI)"] -->|POST /tasks| FastAPI["🚀 FastAPI <br>(REST API)"]
+  Client -->|"WebSocket /ws/{task_id}"| WebSocket["🔌 WebSocket Endpoint"]
 
-  B -->|Enqueue Task| C[Taskiq Worker]
-  B -->|Store Task| D[PostgreSQL]
-  B -->|Save File| F[Storage]
+  %% ========== Task Triggering ==========
+  FastAPI -->|Save .waldiez| Storage["📁 Storage"]
+  FastAPI -->|Create Task| DB["🗃️ PostgreSQL"]
+  FastAPI -->|Enqueue Job| Redis["📨 Redis <br>(Broker)"]
 
-  C -->|Run App| H[FastStream + Waldiez + Ag2]
-  C -->|Update Status| D
+  Redis --> Taskiq["⚙️ Taskiq Worker"]
 
-  H -->|Input/Output + Status| E[Redis]
+  %% ========== Task Execution ==========
+  Taskiq --> |Setup venv + prepare app| FastStream["⚡ FastStream App"]
+  FastStream -->|Load flow| Waldiez["🧠 Waldiez <br>flow parser"]
+  Waldiez -->|Generate agents + code| AG2["🧬 AG2 Execution"]
 
-  G -->|Subscribe + Publish| E
+  AG2<-->|Print + Input| RedisIO["📡 Redis <br>(Streams + PubSub)"]
 
-  subgraph Virtualenv
-    H
+  %% ========== WebSocket Interaction ==========
+  WebSocket <-->|Listen + respond to I/O| RedisIO
+
+  %% ========== Results Handling ==========
+  FastStream -->|Send results| RedisResults["📨 Redis <br>(Results backend)"]
+  Taskiq -->|Fetch results| RedisResults
+  Taskiq -->|Save results| DB
+  Taskiq -->|Upload outputs| Storage
+  Taskiq -->|Cleanup venv| Cleanup["🧹 Cleanup"]
+
+  %% ========== Groupings ==========
+  subgraph "API Layer"
+    FastAPI
+    WebSocket
   end
 
-  subgraph Dev Environment
-    B
-    C
-    G
-    D
-    E
-    F
+  subgraph "Task Manager"
+    Taskiq
+    Redis
+    RedisResults
+    DB
+    Storage
+    Cleanup
+  end
+
+  subgraph "Execution (Virtualenv)"
+    RedisIO
+    FastStream
+    Waldiez
+    AG2
   end
 ```
+
+!!! Note
+    All Redis roles (task broker, result backend, and I/O streams) are within the same Redis container. The roles are separated for clarity and distinction:
+
+    1. 🔁 Task Broker (via Redis Queue):
+       - Used by FastAPI & Taskiq for job queueing.
+    2. 🧠 Result Backend:
+       - FastStream pushes final results here for Taskiq to fetch.
+    3. 📡 PubSub & Streams:
+       - Real-time I/O (prints + input requests) between AG2 ↔ WebSocket.
 
 ## Redis I/O and Status Channels
 
@@ -57,7 +86,7 @@ Tasks use `RedisIOStream` an extension to ag2's [IOStream](https://github.com/ag
   - `task:{task_id}:input_request`: prompt user input
   - `task:{task_id}:input_response`: receive user reply
 - Control:
-  - t`ask:{task_id}:status`: used by the runner to react to cancel requests and broadcast lifecycle events (running, completed, failed, etc.)
+  - `task:{task_id}:status`: used by the runner to react to cancel requests and broadcast lifecycle events (running, completed, failed, etc.)
 
 ## Execution Flow
 

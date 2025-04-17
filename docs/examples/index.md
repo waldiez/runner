@@ -56,7 +56,7 @@ A Streamlit-based interactive UI for triggering tasks and viewing real-time outp
 
 ---
 
-## 🖥️ Command Line Interface (CLI)
+<!-- ## 🖥️ Command Line Interface (CLI)
 
 **(Coming soon)** — A terminal-based interface to authenticate, trigger tasks, and stream results.
 
@@ -66,4 +66,4 @@ Useful for:
 - Headless environments
 - CI/CD integrations
 
-📄 CLI Usage — _WIP_
+📄 CLI Usage — _WIP_ -->

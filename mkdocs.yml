@@ -66,7 +66,7 @@ markdown_extensions:
           class: mermaid
           # fmt: off
           # yamllint disable
-          format: !!python/name:mermaid2.fence_mermaid_custom
+          format: !!python/name:pymdownx.superfences.fence_code_format
           # yamllint enable
           # fmt: on
 
@@ -82,7 +82,10 @@ extra_css:
 plugins:
   - search:
       lang: en
-  - mermaid2
+  - mermaid2:
+      javascript: static/js/mermaid.min.js
+      arguments:
+          securityLevel: 'loose'
   - minify_html
   - macros
   - autorefs

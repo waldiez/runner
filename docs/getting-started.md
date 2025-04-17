@@ -118,5 +118,3 @@ Once the server is running, you can create and interact with tasks:
   - `DELETE /api/v1/tasks/{task_id}`
 
 You can explore all available routes via the interactive API docs at `/docs`.
-
-> 🔎 For more details, check the [Tasks](tasks.md) section.

@@ -95,6 +95,9 @@ Handled through chatLive.js and client.js.
 
 ---
 
+![Chat UI](../static/images/simple_chat_light.webp#only-light)
+![Chat UI](../static/images/simple_chat_dark.webp#only-dark)
+
 ### ✍️ User Input
 
 When a task requires user input:
