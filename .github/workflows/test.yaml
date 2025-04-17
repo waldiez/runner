@@ -36,4 +36,4 @@ jobs:
           pip install -r requirements/main.txt -r requirements/dev.txt -r requirements/test.txt
 
       - name: Run tests
-        run: python3 scripts/test.py
+        run: python3 -m scripts.test

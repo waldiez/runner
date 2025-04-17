@@ -25,6 +25,7 @@ help:
 	@echo " forlint              Alias for 'make format && make lint'"
 	@echo " requirements         Generate requirements/*.txt files"
 	@echo " test                 Run the tests"
+	@echo " openapi              Generate the OpenAPI documentation"
 	@echo " docs                 Generate the documentation"
 	@echo " docs-live            Generate the documentation in 'live' mode"
 	@echo " clean                Remove unneeded files (__pycache__, .mypy_cache, etc.)"
@@ -66,21 +67,25 @@ test:
 	$(PYTHON) scripts/test.py
 	@echo "html report: file://`pwd`/${.REPORTS_DIR}/html/index.html"
 
+.PHONY: openapi
+openapi:
+	$(PYTHON) scripts/openapi.py
+
 .PHONY: .before-docs
-.before-docs:
-	$(PYTHON) -c "import os; import shutil; src=os.path.join('examples', 'jupyter', 'task_demo.ipynb'); dst=os.path.join('docs', 'examples', 'task_demo.ipynb'); os.makedirs(os.path.dirname(dst), exist_ok=True); shutil.copyfile(src, dst)"
-	$(PYTHON) -m pip install -r requirements/docs.txt
+.before-docs: openapi
+	$(PYTHON) scripts/docs.py before
+
+.PHONY: .after-docs
+.after-docs:
+	$(PYTHON) scripts/docs.py after
 
 .PHONY: docs
-docs: .before-docs
-	$(PYTHON) -m mkdocs build -d site
-	$(PYTHON) -c "import os; dst=os.path.join('docs', 'examples', 'task_demo.ipynb');os.remove(dst) if os.path.exists(dst) else ..."
-	@echo "open:   file://`pwd`/site/index.html"
-	@echo "or use: \`$(PYTHON) -m http.server --directory site\`"
+docs: openapi
+	$(PYTHON) scripts/docs.py
+	$(PYTHON) scripts/docs.py after
 
 .PHONY: docs-live
 docs-live: .before-docs
-	$(PYTHON) -m pip install -r requirements/docs.txt
 	$(PYTHON) -m mkdocs serve --watch mkdocs.yml --watch docs --watch waldiez_runner --dev-addr localhost:8400
 
 .PHONY: build

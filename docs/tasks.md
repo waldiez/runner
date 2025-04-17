@@ -1,50 +1,49 @@
 <!-- markdownlint-disable MD036 -->
-# Tasks
 
 Waldiez Runner provides a set of HTTP endpoints to manage, run, and interact with tasks.
-All routes are under the /api/v1/tasks path and require a valid JWT token with tasks-api audience.
+All routes are under the **`/api/v1/tasks`** path and require a valid JWT token with a ***`tasks-api`*** audience.
 
 ---
 
 ## 📄 List All Tasks
 
-**GET /api/v1/tasks**
+***GET /api/v1/tasks***
 
 Returns a paginated list of all tasks for the current client.
 
-Query Parameters (optional, for pagination):
+***Query Parameters (optional, for pagination)***
 
-- page (default: 1)
-- size (default: 50)
+- `page` (default: 1)
+- `size` (default: 50)
 
-Response: Page[TaskResponse]
+Response: `Page[TaskResponse]`
 
 ---
 
 ## 📥 Create a New Task
 
-**POST /api/v1/tasks**
+***POST /api/v1/tasks***
 
-Uploads a .waldiez flow and creates a new task. Limited to 3 concurrent tasks per client.
+Uploads a `.waldiez` flow and creates a new task. Limited to 3 concurrent tasks per client.
 
-Form Data:
+***Form Data:***
 
-- file: The .waldiez file (required)
-- input_timeout: Timeout for input requests (default: 180 seconds)
+- `file`: The `.waldiez` file (required)
+- `input_timeout`: Timeout for input requests (default: 180 seconds)
 
-Response: TaskResponse
+***Response***: `TaskResponse`
 
-Error: 429 if the task limit is exceeded.
+***Error***: `429` if the task limit is exceeded.
 
 ---
 
 ## 📄 Get Task by ID
 
-**GET /api/v1/tasks/{task_id}**
+***GET /api/v1/tasks/{task_id}***
 
 Returns metadata about the specified task.
 
-Response: TaskResponse
+***Response***: `TaskResponse`
 
 ---
 
@@ -54,7 +53,7 @@ Response: TaskResponse
 
 Send a response to an active input_request.
 
-Request Body:
+***Request Body***:
 
 ```json
 {
@@ -63,9 +62,9 @@ Request Body:
 }
 ```
 
-Response: 204 No Content
+***Response***: 204 No Content
 
-Error Conditions:
+***Error Conditions:***
 
 - Invalid task ID or client
 - Task is not waiting for input
@@ -79,7 +78,7 @@ Error Conditions:
 
 Downloads a .zip archive with task outputs.
 
-Response: FileResponse or StreamingResponse
+**Response:** `FileResponse`
 
 ---
 
@@ -89,52 +88,54 @@ Response: FileResponse or StreamingResponse
 
 Cancels a running or waiting task.
 
-Response: Updated TaskResponse
+***Response:*** Updated `TaskResponse`
 
-Error: 400 if task is already finished or cannot be cancelled
+***Error:*** `400` if task is already finished or cannot be cancelled
 
 ---
 
 ## 🧹 Delete a task
 
-**DELETE /api/v1/tasks/{task_id}**
+***DELETE /api/v1/tasks/{task_id}***
 
-Soft-deletes (schedules full deletion task including all its files and entries in db) a task. Active tasks require force=true to be deleted.
+Soft-deletes the task (schedules removal of files and DB records). Active tasks require `?force=true` to be deleted.
 
-Query Parameters:
+***Query Parameters:***
 
-- force: true to delete even active tasks
+- `force`: set true to delete even active tasks
 
-Response: 204 No Content
+**Response:** `204` No Content
 
 ---
 
 ## 🧨 Delete All Tasks
 
 <!-- markdownlint-disable MD036 -->
-**DELETE /api/v1/tasks**
+***DELETE /api/v1/tasks***
 
 Soft-deletes all tasks for the current client.
 By default, only completed/cancelled tasks are deleted.
 Use force=true to delete active ones.
 
-Query Parameters:
+***Query Parameters:***
 
-- force: true to also delete active tasks
+- `force`: true to also delete active tasks
 
-Response: 204 No Content
+***Response:*** `204` No Content
 
 ---
 
 !!!Warning
-    - Clients can only have up to 3 concurrent active tasks (pending, running, waiting_for_input).
+    - Clients can only have up to a limited (defaulting to 3) concurrent active tasks (pending, running, waiting_for_input).
     - Input timeout can be configured per task.
     - Input messages must match the expected request_id.
     - Deleted tasks are soft-deleted and hidden from future listings.
 
 ---
 
-See also:
-<!-- We need links here -->
-- [Authentication](clients.md#clients--authentication)
-- [Live Input/Output](websocket.md)
+## 📚 See Also
+
+- Full API reference: [OpenAPI Docs](reference/openapi.md)
+- Related topics:
+  - [Authentication](clients.md)
+  - [Live Input/Output](websocket.md)

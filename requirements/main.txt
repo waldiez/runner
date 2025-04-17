@@ -36,11 +36,11 @@ rpds-py @ git+https://github.com/crate-py/rpds.git@v0.24.0; sys_platform == 'win
 rpds-py @ git+https://github.com/crate-py/rpds.git@v0.24.0; sys_platform == 'win32' and platform_machine == 'arm64'
 slowapi==0.1.9
 taskiq-dependencies==1.5.7
-taskiq-redis==1.0.4
+taskiq-redis==1.0.5
 taskiq==0.11.16
 tenacity<10.0.0
 typer<1
-uvicorn[standard]==0.34.0
+uvicorn[standard]==0.34.1
 uvloop==0.21.0; sys_platform != 'win32'
 virtualenv==20.30.0
 waldiez==0.4.3

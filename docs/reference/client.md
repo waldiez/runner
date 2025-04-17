@@ -1,9 +1,4 @@
 
-Models
-======
-
-::: waldiez_runner.client.models
-
 Clients Admin
 =============
 
@@ -13,3 +8,13 @@ Tasks Client
 ============
 
 ::: waldiez_runner.client.tasks_client
+
+Authentication
+================
+
+::: waldiez_runner.client.auth
+
+Models
+======
+
+::: waldiez_runner.client.models

@@ -59,13 +59,14 @@ markdown_extensions:
       pygments_lang_class: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
+  - pymdownx.details
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
           class: mermaid
           # fmt: off
           # yamllint disable
-          format: !!python/name:mermaid2.fence_mermaid_custom
+          format: !!python/name:pymdownx.superfences.fence_code_format
           # yamllint enable
           # fmt: on
 
@@ -76,16 +77,22 @@ markdown_extensions:
 
 extra_css:
   - static/css/main.css
+  - static/css/mkdocsoad.css
 
 plugins:
   - search:
       lang: en
-  - mermaid2
+  - mermaid2:
+      javascript: static/js/mermaid.min.js
+      arguments:
+        securityLevel: 'loose'
   - minify_html
   - macros
   - autorefs
   - privacy
   - mkdocs-jupyter
+  - neoteroi.mkdocsoad:
+      use_pymdownx: true
   - mkdocstrings:
       enabled: true
       default_handler: python
@@ -125,17 +132,17 @@ nav:
       - Tasks: tasks.md
       - WebSocket: websocket.md
       - Examples:
-        # - Overview: examples/index.md
-        # - HTML + JS (Vanilla): examples/html/README.md
-        # - Streamlit App: examples/streamlit/README.md
-        # - CLI Usage: examples/cli/README.md
+        - Overview: examples/index.md
+        # - React + TS Demo: examples/react.md
+        - HTML + JS (Vanilla): examples/html.md
         - Task Demo (Jupyter Notebook): examples/task_demo.ipynb
+        - Streamlit Demo: examples/streamlit.md
+        # - CLI Usage: examples/cli/README.md
 
   # - Configuration:
   #     - Environment Variables: config/env.md
   #     - Settings Overview: config/settings.md
   #     - Storage Options (Local/S3/...): config/storage.md
-  #     - Rate Limits / Timeouts: config/limits.md
 
   # - Deployment:
   #     - Docker / Compose: deployment/docker.md
@@ -152,8 +159,8 @@ nav:
 
   - Reference:
       - Client: reference/client.md
-  #    # - Core API (TaskService, models...): reference/api.md
-
-  # - Changelog: changelog.md
-  # - License: license.md
+      - OpenAPI Docs: reference/openapi.md
 # yamllint enable
+
+not_in_nav: |
+  examples/app.py
