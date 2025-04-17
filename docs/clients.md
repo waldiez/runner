@@ -40,9 +40,8 @@ It contains initial client credentials for both audiences.
 ]
 ```
 
-!!!Note
+!!! note
     You’ll need the tasks-api credentials to:
-
     - Use the example UI at http://localhost
     - Submit or manage tasks via Swagger or scripts
 
@@ -58,8 +57,10 @@ Request an access + refresh token.
 
 Form data (`application/x-www-form-urlencoded`):
 
-    client_id=...
-    client_secret=...
+```text
+client_id=...
+client_secret=...
+```
 
 Example response:
 
@@ -95,7 +96,9 @@ JSON body:
 
 Pass the token in your `Authorization` header:
 
-    Authorization: Bearer <access_token>
+```text
+Authorization: Bearer <access_token>
+```
 
 This is required for:
 
@@ -139,5 +142,9 @@ Only tokens issued for the `clients-api` audience have access to these routes.
 
 ---
 
-<!-- > Want a CLI or token generator?  
-> You can reuse the contents of `initial_data.py` or use the `/clients` API directly. -->
+## 📚 See Also
+
+- Full API reference: [OpenAPI Docs](reference/openapi.md)
+- Related topics:
+  - [Tasks](tasks.md)
+  - [Live Input/Output](websocket.md)

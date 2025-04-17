@@ -59,6 +59,7 @@ markdown_extensions:
       pygments_lang_class: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
+  - pymdownx.details
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
@@ -76,6 +77,7 @@ markdown_extensions:
 
 extra_css:
   - static/css/main.css
+  - static/css/mkdocsoad.css
 
 plugins:
   - search:
@@ -86,6 +88,8 @@ plugins:
   - autorefs
   - privacy
   - mkdocs-jupyter
+  - neoteroi.mkdocsoad:
+      use_pymdownx: true
   - mkdocstrings:
       enabled: true
       default_handler: python
@@ -125,11 +129,12 @@ nav:
       - Tasks: tasks.md
       - WebSocket: websocket.md
       - Examples:
-        # - Overview: examples/index.md
-        # - HTML + JS (Vanilla): examples/html/README.md
+        - Overview: examples/index.md
+        - HTML + JS (Vanilla): examples/html.md
+        - Task Demo (Jupyter Notebook): examples/task_demo.ipynb
         - Streamlit Demo: examples/streamlit.md
         # - CLI Usage: examples/cli/README.md
-        - Task Demo (Jupyter Notebook): examples/task_demo.ipynb
+        # - React + TS Demo: examples/react.md
 
   # - Configuration:
   #     - Environment Variables: config/env.md
@@ -152,9 +157,8 @@ nav:
 
   - Reference:
       - Client: reference/client.md
+      - Openapi Docs: reference/openapi.md
   #    # - Core API (TaskService, models...): reference/api.md
-
-  # - Changelog: changelog.md
   # - License: license.md
 # yamllint enable
 

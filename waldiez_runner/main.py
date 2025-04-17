@@ -60,11 +60,6 @@ def get_app() -> FastAPI:
         version=__version__,
         openapi_url="/openapi.json",
         default_response_class=ORJSONResponse,
-        contact={
-            "name": "Waldiez",
-            "email": "development@waldiez.io",
-            "url": "https://waldiez.io",
-        },
         license_info={
             "name": "Apache 2.0",
             "identifier": "Apache-2.0",

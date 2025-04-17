@@ -49,6 +49,8 @@ streamlit run app.py
 
 ## Code Highlights
 
+This section highlights the key parts of the code that interact with the `waldiez_runner.client` module. The full code is available in the [app.py](./app.py) file.
+
 <!-- markdownlint-disable MD036 -->
 **Authentication**
 

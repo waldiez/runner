@@ -33,3 +33,8 @@ repos:
         language: system
         files: ^deploy/compose/do\.sh$
         pass_filenames: false
+      - id: update-openapi
+        name: Ensure openapi.json is up-to-date
+        entry: python3 scripts/openapi.py
+        language: system
+        always_run: true

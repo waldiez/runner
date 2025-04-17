@@ -1,9 +1,4 @@
-# SPDX-License-Identifier: Apache-2.0.
-# Copyright (c) 2024 - 2025 Waldiez and contributors.
-
-# pylint: disable=broad-exception-caught,too-many-try-statements
-
-"""A Streamlit demo for Waldiez Runner."""
+"""A Streamlit app demo for Waldiez Runner."""
 
 import json
 import os
@@ -130,6 +125,7 @@ def websocket_listener_thread(
         print("WS on error:", err)
         queue.put(json.dumps({"type": "error", "data": err}))
 
+    # pylint: disable=broad-exception-caught
     try:
         tasks_client.start_ws_listener(
             task_id=task_id,
@@ -177,6 +173,7 @@ def process_messages() -> None:
     queue = st.session_state.messages_queue
     while not queue.empty():
         raw = queue.get()
+        # pylint: disable=broad-exception-caught
         try:
             parsed = json.loads(raw)
             st.session_state.messages.append(parsed)
@@ -226,6 +223,7 @@ if st.session_state.client:
             "Input timeout (seconds)", min_value=5, value=180
         )
         if st.button("Submit Task") and uploaded:
+            # pylint: disable=broad-exception-caught,too-many-try-statements
             try:
                 file_data = uploaded.read()
                 task_req = TaskCreateRequest(
@@ -255,6 +253,7 @@ def display_messages() -> None:
                 user_input = st.text_input("Input requested:")
                 submitted = st.form_submit_button("Send")
                 if submitted:
+                    # pylint: disable=broad-exception-caught
                     try:
                         user_input_req = UserInputRequest(
                             task_id=st.session_state.task.id,
