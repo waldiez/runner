@@ -1,1 +1,2 @@
 streamlit==1.44.1
+streamlit-autorefresh==1.0.1
