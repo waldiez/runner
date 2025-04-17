@@ -1,4 +1,4 @@
-# Clients & Authentication
+# Clients and Authentication
 
 Waldiez Runner uses a **client-based authentication system** powered by JWT tokens.  
 All interactions with the API or WebSocket require a valid token linked to a specific **audience**.

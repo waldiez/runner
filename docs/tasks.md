@@ -136,5 +136,5 @@ Response: 204 No Content
 
 See also:
 <!-- We need links here -->
-- [Authentication](clients.md#clients--authentication)
+- [Authentication](clients.md#clients-and-authentication)
 - [Live Input/Output](websocket.md)

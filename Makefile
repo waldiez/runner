@@ -68,19 +68,19 @@ test:
 
 .PHONY: .before-docs
 .before-docs:
-	$(PYTHON) -c "import os; import shutil; src=os.path.join('examples', 'jupyter', 'task_demo.ipynb'); dst=os.path.join('docs', 'examples', 'task_demo.ipynb'); os.makedirs(os.path.dirname(dst), exist_ok=True); shutil.copyfile(src, dst)"
-	$(PYTHON) -m pip install -r requirements/docs.txt
+	$(PYTHON) scripts/docs.py before
+
+.PHONY: .after-docs
+.after-docs:
+	$(PYTHON) scripts/docs.py after
 
 .PHONY: docs
-docs: .before-docs
-	$(PYTHON) -m mkdocs build -d site
-	$(PYTHON) -c "import os; dst=os.path.join('docs', 'examples', 'task_demo.ipynb');os.remove(dst) if os.path.exists(dst) else ..."
-	@echo "open:   file://`pwd`/site/index.html"
-	@echo "or use: \`$(PYTHON) -m http.server --directory site\`"
+docs:
+	$(PYTHON) scripts/docs.py
+	$(PYTHON) scripts/docs.py after
 
 .PHONY: docs-live
 docs-live: .before-docs
-	$(PYTHON) -m pip install -r requirements/docs.txt
 	$(PYTHON) -m mkdocs serve --watch mkdocs.yml --watch docs --watch waldiez_runner --dev-addr localhost:8400
 
 .PHONY: build

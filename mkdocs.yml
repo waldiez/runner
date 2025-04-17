@@ -127,7 +127,7 @@ nav:
       - Examples:
         # - Overview: examples/index.md
         # - HTML + JS (Vanilla): examples/html/README.md
-        # - Streamlit App: examples/streamlit/README.md
+        - Streamlit Demo: examples/streamlit.md
         # - CLI Usage: examples/cli/README.md
         - Task Demo (Jupyter Notebook): examples/task_demo.ipynb
 
@@ -157,3 +157,6 @@ nav:
   # - Changelog: changelog.md
   # - License: license.md
 # yamllint enable
+
+not_in_nav: |
+  examples/app.py

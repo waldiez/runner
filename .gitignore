@@ -34,6 +34,7 @@ dmypy.json
 **/*.
 **/waldiez_out/
 /docs/examples/*.ipynb
+/docs/examples/*.py
 db.session.sql
 clients.json
 .devcontainer/.zsh_history
