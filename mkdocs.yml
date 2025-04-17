@@ -130,17 +130,16 @@ nav:
       - WebSocket: websocket.md
       - Examples:
         - Overview: examples/index.md
+        # - React + TS Demo: examples/react.md
         - HTML + JS (Vanilla): examples/html.md
         - Task Demo (Jupyter Notebook): examples/task_demo.ipynb
         - Streamlit Demo: examples/streamlit.md
         # - CLI Usage: examples/cli/README.md
-        # - React + TS Demo: examples/react.md
 
   # - Configuration:
   #     - Environment Variables: config/env.md
   #     - Settings Overview: config/settings.md
   #     - Storage Options (Local/S3/...): config/storage.md
-  #     - Rate Limits / Timeouts: config/limits.md
 
   # - Deployment:
   #     - Docker / Compose: deployment/docker.md
@@ -157,9 +156,7 @@ nav:
 
   - Reference:
       - Client: reference/client.md
-      - Openapi Docs: reference/openapi.md
-  #    # - Core API (TaskService, models...): reference/api.md
-  # - License: license.md
+      - OpenAPI Docs: reference/openapi.md
 # yamllint enable
 
 not_in_nav: |
