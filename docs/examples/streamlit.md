@@ -8,15 +8,6 @@ The Streamlit demo guides you through:
 2. Uploading a `.waldiez` file to trigger a task.
 3. Viewing real-time output using a WebSocket connection.
 4. Sending user input interactively when requested.
-
-## Features
-
-The Streamlit demo walks through:
-
-1. Authenticating with the API using a client ID and secret.
-2. Uploading a `.waldiez` file to create a task.
-3. Receiving real-time output through WebSocket.
-4. Responding to dynamic user input requests.
 5. Displaying task status and results.
 
 ![Streamlit example overview](../static/images/streamlit_1_light.webp#only-light)
@@ -36,20 +27,19 @@ python3 -m pip install -r requirements.txt
 streamlit run app.py
 ```
 
-!!!NOTE
+!!!NOTE Backend Requirement
     Make sure the backend is running and accessible at the specified `BASE_URL`.  
     If running locally:
     ```shell
     docker compose -f compose.dev.yaml up --build
     ```
-    So the `BASE_URL` would be: `http://localhost:8000`.
+    The `BASE_URL` would then be: `http://localhost:8000`.
     <!-- or
     ```shell
     docker run -p 8000:8000 waldiez/runner
     ``` -->
-!!!INFO
-    For authentication, if running locally, there should be a (`clients.json`) file in the root directory of the project.
-    This file contains two clients:
+!!!INFO Using Local Credentials
+    If running locally, the root of the project should include a `clients.json` file with two predefined clients:
     - `clients-api`: For managing clients.
     - `tasks-api`: For submitting and managing tasks.
     You can use the `tasks-api` credentials to authenticate and interact with the tasks API.
