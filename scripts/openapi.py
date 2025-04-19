@@ -3,13 +3,17 @@
 
 """Try to download the latest openapi.json and move it to the docs folder."""
 
+import json
 import os
+import shutil
 import sys
-import threading
 import time
+from multiprocessing import Process
 from pathlib import Path
 
-import httpx
+import urllib3
+
+HTTP = urllib3.PoolManager()
 
 HAD_TO_MODIFY_SYS_PATH = False
 ROOT_DIR = Path(__file__).parent.parent.resolve()
@@ -47,17 +51,34 @@ def download_openapi_json() -> bool:
     # pylint: disable=too-many-try-statements
     try:
         print(f"Trying to download {OPENAPI_URL}")
-        response = httpx.get(OPENAPI_URL, timeout=5)
-        response.raise_for_status()
-        response_text = response.text
-        if not response_text.endswith("\n"):
-            response_text += "\n"
-        DEST.write_text(response_text, encoding="utf-8")
+        DEST.unlink(missing_ok=True)
+        with (
+            HTTP.request(
+                method="GET",
+                url=OPENAPI_URL,
+                preload_content=False,
+                timeout=10,
+            ) as response,
+            open(DEST, "wb") as out,
+        ):
+            shutil.copyfileobj(response, out)
+        response.release_conn()
+        # let's check that it is a json
+        with open(DEST, "r", encoding="utf-8") as f_in:
+            data = json.loads(f_in.read())
+        with open(DEST, "w", encoding="utf-8", newline="\n") as f_out:
+            f_out.write(f"{json.dumps(data)}\n")
         print(f"openapi.json downloaded to: {DEST}")
         return True
-    except httpx.RequestError as e:
+    except BaseException as e:  # pylint: disable=broad-exception-caught
         print(f"Failed to fetch OpenAPI: {e}")
         return False
+
+
+def start_dev() -> None:
+    """Start the services."""
+    make_proc = start_services(silently=True)
+    make_proc.wait()
 
 
 def main() -> None:
@@ -68,15 +89,12 @@ def main() -> None:
     waits for it to be ready, and then attempts to download the OpenAPI
     spec. If the download is successful, it stops the dev server.
     """
-    print("Checking if OpenAPI spec is already available...")
+    print("Checking if server is already up...")
     if download_openapi_json():
         return
-
     print("Starting dev server temporarily...")
     ensure_not_running("uvicorn")
-    make_proc = start_services(silently=True)
-    time.sleep(5)
-    background_sub_proc = threading.Thread(target=make_proc.wait, daemon=True)
+    background_sub_proc = Process(target=start_dev, daemon=True)
     background_sub_proc.start()
     wait_for_services()
     all_good = False
@@ -90,9 +108,10 @@ def main() -> None:
             print("Failed to download OpenAPI after starting server.")
     finally:
         print("Stopping temporary dev server...")
-        make_proc.kill()
         background_sub_proc.join(timeout=1)
-        sys.exit(0 if all_good else 1)
+        ensure_not_running("uvicorn")
+        if not all_good:
+            sys.exit(1)
 
 
 if __name__ == "__main__":
