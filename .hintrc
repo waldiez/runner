@@ -20,6 +20,7 @@
           "scrollbar-width: thin"
         ]
       }
-    ]
+    ],
+    "typescript-config/is-valid": "off"
   }
 }

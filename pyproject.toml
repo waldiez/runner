@@ -169,9 +169,10 @@ exclude = '''
   | .local
   | _build
   | __init__.py
-  | .local
+  | node_modules
   | waldiez_out
   | waldiez_runner/storage
+  | docs/examples
 )/
 '''
 
@@ -203,9 +204,11 @@ exclude = [
     '.local',
     'build',
     'dist',
+    "node_modules",
     'waldiez_runner/storage',
     'waldiez_out',
     'migrations/versions',
+    'docs/examples'
 ]
 
 [tool.pydantic-mypy]
@@ -221,8 +224,10 @@ skip=[
     ".local",
     "build",
     "dist",
+    "node_modules",
     "waldiez_out",
     "waldiez_runner/storage",
+    "docs/examples",
 ]
 include_trailing_comma=true
 force_grid_wrap=0
@@ -231,7 +236,7 @@ line_length=80
 
 # pydocstyle
 [tool.pydocstyle]
-match-dir="([^!(.venv)].*)([^!(.local)].*)([^!(waldiez_out)].*)([^!(waldiez_runner/storage)].*)"
+match-dir="([^!(.venv)].*)([^!(.local)].*)([^!(waldiez_out)].*)([^!(waldiez_runner/storage)].*)([^!(docs/examples)].*)"
 
 # pylint
 [tool.pylint.master]
@@ -250,8 +255,12 @@ ignore=["CVS"]
 ignore-paths = [
     ".venv",
     ".local*",
+    ".*/node_modules/.*",
     "waldiez_out",
+    "build",
+    "dist",
     "waldiez_runner/storage",
+    "docs/examples",
 ]
 unsafe-load-any-extension="no"
 
@@ -287,6 +296,7 @@ exclude_dirs = [
     ".venv",
     ".local",
     "waldiez_out",
+    "node_modules",
 ]
 # B104: bind to all interfaces (0.0.0.0)
 # B110: allow pass on try/except
@@ -302,6 +312,9 @@ extend-exclude = [
     ".venv",
     ".local",
     "waldiez_out",
+    "docs/examples",
+    "waldiez_runner/storage",
+    "node_modules",
 ]
 
 [tool.ruff.lint]
@@ -374,6 +387,7 @@ omit = [
     ".local/*",
     "waldiez_out/*",
     "waldiez_runner/storage/*",
+    "node_modules/*",
 ]
 branch = true
 concurrency = ["greenlet", "thread"]
