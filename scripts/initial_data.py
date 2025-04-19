@@ -143,13 +143,15 @@ def check_first_client() -> None:
         client_create = ClientCreate(
             client_id=client_id,
             plain_secret=client_secret.get_secret_value(),
+            name="Default clients-api client",
             audience="clients-api",
-            description="Clients management API",
+            description="Default client to handle other clients using the API",
         )
         client = Client(
             client_id=client_create.client_id,
             client_secret=client_create.hashed_secret(),
             audience=client_create.audience,
+            name=client_create.name,
             description=client_create.description,
         )
         session.add(client)
@@ -183,6 +185,7 @@ def update_clients_json(new_clients: List[ClientCreateResponse]) -> None:
                 "client_id": client.client_id,
                 "client_secret": client.client_secret,
                 "audience": client.audience,
+                "name": client.name,
                 "description": client.description,
             }
         )
@@ -227,12 +230,14 @@ def ensure_other_clients() -> None:
             name = audience.split("-")[0].capitalize()
             client_create = ClientCreate(
                 audience=audience,
+                name=f"{name} client",
                 description=f"{name} management API",
             )
             client = Client(
                 client_id=client_create.client_id,
                 client_secret=client_create.hashed_secret(),
                 audience=client_create.audience,
+                name=client_create.name,
                 description=client_create.description,
             )
             session.add(client)

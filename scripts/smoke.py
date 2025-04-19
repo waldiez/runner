@@ -153,6 +153,7 @@ async def create_client(access_token: str, audience: str) -> Dict[str, Any]:
         headers={"Authorization": f"Bearer {access_token}"},
         json={
             "audience": audience,
+            "name": "smoke-client",
             "description": f"A client for the {api_type} API.",
         },
     )

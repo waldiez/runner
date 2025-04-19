@@ -250,6 +250,7 @@
         "signum",
         "skel",
         "slowapi",
+        "sonner",
         "sqlalchemy",
         "sqltools",
         "sqltypes",

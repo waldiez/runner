@@ -66,7 +66,14 @@ def test_get_client(
     httpx_mock.add_response(
         method="GET",
         url=f"{clients_admin.base_url}/api/v1/clients/client123",
-        json={"client_id": "client123", "id": "id", "audience": "tasks-api"},
+        json={
+            "client_id": "client123",
+            "id": "id",
+            "audience": "tasks-api",
+            "name": "name",
+            "created_at": "2023-01-01T00:00:00Z",
+            "updated_at": "2023-01-01T00:00:00Z",
+        },
     )
     result = clients_admin.get_client("client123").model_dump()
     assert result["client_id"] == "client123"
@@ -81,11 +88,14 @@ def test_create_client(
         method="POST",
         url=f"{clients_admin.base_url}/api/v1/clients",
         json={
+            "name": "name",
             "description": "new_description",
             "client_id": "created",
             "audience": "tasks-api",
             "id": "client1",
             "client_secret": "super_secret",  # nosemgrep # nosec
+            "created_at": "2023-01-01T00:00:00Z",
+            "updated_at": "2023-01-01T00:00:00Z",
         },
     )
     result = clients_admin.create_client(
@@ -108,9 +118,12 @@ def test_update_client(
         url=f"{clients_admin.base_url}/api/v1/clients/client123",
         json={
             "client_id": "client123",
+            "name": "name",
             "description": "updated",
             "id": "id",
             "audience": "tasks-api",
+            "created_at": "2023-01-01T00:00:00Z",
+            "updated_at": "2023-01-01T00:00:00Z",
         },
     )
     result = clients_admin.update_client(
@@ -175,7 +188,14 @@ async def test_a_get_client(
     httpx_mock.add_response(
         method="GET",
         url=f"{clients_admin.base_url}/api/v1/clients/client123",
-        json={"client_id": "client123", "id": "id", "audience": "tasks-api"},
+        json={
+            "client_id": "client123",
+            "id": "id",
+            "audience": "tasks-api",
+            "name": "name",
+            "created_at": "2023-01-01T00:00:00Z",
+            "updated_at": "2023-01-01T00:00:00Z",
+        },
     )
     result = await clients_admin.a_get_client("client123")
     assert result.client_id == "client123"
@@ -193,8 +213,11 @@ async def test_a_create_client(
         json={
             "client_id": "new",
             "id": "id",
+            "name": "name",
             "audience": "tasks-api",
             "client_secret": "super_secret",  # nosemgrep # nosec
+            "created_at": "2023-01-01T00:00:00Z",
+            "updated_at": "2023-01-01T00:00:00Z",
         },
     )
     result = await clients_admin.a_create_client({"client_id": "new"})
@@ -216,6 +239,9 @@ async def test_a_update_client(
             "description": "updated",
             "id": "id",
             "audience": "tasks-api",
+            "name": "name",
+            "created_at": "2023-01-01T00:00:00Z",
+            "updated_at": "2023-01-01T00:00:00Z",
         },
     )
     result = await clients_admin.a_update_client(

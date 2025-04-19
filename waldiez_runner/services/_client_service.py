@@ -49,6 +49,7 @@ async def create_client(
         client_secret=hashed_secret,
         audience=audience,
         description=client_in.description,
+        name=client_in.name,
     )
     session.add(client)
     await session.commit()
@@ -179,9 +180,17 @@ async def update_client(
     client = await get_client_in_db(session, client_id)
     if client is None:
         return None
-
-    if client_in.description is not None:
+    have_changes = False
+    if (
+        client_in.description is not None
+        and client.description != client_in.description
+    ):
+        have_changes = True
         client.description = client_in.description
+    if client_in.name is not None and client.name != client_in.name:
+        have_changes = True
+        client.name = client_in.name
+    if have_changes:
         await session.commit()
         await session.refresh(client)
     return ClientResponse.from_client(client)

@@ -7,7 +7,6 @@ import json
 import os
 import shutil
 import sys
-import time
 from multiprocessing import Process
 from pathlib import Path
 
