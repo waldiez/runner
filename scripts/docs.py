@@ -48,8 +48,14 @@ def after() -> None:
         os.remove(docs_streamlit_example)
 
 
-def build() -> None:
-    """Build docs."""
+def build(out_dir: Path) -> None:
+    """Build docs.
+
+    Parameters
+    ----------
+    out_dir : Path
+        Output directory for the built docs.
+    """
     # Run the command to build the docs
     # $(PYTHON) -m mkdocs build -d site
     out_dir = ROOT_DIR / "site"
@@ -84,7 +90,13 @@ def main() -> None:
         choices=["before", "after", "build"],
         help="Command to run: before, after or build.",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="site",
+        help="Output directory for the built docs.",
+    )
+    args, _ = parser.parse_known_args()
 
     if args.command == "before":
         before()
@@ -92,7 +104,11 @@ def main() -> None:
         after()
     elif args.command == "build":
         before()
-        build()
+        if args.output:
+            resolved_output = Path(str(args.output)).resolve()
+        else:
+            resolved_output = ROOT_DIR / "site"
+        build(resolved_output)
         after()
 
 
