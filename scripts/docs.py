@@ -58,7 +58,6 @@ def build(out_dir: Path) -> None:
     """
     # Run the command to build the docs
     # $(PYTHON) -m mkdocs build -d site
-    out_dir = ROOT_DIR / "site"
     if out_dir.exists():
         shutil.rmtree(out_dir)
     mkdocs_build = [
@@ -70,10 +69,13 @@ def build(out_dir: Path) -> None:
         str(out_dir),
     ]
     subprocess.run(mkdocs_build, check=True)
+    output_parent = out_dir.parent
+    dir_name = out_dir.name
     print(
-        "Docs built successfully"
-        f"Use: `open file://{ROOT_DIR}/site/index.html`"
-        f" or `cd {ROOT_DIR} && python -m http.server --directory site`"
+        f"Docs built successfully in {output_parent}/{dir_name}"
+        f"Use: `open file://{output_parent}/{dir_name}/index.html`"
+        f"Or `cd {output_parent}/{dir_name}`\n"
+        f"and run `python -m http.server --directory {dir_name}`"
     )
 
 
