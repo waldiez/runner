@@ -15,18 +15,19 @@ import urllib3
 HTTP = urllib3.PoolManager()
 
 HAD_TO_MODIFY_SYS_PATH = False
-ROOT_DIR = Path(__file__).parent.parent.resolve()
+HERE = Path(__file__).parent
+ROOT_DIR = HERE.parent.resolve()
 
 try:
-    from scripts._lib import (
+    from _lib import (
         ensure_not_running,
         start_services,
         wait_for_services,
     )
 except ImportError:
     HAD_TO_MODIFY_SYS_PATH = True
-    sys.path.insert(0, str(ROOT_DIR))
-    from scripts._lib import (
+    sys.path.insert(0, str(HERE))
+    from _lib import (  # type: ignore
         ensure_not_running,
         start_services,
         wait_for_services,
@@ -114,4 +115,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        if HAD_TO_MODIFY_SYS_PATH:
+            sys.path.pop(0)

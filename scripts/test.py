@@ -13,12 +13,13 @@ import threading
 import time
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).parent.parent
+HERE = Path(__file__).parent
+ROOT_DIR = HERE.parent.resolve()
 
 HAD_TO_MODIFY_SYS_PATH = False
 
 try:
-    from scripts._lib import (
+    from _lib import (
         check_make_cmd,
         drop_db_data,
         ensure_not_running,
@@ -27,8 +28,8 @@ try:
     )
 except ImportError:
     HAD_TO_MODIFY_SYS_PATH = True
-    sys.path.insert(0, str(ROOT_DIR))
-    from scripts._lib import (
+    sys.path.insert(0, str(HERE))
+    from _lib import (  # type: ignore
         check_make_cmd,
         drop_db_data,
         ensure_not_running,

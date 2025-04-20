@@ -30,27 +30,50 @@ def toggle_env(mode: str) -> None:
     """
     if not DOT_ENV_PATH.exists():
         DOT_ENV_PATH.touch()
+
     use_container = should_use_container(mode)
-    with open(DOT_ENV_PATH, "r", encoding="utf-8") as f_in:
-        lines = f_in.readlines()
-    with open(DOT_ENV_PATH, "w", encoding="utf-8", newline="\n") as f_out:
-        for line in lines:
+    existing_lines = {}
+
+    # Read existing .env into a dict
+    with open(DOT_ENV_PATH, "r", encoding="utf-8") as f:
+        for line in f:
+            if line.startswith(ENV_KEY):
+                key, _, value = line.strip().partition("=")
+                stripped_key = key[len(ENV_KEY) :]
+                existing_lines[stripped_key] = value
+
+    updated_lines = {}
+
+    for key in BOOL_KEYS:
+        new_val = "1" if use_container else "0"
+        updated_lines[key] = new_val
+        print(f"Setting {ENV_KEY}{key}={new_val}")
+
+    for key in HOST_KEYS:
+        base = key.split("_", maxsplit=1)[0].lower()
+        new_val = base if use_container else "localhost"
+        updated_lines[key] = new_val
+        print(f"Setting {ENV_KEY}{key}={new_val}")
+
+    # Merge existing unrelated lines
+    final_lines = []
+    with open(DOT_ENV_PATH, "r", encoding="utf-8") as f:
+        for line in f:
             if line.startswith(ENV_KEY):
                 key = line.split("=")[0][len(ENV_KEY) :]
-                if key in BOOL_KEYS:
-                    if use_container:
-                        line = line.replace("0", "1")
-                    else:
-                        line = line.replace("1", "0")
-                    print(f"Setting {line}")
-                elif key in HOST_KEYS:
-                    host = key.split("_")[0].lower()
-                    if use_container:
-                        line = line.replace("localhost", host)
-                    else:
-                        line = line.replace(host, "localhost")
-                    print(f"Setting {line}")
-            f_out.write(line)
+                if key in updated_lines:
+                    continue  # Will be added below
+            final_lines.append(line.rstrip("\n"))
+
+    # Append updated keys
+    for key in BOOL_KEYS + HOST_KEYS:
+        final_lines.append(f"{ENV_KEY}{key}={updated_lines[key]}")
+
+    # Write everything back
+    with open(DOT_ENV_PATH, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(final_lines) + "\n")
+
+    print("Environment toggled successfully.")
 
 
 def should_use_container(mode: str) -> bool:
