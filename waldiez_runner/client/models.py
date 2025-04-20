@@ -239,6 +239,9 @@ class ClientCreateRequest(ModelBase):
         ClientAudience,
         Field("tasks-api", description="API scope (tasks-api or clients-api)"),
     ] = "tasks-api"
+    name: Annotated[str, Field("Default", description="Name of the client")] = (
+        Field("Default", min_length=1)
+    )
     description: Annotated[
         Optional[str],
         Field(None, description="Optional description of the client"),
@@ -256,6 +259,15 @@ class ClientResponse(ModelBase):
     ]
     audience: Annotated[
         ClientAudience, Field(..., description="Client's allowed API scope")
+    ]
+    name: Annotated[
+        str, Field(..., description="Name of the client (default: Default)")
+    ]
+    created_at: Annotated[
+        datetime, Field(..., description="Client creation timestamp")
+    ]
+    updated_at: Annotated[
+        datetime, Field(..., description="Last update timestamp")
     ]
     description: Annotated[
         Optional[str], Field(None, description="Optional description")

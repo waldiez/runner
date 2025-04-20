@@ -33,6 +33,7 @@ dmypy.json
 **/*.sqlite3
 **/*.
 **/waldiez_out/
+**/node_modules/
 /docs/examples/*.ipynb
 /docs/examples/*.py
 db.session.sql

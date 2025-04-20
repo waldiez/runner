@@ -122,6 +122,11 @@ toggle-local:
 	@echo "Now you can run the server with: \`make dev-no-reload-local\` or \`make local\`"
 	@echo "or use: \`$(PYTHON) -m waldiez_runner --trusted-origins http://localhost:3000,http://localhost:8000 --trusted-hosts localhost --reload --debug --no-force-ssl --no-redis --no-postgres --dev --all\`"
 
+.PHONY: toggle-container
+toggle-container:
+	$(PYTHON) scripts/toggle.py --mode container
+	@echo "Now you can run the server with: \`make dev\` or \`make dev-no-reload\` or \`make dev-no-debug\`"
+
 .PHONY: local
 local: toggle-local drop
 	$(PYTHON) scripts/pre_start.py --no-force-ssl --no-redis --no-postgres --dev

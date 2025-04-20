@@ -37,4 +37,5 @@ repos:
         name: Ensure openapi.json is up-to-date
         entry: python3 scripts/openapi.py
         language: system
+        require_serial: true
         always_run: true

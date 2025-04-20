@@ -8,6 +8,7 @@ import sys
 import time
 from pathlib import Path
 
+from redis import Redis
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
@@ -24,7 +25,7 @@ except ImportError:
     from waldiez_runner.config import SettingsManager
 
 
-DROP_STATEMENTS = [
+DB_DROP_STATEMENTS = [
     "DROP TABLE IF EXISTS alembic_version",
     "DROP TABLE IF EXISTS tasks",
     "DROP TABLE IF EXISTS clients",
@@ -53,20 +54,28 @@ def main() -> None:
     sync_engine = create_engine(db_sync_url, echo=True)
     dialect = sync_engine.dialect.name
     with Session(sync_engine) as session:
-        for statement in DROP_STATEMENTS:
+        for statement in DB_DROP_STATEMENTS:
             if dialect == "sqlite" and "DROP TYPE" in statement:
                 continue
             print(f"Executing: {statement}")
             session.execute(text(statement))
         session.commit()
+        print("Tables and types dropped.")
     with open(INITIAL_CLIENTS_JSON, "w", encoding="utf-8") as f:
         f.write("[]")
+    print("The clients.json file has been reset.")
+
     if SQLITE_DB_PATH.exists():
         os.remove(SQLITE_DB_PATH)
-    print("Tables and types dropped.")
-    print("The clients.json file has been reset.")
     print("The database is now empty.")
+    # let's also flush redis
+    redis_url = settings.get_redis_url()
+    if redis_url:
+        redis = Redis.from_url(redis_url)
+        redis.flushall()
+        print("Redis flushed.")
     delete_storage()
+    print("Storage deleted.")
 
 
 if __name__ == "__main__":

@@ -21,26 +21,20 @@ psycopg==3.2.6; sys_platform == 'win32' and platform_machine == 'arm64'
 psycopg[binary]==3.2.6; sys_platform != 'linux' and platform_machine != 'arm64' and platform_machine != 'ARM64' and platform_machine != 'aarch64' and platform_machine != 'AARCH64'
 puremagic==1.28
 pyJWT[crypto]==2.10.1
-pyautogen[retrievechat,gemini]==0.8.6; sys_platform != 'win32'
-pyautogen[retrievechat,gemini]==0.8.6; sys_platform == 'win32' and platform_machine != 'arm64' and platform_machine != 'aarch64' and platform_machine != 'ARM64' and platform_machine != 'AARCH64'
-pydantic-settings==2.8.1
+pydantic-settings==2.9.1
 pydantic>=2.11.3
 pysqlite3-binary==0.5.4; sys_platform == 'linux' and platform_machine != 'arm64' and platform_machine != 'aarch64' and platform_machine != 'ARM64' and platform_machine != 'AARCH64'
 python-multipart==0.0.20
 python-ulid==3.0.0
 python_dotenv==1.1.0
 redis==5.2.1
-rpds-py @ git+https://github.com/crate-py/rpds.git@v0.24.0; sys_platform == 'win32' and platform_machine == 'AARCH64'
-rpds-py @ git+https://github.com/crate-py/rpds.git@v0.24.0; sys_platform == 'win32' and platform_machine == 'ARM64'
-rpds-py @ git+https://github.com/crate-py/rpds.git@v0.24.0; sys_platform == 'win32' and platform_machine == 'aarch64'
-rpds-py @ git+https://github.com/crate-py/rpds.git@v0.24.0; sys_platform == 'win32' and platform_machine == 'arm64'
 slowapi==0.1.9
 taskiq-dependencies==1.5.7
-taskiq-redis==1.0.5
+taskiq-redis==1.0.7
 taskiq==0.11.16
 tenacity<10.0.0
 typer<1
-uvicorn[standard]==0.34.1
+uvicorn[standard]==0.34.2
 uvloop==0.21.0; sys_platform != 'win32'
 virtualenv==20.30.0
 waldiez==0.4.3

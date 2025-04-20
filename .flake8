@@ -19,3 +19,5 @@ exclude =
     build,
     dist,
     waldiez_runner/storage,
+    examples/react/node_modules,
+    docs/examples,

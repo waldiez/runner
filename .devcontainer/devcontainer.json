@@ -57,7 +57,10 @@
                 "mypy-type-checker.args": ["--config pyproject.toml"],
                 "python.pythonPath": "/usr/local/bin/python",
                 "markdown.extension.toc.orderedList": false,
-                "markdown.extension.toc.updateOnSave": false
+                "markdown.extension.toc.updateOnSave": false,
+                "css.lint.unknownAtRules": "ignore",
+                "scss.lint.unknownAtRules": "ignore",
+                "less.lint.unknownAtRules": "ignore"
             },
             "extensions": [
                 "ms-python.python",

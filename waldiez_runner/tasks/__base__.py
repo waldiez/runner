@@ -5,7 +5,7 @@
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Tuple
 
 from taskiq import (
     AsyncBroker,
@@ -14,7 +14,7 @@ from taskiq import (
     TaskiqScheduler,
 )
 from taskiq.schedule_sources import LabelScheduleSource
-from taskiq_redis import ListQueueBroker, RedisAsyncResultBackend
+from taskiq_redis import RedisAsyncResultBackend, RedisStreamBroker
 
 from waldiez_runner.config import ENV_PREFIX, TRUTHY, SettingsManager
 from waldiez_runner.dependencies import REDIS_MANAGER, RedisManager, skip_redis
@@ -23,13 +23,13 @@ HERE = Path(__file__).parent
 APP_DIR = HERE / "app"
 
 
-def get_broker() -> AsyncBroker:
-    """Get the broker instance.
+def get_redis_url() -> Tuple[str, bool]:
+    """Get the Redis URL and smoke testing status.
 
     Returns
     -------
-    AsyncBroker
-        Broker instance.
+    Tuple[str, bool]
+        Redis URL and smoke testing status.
     """
     using_fake_redis = skip_redis()
     is_smoke_testing = using_fake_redis
@@ -47,10 +47,25 @@ def get_broker() -> AsyncBroker:
         settings = SettingsManager.load_settings()
         redis_manager = RedisManager(settings)
         redis_url = redis_manager.redis_url
+    return redis_url, is_smoke_testing
+
+
+def get_broker() -> AsyncBroker:
+    """Get the broker instance.
+
+    Returns
+    -------
+    AsyncBroker
+        Broker instance.
+    """
+    redis_url, is_smoke_testing = get_redis_url()
     redis_async_result_backend: AsyncResultBackend[Any] = (
-        RedisAsyncResultBackend(redis_url=redis_url)
+        RedisAsyncResultBackend(
+            redis_url=redis_url,
+            result_ex_time=1000,
+        )
     )
-    broker_instance = ListQueueBroker(url=redis_url)
+    broker_instance = RedisStreamBroker(url=redis_url)
     # in smoke tests outside a container and env without redis,
     # we use fake redis, but we don't mock the .kiq() calls
     # in pytest, we use fake redis too, but we mock the .kiq() calls

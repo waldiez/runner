@@ -210,6 +210,7 @@ class ClientsAdmin(BaseClient):
     def update_client(
         self,
         client_id: str,
+        name: str | None = None,
         description: str | None = None,
     ) -> ClientResponse:
         """Update an existing client synchronously.
@@ -218,6 +219,8 @@ class ClientsAdmin(BaseClient):
         ----------
         client_id : str
             The client ID
+        name : str | None, optional
+            The client name, by default None
         description : str | None, optional
             The client description, by default None
 
@@ -235,6 +238,8 @@ class ClientsAdmin(BaseClient):
         update_data = {
             "description": description,
         }
+        if name:
+            update_data["name"] = name
         response = self.clients.update_client(  # type: ignore
             client_id=client_id,
             update_data=update_data,

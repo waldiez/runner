@@ -3,6 +3,7 @@
 """Client model."""
 
 import secrets
+from datetime import datetime
 
 import bcrypt
 from pydantic import BaseModel, Field
@@ -50,6 +51,7 @@ class Client(Base):
     audience: Mapped[str] = mapped_column(
         String, nullable=False, default="tasks-api"
     )
+    name: Mapped[str] = mapped_column(String, nullable=False, default="Default")
     description: Mapped[str | None] = mapped_column(String, nullable=True)
 
     @classmethod
@@ -81,6 +83,7 @@ class ClientCreate(BaseModel):
     client_id: str = Field(default_factory=generate_client_id)
     plain_secret: str = Field(default_factory=generate_client_secret)
     audience: str = Field(default="tasks-api")
+    name: str = Field(default="Default")
     description: str | None = None
 
     @classmethod
@@ -113,6 +116,7 @@ class ClientCreate(BaseModel):
 class ClientUpdate(BaseModel):
     """Client update model."""
 
+    name: str | None = None
     description: str | None = None
 
 
@@ -122,7 +126,10 @@ class ClientResponseBase(BaseModel):
     id: str
     client_id: str
     audience: str
+    name: str
     description: str | None
+    created_at: datetime
+    updated_at: datetime
 
 
 class ClientResponse(ClientResponseBase):
@@ -146,7 +153,10 @@ class ClientResponse(ClientResponseBase):
             id=str(client.id),
             client_id=client.client_id,
             audience=client.audience,
+            name=client.name,
             description=client.description,
+            created_at=client.created_at,
+            updated_at=client.updated_at,
         )
 
 
@@ -178,5 +188,8 @@ class ClientCreateResponse(ClientResponseBase):
             client_id=client.client_id,
             client_secret=plain_secret,
             audience=client.audience,
+            name=client.name,
             description=client.description,
+            created_at=client.created_at,
+            updated_at=client.updated_at,
         )

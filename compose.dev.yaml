@@ -81,6 +81,7 @@ services:
       dockerfile: Containerfile.dev
     ports:
       - "8000:8000"
+    userns_mode: keep-id
     volumes: *waldiez-runner-volumes-dev
     environment: &waldiez-runner-env-dev
       - WALDIEZ_RUNNER_HOST=0.0.0.0
@@ -137,6 +138,7 @@ services:
     container_name: waldiez-broker-dev
     restart: unless-stopped
     init: true
+    userns_mode: keep-id
     volumes: *waldiez-runner-volumes-dev
     build: *waldiez-runner-build-dev
     environment: *waldiez-runner-env-dev
@@ -162,6 +164,7 @@ services:
     container_name: waldiez-scheduler-dev
     restart: unless-stopped
     init: true
+    userns_mode: keep-id
     volumes: *waldiez-runner-volumes-dev
     build: *waldiez-runner-build-dev
     environment: *waldiez-runner-env-dev
