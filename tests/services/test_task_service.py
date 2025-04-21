@@ -621,6 +621,94 @@ async def test_soft_delete_client_tasks_not_inactive_only(
 
 
 @pytest.mark.anyio
+async def test_ensure_deleting_owned_only_tasks(
+    async_session: AsyncSession,
+) -> None:
+    """Test ensuring only owned tasks are deleted."""
+    client_id = "test_ensure_deleting_owned_only_tasks"
+    task1 = await TaskService.create_task(
+        async_session,
+        client_id=client_id,
+        flow_id="flow1",
+        filename="file1",
+    )
+    task2 = await TaskService.create_task(
+        async_session,
+        client_id=client_id,
+        flow_id="flow2",
+        filename="file1",
+    )
+    task3 = await TaskService.create_task(
+        async_session,
+        client_id=f"{client_id}1",
+        flow_id="flow3",
+        filename="file1",
+    )
+    await TaskService.soft_delete_client_tasks(
+        async_session,
+        client_id=client_id,
+        ids=[task1.id, task3.id],
+        inactive_only=False,
+    )
+
+    for task in (task1, task2, task3):
+        await async_session.refresh(task)
+    deleted_task1 = await TaskService.get_task(async_session, task1.id)
+    deleted_task2 = await TaskService.get_task(async_session, task2.id)
+    task3_in_db = await TaskService.get_task(async_session, task3.id)
+    assert deleted_task1 is None
+    assert deleted_task2 is not None
+    assert task3_in_db is not None
+    assert task3_in_db.deleted_at is None
+    await TaskService.soft_delete_client_tasks(
+        async_session,
+        client_id=client_id,
+    )
+
+
+@pytest.mark.anyio
+async def test_delete_client_tasks_with_ids(
+    async_session: AsyncSession,
+) -> None:
+    """Test deleting client tasks with IDs."""
+    client_id = "test_delete_client_tasks_with_ids"
+    task1 = await TaskService.create_task(
+        async_session,
+        client_id=client_id,
+        flow_id="flow1",
+        filename="file1",
+    )
+    task2 = await TaskService.create_task(
+        async_session, client_id=client_id, flow_id="flow2", filename="file1"
+    )
+    task3 = await TaskService.create_task(
+        async_session,
+        client_id=f"{client_id}1",
+        flow_id="flow3",
+        filename="file1",
+    )
+    await TaskService.soft_delete_client_tasks(
+        async_session,
+        client_id=client_id,
+        ids=[task1.id],
+        inactive_only=False,
+    )
+
+    for task in (task1, task2, task3):
+        await async_session.refresh(task)
+    deleted_task1 = await TaskService.get_task(async_session, task1.id)
+    deleted_task2 = await TaskService.get_task(async_session, task2.id)
+    task3_in_db = await TaskService.get_task(async_session, task3.id)
+    assert deleted_task1 is None
+    assert deleted_task2 is not None
+    assert task3_in_db is not None
+    assert task3_in_db.deleted_at is None
+    await TaskService.soft_delete_client_tasks(
+        async_session, client_id=client_id
+    )
+
+
+@pytest.mark.anyio
 async def test_get_stuck_tasks(
     async_session: AsyncSession, pagination_params: Params
 ) -> None:

@@ -4,7 +4,7 @@
 """Authentication related functions for dependencies."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Tuple
 
 import jwt
 import jwt.algorithms
@@ -14,6 +14,13 @@ from .jwks import JWKSCache
 
 TASK_API_AUDIENCE = "tasks-api"
 CLIENT_API_AUDIENCE = "clients-api"
+
+
+Audience = Literal[
+    "tasks-api",
+    "clients-api",
+]
+"""Audiences for the JWT token."""
 
 VALID_AUDIENCES = [TASK_API_AUDIENCE, CLIENT_API_AUDIENCE]
 

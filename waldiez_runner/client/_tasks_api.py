@@ -3,7 +3,7 @@
 #
 """Tasks API client implementation."""
 
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import httpx
 
@@ -271,11 +271,16 @@ class TasksAPIClient(BaseAPIClient):
             self.handle_error(str(e))
             raise e
 
-    def delete_all_tasks(self, force: bool = False) -> None:
+    def delete_tasks(
+        self, ids: List[str] | None = None, force: bool = False
+    ) -> None:
         """Delete all tasks for the client.
 
         Parameters
         ----------
+        ids : List[str] | None
+            The task IDs to delete (default: None)
+            If None, all tasks will be deleted.
         force : bool
             Whether to force delete the tasks (even if active, default: False)
 
@@ -290,12 +295,16 @@ class TasksAPIClient(BaseAPIClient):
         """
         self.ensure_configured()
         force_str = "true" if force else "false"
+        query_params = f"?force={force_str}"
+        if ids:
+            for task_id in ids:
+                query_params += f"&ids={task_id}"
         try:
             with httpx.Client(
                 auth=self._auth,
                 base_url=self._auth.base_url,  # type: ignore
             ) as client:
-                response = client.delete(f"{self.url_prefix}?force={force_str}")
+                response = client.delete(f"{self.url_prefix}{query_params}")
                 response.raise_for_status()
         except httpx.HTTPStatusError as e:  # pragma: no cover
             self.handle_error(e.response.text)
@@ -566,11 +575,16 @@ class TasksAPIClient(BaseAPIClient):
             self.handle_error(str(e))
             raise e
 
-    async def a_delete_all_tasks(self, force: bool = False) -> None:
+    async def a_delete_tasks(
+        self, ids: List[str] | None = None, force: bool = False
+    ) -> None:
         """Delete all tasks for the client asynchronously.
 
         Parameters
         ----------
+        ids : List[str] | None
+            The task IDs to delete (default: None)
+            If None, all tasks will be deleted.
         force : bool
             Whether to force delete the tasks (even if active, default: False)
 
@@ -585,13 +599,17 @@ class TasksAPIClient(BaseAPIClient):
         """
         self.ensure_configured()
         force_str = "true" if force else "false"
+        query_params = f"?force={force_str}"
+        if ids:
+            for task_id in ids:
+                query_params += f"&ids={task_id}"
         try:
             async with httpx.AsyncClient(
                 auth=self._auth,
                 base_url=self._auth.base_url,  # type: ignore
             ) as client:
                 response = await client.delete(
-                    f"{self.url_prefix}?force={force_str}"
+                    f"{self.url_prefix}{query_params}",
                 )
                 response.raise_for_status()
         except httpx.HTTPStatusError as e:  # pragma: no cover

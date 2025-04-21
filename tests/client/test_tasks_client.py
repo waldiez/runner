@@ -66,7 +66,7 @@ def test_delete_all_tasks(
         url=url,
         status_code=204,
     )
-    tasks_client.delete_all_tasks()
+    tasks_client.delete_tasks()
 
 
 def test_force_delete_all_tasks(
@@ -79,7 +79,7 @@ def test_force_delete_all_tasks(
         url=f"{tasks_client.base_url}/api/v1/tasks?force=true",
         status_code=204,
     )
-    tasks_client.delete_all_tasks(force=True)
+    tasks_client.delete_tasks(force=True)
 
 
 def test_create_task(httpx_mock: HTTPXMock, tasks_client: TasksClient) -> None:
@@ -532,7 +532,7 @@ async def test_a_delete_all_tasks(
         url=f"{tasks_client.base_url}/api/v1/tasks?force=false",
         status_code=204,
     )
-    await tasks_client.a_delete_all_tasks()
+    await tasks_client.a_delete_tasks()
 
 
 @pytest.mark.anyio
@@ -546,7 +546,7 @@ async def test_a_force_delete_all_tasks(
         url=f"{tasks_client.base_url}/api/v1/tasks?force=true",
         status_code=204,
     )
-    await tasks_client.a_delete_all_tasks(force=True)
+    await tasks_client.a_delete_tasks(force=True)
 
 
 @pytest.mark.anyio

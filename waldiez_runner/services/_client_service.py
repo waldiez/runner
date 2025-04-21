@@ -215,10 +215,11 @@ async def delete_client(session: AsyncSession, client_id: str) -> None:
 
 async def delete_clients(
     session: AsyncSession,
+    ids: List[str] | None = None,
     audiences: List[str] | None = None,
     excluded: List[str] | None = None,
-) -> None:
-    """Delete all clients.
+) -> List[str]:
+    """Delete multiple clients.
 
     Parameters
     ----------
@@ -226,16 +227,32 @@ async def delete_clients(
         The database session.
     excluded : List[str] | None
         An optional list of client IDs to exclude.
+    ids : List[str] | None
+        An optional list of client IDs to filter.
     audiences : List[str]
         Optional list of audiences to filter.
+
+    Returns
+    -------
+    List[str]
+        The list of deleted client IDs.
     """
-    query = delete(Client)
-    if excluded:
-        query = query.where(Client.id.notin_(excluded))
+    filters = []
+    if ids:
+        filters.append(Client.id.in_(ids))
     if audiences:
-        query = query.where(Client.audience.in_(audiences))
-    await session.execute(query)
+        filters.append(Client.audience.in_(audiences))
+    if excluded and len(excluded) > 0:
+        filters.append(Client.id.notin_(excluded))
+    if filters:
+        query = delete(Client).where(*filters).returning(Client.id)
+    else:
+        query = delete(Client).returning(Client.id)
+    print(query.compile(compile_kwargs={"literal_binds": True}))
+    result = await session.execute(query)
+    deleted_ids = list(result.scalars().all())
     await session.commit()
+    return deleted_ids
 
 
 async def get_client_in_db(

@@ -10,10 +10,9 @@ from typing import Any, Dict, List, Sequence
 import sqlalchemy.sql.functions
 from fastapi_pagination import Page, Params
 from fastapi_pagination.ext.sqlalchemy import paginate
-from sqlalchemy import DateTime
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.sql.expression import cast, delete, update
+from sqlalchemy.sql.expression import delete, update
 
 from waldiez_runner.models.task import Task, TaskResponse
 from waldiez_runner.models.task_status import TaskStatus
@@ -94,10 +93,7 @@ async def get_task(
     Task | None
         Task instance or None if not found.
     """
-    query = select(Task).where(
-        Task.id == task_id,
-        cast(Task.deleted_at, DateTime).is_(None),
-    )
+    query = select(Task).where(Task.id == task_id, Task.deleted_at.is_(None))
     result = await session.execute(query)
     return result.scalar_one_or_none()
 
@@ -127,10 +123,7 @@ async def get_client_tasks(
     page = await paginate(
         session,
         select(Task)
-        .where(
-            Task.client_id == client_id,
-            cast(Task.deleted_at, DateTime).is_(None),
-        )
+        .where(Task.client_id == client_id, Task.deleted_at.is_(None))
         .order_by(Task.created_at),
         params=params,
         transformer=task_transformer,
@@ -164,7 +157,7 @@ async def get_active_client_tasks(
             Task.status.notin_(
                 [TaskStatus.COMPLETED, TaskStatus.CANCELLED, TaskStatus.FAILED]
             ),
-            cast(Task.deleted_at, DateTime).is_(None),
+            Task.deleted_at.is_(None),
         )
         .order_by(Task.updated_at.desc()),
         params=Params(page=1, size=100),
@@ -225,10 +218,7 @@ async def get_pending_tasks(
     page = await paginate(
         session,
         select(Task)
-        .where(
-            Task.status == TaskStatus.PENDING,
-            cast(Task.deleted_at, DateTime).is_(None),
-        )
+        .where(Task.status == TaskStatus.PENDING, Task.deleted_at.is_(None))
         .order_by(Task.created_at),
         params=params,
     )
@@ -261,7 +251,7 @@ async def get_active_tasks(session: AsyncSession, params: Params) -> Page[Task]:
                     TaskStatus.FAILED,
                 ]
             ),
-            cast(Task.deleted_at, DateTime).is_(None),
+            Task.deleted_at.is_(None),
         )
         .order_by(Task.created_at),
         params=params,
@@ -270,7 +260,10 @@ async def get_active_tasks(session: AsyncSession, params: Params) -> Page[Task]:
 
 
 async def soft_delete_client_tasks(
-    session: AsyncSession, client_id: str, inactive_only: bool = True
+    session: AsyncSession,
+    client_id: str,
+    ids: List[str] | None = None,
+    inactive_only: bool = True,
 ) -> List[str]:
     """Soft delete tasks for a client.
 
@@ -280,6 +273,8 @@ async def soft_delete_client_tasks(
         SQLAlchemy async session.
     client_id : str
         Client ID.
+    ids : List[str] | None
+        Optional list of task IDs to delete.
     inactive_only : bool
         Delete only inactive tasks. Default is True.
 
@@ -288,18 +283,12 @@ async def soft_delete_client_tasks(
     List[str]
         List of task IDs that were soft-deleted.
     """
-    # use sqlalchemy's returning, to get the ids too.
-    query = (
-        update(Task)
-        .where(
-            Task.client_id == client_id,
-            cast(Task.deleted_at, DateTime).is_(None),
-        )
-        .values(deleted_at=datetime.now(timezone.utc))
-        .returning(Task.id)
-    )
+    filters = [Task.client_id == client_id, Task.deleted_at.is_(None)]
+    if ids:
+        filters.append(Task.id.in_(ids))
+
     if inactive_only:
-        query = query.where(
+        filters.append(
             Task.status.in_(
                 [
                     TaskStatus.COMPLETED,
@@ -308,8 +297,19 @@ async def soft_delete_client_tasks(
                 ]
             )
         )
+
+    query = (
+        update(Task)
+        .where(*filters)
+        .values(deleted_at=datetime.now(timezone.utc))
+        .returning(Task.id)
+    )
+    print(query.compile(compile_kwargs={"literal_binds": True}))
     result = await session.execute(query)
-    return list(result.scalars())
+    await session.commit()
+    deleted_ids = list(result.scalars())
+    print(f"Soft deleted tasks: {deleted_ids}")
+    return deleted_ids
 
 
 async def update_task_status(
@@ -368,14 +368,14 @@ async def update_waiting_for_input_tasks(
         Date to compare.
     """
     if older_than is None:
-        older_than = datetime.now() - timedelta(hours=24)
+        older_than = datetime.now(timezone.utc) - timedelta(hours=24)
     # fmt: off
     await session.execute(
         update(Task)
         .where(
             Task.status == TaskStatus.WAITING_FOR_INPUT,
             Task.updated_at < older_than,
-            cast(Task.deleted_at, DateTime).is_(None),
+            Task.deleted_at.is_(None),
         )
         .values(status=TaskStatus.FAILED)
     )
@@ -452,7 +452,7 @@ async def count_active_tasks(session: AsyncSession) -> int:
         Task.status.notin_(
             [TaskStatus.COMPLETED, TaskStatus.CANCELLED, TaskStatus.FAILED]
         ),
-        cast(Task.deleted_at, DateTime).is_(None),
+        Task.deleted_at.is_(None),
     )
     result = await session.execute(count_query)
     return result.scalar_one()
@@ -474,10 +474,7 @@ async def count_pending_tasks(session: AsyncSession) -> int:
     count_query = (
         select(sqlalchemy.sql.functions.count(Task.id))
         .select_from(Task)
-        .where(
-            Task.status == TaskStatus.PENDING,
-            cast(Task.deleted_at, DateTime).is_(None),
-        )
+        .where(Task.status == TaskStatus.PENDING, Task.deleted_at.is_(None))
     )
     result = await session.execute(count_query)
     return result.scalar_one()
@@ -497,7 +494,7 @@ async def mark_active_tasks_as_failed(session: AsyncSession) -> None:
             Task.status.notin_(
                 [TaskStatus.COMPLETED, TaskStatus.CANCELLED, TaskStatus.FAILED]
             ),
-            cast(Task.deleted_at, DateTime).is_(None),
+            Task.deleted_at.is_(None),
         )
         .values(status=TaskStatus.FAILED)
     )
@@ -530,7 +527,7 @@ async def get_stuck_tasks(
                 [TaskStatus.COMPLETED, TaskStatus.CANCELLED, TaskStatus.FAILED]
             ),
             Task.results.isnot(None),
-            cast(Task.deleted_at, DateTime).is_(None),
+            Task.deleted_at.is_(None),
         )
         .order_by(Task.created_at),
         params=params,

@@ -161,7 +161,7 @@ def test_delete_clients(
         url=url,
         status_code=204,
     )
-    clients_admin.delete_clients(["tasks-api", "clients-api"])
+    clients_admin.delete_clients(None, audiences=["tasks-api", "clients-api"])
 
 
 @pytest.mark.anyio
@@ -276,4 +276,4 @@ async def test_a_delete_clients(
         url=url,
         status_code=204,
     )
-    await clients_admin.a_delete_clients(["a1", "a2"])
+    await clients_admin.a_delete_clients(None, ["a1", "a2"])

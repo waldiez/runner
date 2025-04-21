@@ -108,7 +108,7 @@ Soft-deletes the task (schedules removal of files and DB records). Active tasks 
 
 ---
 
-## 🧨 Delete All Tasks
+## 🧨 Delete Multiple Tasks
 
 <!-- markdownlint-disable MD036 -->
 ***DELETE /api/v1/tasks***
@@ -119,6 +119,7 @@ Use force=true to delete active ones.
 
 ***Query Parameters:***
 
+- `ids`: Ids of tasks to delete (optional, repeated)
 - `force`: true to also delete active tasks
 
 ***Response:*** `204` No Content

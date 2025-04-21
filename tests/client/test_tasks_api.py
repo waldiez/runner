@@ -147,7 +147,7 @@ def test_delete_all_tasks(
         status_code=204,
     )
 
-    client.delete_all_tasks()
+    client.delete_tasks()
 
 
 def test_force_delete_all_tasks(
@@ -160,7 +160,7 @@ def test_force_delete_all_tasks(
         status_code=204,
     )
 
-    client.delete_all_tasks(force=True)
+    client.delete_tasks(force=True)
 
 
 def test_list_tasks_error(
@@ -346,7 +346,7 @@ async def test_a_delete_all_tasks(
         status_code=204,
     )
 
-    await client.a_delete_all_tasks()
+    await client.a_delete_tasks()
 
 
 @pytest.mark.anyio
@@ -360,7 +360,7 @@ async def test_a_force_delete_all_tasks(
         status_code=204,
     )
 
-    await client.a_delete_all_tasks(force=True)
+    await client.a_delete_tasks(force=True)
 
 
 @pytest.mark.anyio

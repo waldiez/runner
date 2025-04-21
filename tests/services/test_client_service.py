@@ -415,3 +415,71 @@ async def test_delete_clients_with_audiences(
     ]
     assert len(client_with_audience3) == 1
     assert client_with_audience3[0].client_id == client_create3.client_id
+
+
+@pytest.mark.anyio
+async def test_delete_clients_with_ids(
+    async_session: AsyncSession,
+) -> None:
+    """Test deleting all clients with IDs."""
+    params = Params(page=1, size=100)
+    current_clients = await ClientService.get_clients(
+        async_session, params=params
+    )
+    client_create1 = ClientCreate()
+    client_create2 = ClientCreate()
+    client_create3 = ClientCreate()
+    client1 = await ClientService.create_client(async_session, client_create1)
+    client2 = await ClientService.create_client(async_session, client_create2)
+    client3 = await ClientService.create_client(async_session, client_create3)
+
+    await ClientService.delete_clients(
+        async_session, ids=[client1.id, client2.id]
+    )
+    clients = await ClientService.get_clients(async_session, params=params)
+    assert len(clients.items) == len(current_clients.items) + 1
+    assert client1.id not in [client.id for client in clients.items]
+    assert client2.id not in [client.id for client in clients.items]
+    assert client3.id in [client.id for client in clients.items]
+
+
+@pytest.mark.anyio
+async def test_delete_clients_with_audiences_and_ids(
+    async_session: AsyncSession,
+) -> None:
+    """Test deleting all clients with audiences and IDs."""
+    audience_to_delete = "audience1"
+    audience_other = "audience2"
+
+    # 3 clients:
+    # - client1: matching id and audience → should be deleted
+    # - client2: matching id, wrong audience → should NOT be deleted
+    # - client3: matching audience, not in id list → should NOT be deleted
+    client_create1 = ClientCreate(audience=audience_to_delete)
+    client_create2 = ClientCreate(audience=audience_other)
+    client_create3 = ClientCreate(audience=audience_to_delete)
+
+    client1 = await ClientService.create_client(async_session, client_create1)
+    client2 = await ClientService.create_client(async_session, client_create2)
+    client3 = await ClientService.create_client(async_session, client_create3)
+
+    # Attempt to delete only client1 (matches both id and audience)
+    deleted_ids = await ClientService.delete_clients(
+        async_session,
+        ids=[client1.id, client2.id],  # client1 + client2
+        audiences=[audience_to_delete],  # only audience1
+    )
+
+    # Fetch remaining clients
+    params = Params(page=1, size=100)
+    updated_clients = await ClientService.get_clients(
+        async_session, params=params
+    )
+    updated_ids = [client.id for client in updated_clients.items]
+
+    assert client1.id not in updated_ids
+    assert client2.id in updated_ids
+    assert client3.id in updated_ids
+
+    # Double check return value
+    assert deleted_ids == [client1.id]

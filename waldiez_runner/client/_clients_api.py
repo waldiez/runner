@@ -186,11 +186,18 @@ class ClientsAPIClient(BaseAPIClient):
             self.handle_error(str(e))
             raise e
 
-    def delete_clients(self, audiences: List[str] | None = None) -> None:
-        """Delete clients by audience.
+    def delete_clients(
+        self,
+        ids: List[str] | None = None,
+        audiences: List[str] | None = None,
+    ) -> None:
+        """Delete clients by ids or audiences or all.
 
         Parameters
         ----------
+        ids : List[str] | None
+            The list of client IDs to delete
+            If None, all clients will be deleted
         audiences : List[str] | None
             The list of audiences to delete clients for
             If None, all clients will be deleted
@@ -203,7 +210,11 @@ class ClientsAPIClient(BaseAPIClient):
             If the request fails
         """
         self.ensure_configured()
-        params = {"audiences": audiences} if audiences else None
+        params = {}
+        if ids:
+            params["ids"] = ids
+        if audiences:
+            params["audiences"] = audiences
         try:
             with httpx.Client(
                 auth=self._auth,
@@ -389,12 +400,17 @@ class ClientsAPIClient(BaseAPIClient):
             raise e
 
     async def a_delete_clients(
-        self, audiences: List[str] | None = None
+        self,
+        ids: List[str] | None = None,
+        audiences: List[str] | None = None,
     ) -> None:
         """Delete clients by audience asynchronously.
 
         Parameters
         ----------
+        ids : List[str] | None
+            The list of client IDs to delete
+            If None, all clients will be deleted
         audiences : List[str] | None
             The list of audiences to delete clients for
             If None, all clients will be deleted
@@ -407,7 +423,11 @@ class ClientsAPIClient(BaseAPIClient):
             If the request fails
         """
         self.ensure_configured()
-        params = {"audiences": audiences} if audiences else None
+        params = {}
+        if audiences:
+            params["audiences"] = audiences
+        if ids:
+            params["ids"] = ids
         try:
             async with httpx.AsyncClient(
                 auth=self._auth,

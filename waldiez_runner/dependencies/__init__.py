@@ -7,6 +7,7 @@ from .auth import (
     CLIENT_API_AUDIENCE,
     TASK_API_AUDIENCE,
     VALID_AUDIENCES,
+    Audience,
     get_client_id_from_token,
 )
 from .database import DatabaseManager
@@ -49,6 +50,7 @@ __all__ = [
     "StorageBackend",
     "JWKSCache",
     "REDIS_MANAGER",
+    "Audience",
     "VALID_AUDIENCES",
     "CLIENT_API_AUDIENCE",
     "TASK_API_AUDIENCE",

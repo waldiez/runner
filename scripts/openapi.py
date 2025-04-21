@@ -19,11 +19,7 @@ HERE = Path(__file__).parent
 ROOT_DIR = HERE.parent.resolve()
 
 try:
-    from _lib import (
-        ensure_not_running,
-        start_services,
-        wait_for_services,
-    )
+    from _lib import ensure_not_running, start_services, wait_for_services
 except ImportError:
     HAD_TO_MODIFY_SYS_PATH = True
     sys.path.insert(0, str(HERE))

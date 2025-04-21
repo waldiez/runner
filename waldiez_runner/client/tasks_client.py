@@ -6,7 +6,7 @@
 import asyncio
 import json
 from io import BytesIO
-from typing import Any, Callable, Coroutine, Dict
+from typing import Any, Callable, Coroutine, Dict, List
 
 from ._tasks_api import TasksAPIClient
 from ._websockets import AsyncWebSocketClient, SyncWebSocketClient
@@ -357,11 +357,17 @@ class TasksClient(BaseClient):
         self._ensure_configured()
         self.tasks.delete_task(task_id, force=force)  # type: ignore
 
-    def delete_all_tasks(self, force: bool = False) -> None:
-        """Delete all tasks synchronously.
+    def delete_tasks(
+        self,
+        ids: List[str] | None = None,
+        force: bool = False,
+    ) -> None:
+        """Delete multiple tasks synchronously.
 
         Parameters
         ----------
+        ids : List[str] | None, optional
+            The list of task IDs to delete, by default None
         force : bool, optional
             Whether to force delete the tasks (even if active), by default False
 
@@ -371,7 +377,7 @@ class TasksClient(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        self.tasks.delete_all_tasks(force=force)  # type: ignore
+        self.tasks.delete_tasks(ids=ids, force=force)  # type: ignore
 
     def is_listening(self) -> bool:
         """Check if the WebSocket listener is running.
@@ -633,11 +639,18 @@ class TasksClient(BaseClient):
         self._ensure_configured()
         await self.tasks.a_delete_task(task_id, force=force)  # type: ignore
 
-    async def a_delete_all_tasks(self, force: bool = False) -> None:
+    async def a_delete_tasks(
+        self,
+        ids: List[str] | None = None,
+        force: bool = False,
+    ) -> None:
         """Delete all tasks asynchronously.
 
         Parameters
         ----------
+        ids : List[str] | None, optional
+            The list of task IDs to delete, by default None
+            If None, all tasks will be deleted.
         force : bool, optional
             Whether to force delete the tasks (even if active), by default False
 
@@ -647,7 +660,7 @@ class TasksClient(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        await self.tasks.a_delete_all_tasks(force=force)  # type: ignore
+        await self.tasks.a_delete_tasks(ids=ids, force=force)  # type: ignore
 
     async def a_is_listening(self) -> bool:
         """Check if the WebSocket listener is running asynchronously.

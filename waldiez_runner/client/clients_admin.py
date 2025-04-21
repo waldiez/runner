@@ -262,11 +262,19 @@ class ClientsAdmin(BaseClient):
         self._ensure_configured()
         self.clients.delete_client(client_id)  # type: ignore
 
-    def delete_clients(self, audiences: List[ClientAudience] | None) -> None:
+    def delete_clients(
+        self,
+        ids: List[str] | None = None,
+        audiences: List[ClientAudience] | None = None,
+    ) -> None:
         """Delete multiple clients synchronously.
 
         Parameters
         ----------
+        ids : List[str] | None, optional
+            The client IDs to filter for deletion.
+            If None, all clients will be deleted.
+            (not the one used for this request)
         audiences : List[ClientAudience] | None, optional
             The audiences to filter for deletion.
             If None, all clients will be deleted.
@@ -278,7 +286,7 @@ class ClientsAdmin(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        self.clients.delete_clients(audiences)  # type: ignore
+        self.clients.delete_clients(ids, audiences)  # type: ignore
 
     async def a_list_clients(self) -> ClientItemsResponse:
         """Retrieve the list of clients asynchronously.
@@ -402,12 +410,18 @@ class ClientsAdmin(BaseClient):
         await self.clients.a_delete_client(client_id)  # type: ignore
 
     async def a_delete_clients(
-        self, audiences: List[str] | None = None
+        self,
+        ids: List[str] | None = None,
+        audiences: List[str] | None = None,
     ) -> None:
         """Delete multiple clients asynchronously.
 
         Parameters
         ----------
+        ids : List[str] | None, optional
+            The client IDs to filter for deletion.
+            If None, all clients will be deleted.
+            (not the one used for this request)
         audiences : List[str] | None, optional
             The audiences to filter.
 
@@ -417,7 +431,7 @@ class ClientsAdmin(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        await self.clients.a_delete_clients(audiences)  # type: ignore
+        await self.clients.a_delete_clients(ids, audiences)  # type: ignore
 
     def _ensure_configured(self) -> None:
         """Ensure the client is configured for use."""

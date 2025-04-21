@@ -129,6 +129,9 @@ To create or delete clients, use the `clients-api` token:
 - `POST /api/v1/clients` — create new client
 - `GET /api/v1/clients` — list all clients
 - `DELETE /api/v1/clients/{client_id}` — remove a client
+- `DELETE /api/v1/clients` — remove multiple clients
+- `DELETE /api/v1/clients?ids=id1&ids=2...` — list specific clients
+- `DELETE /api/v1/clients?audiences=tasks-api` — remove all tasks-api clients
 
 Only tokens issued for the `clients-api` audience have access to these routes.
 

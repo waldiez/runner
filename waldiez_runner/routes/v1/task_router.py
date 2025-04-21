@@ -6,7 +6,7 @@ import asyncio
 import json
 import logging
 import os
-from typing import Annotated
+from typing import Annotated, List
 
 from fastapi import (
     APIRouter,
@@ -14,6 +14,7 @@ from fastapi import (
     Depends,
     File,
     HTTPException,
+    Query,
     Response,
     UploadFile,
 )
@@ -165,6 +166,7 @@ async def create_task(
     return task_response
 
 
+@task_router.get("/tasks/{task_id}/", include_in_schema=False)
 @task_router.get(
     "/tasks/{task_id}",
     response_model=TaskResponse,
@@ -203,6 +205,7 @@ async def get_task(
     return TaskResponse.model_validate(task)
 
 
+@task_router.post("/tasks/{task_id}/input/", include_in_schema=False)
 @task_router.post("/tasks/{task_id}/input")
 async def on_input_request(
     task_id: str,
@@ -274,6 +277,11 @@ async def on_input_request(
 
 
 @task_router.get(
+    "/tasks/{task_id}/download/",
+    response_model=None,
+    include_in_schema=False,
+)
+@task_router.get(
     "/tasks/{task_id}/download",
     response_model=None,
     summary="Download a task archive",
@@ -325,6 +333,11 @@ async def download_task(
 
 
 @task_router.post(
+    "/tasks/{task_id}/cancel/",
+    response_model=TaskResponse,
+    include_in_schema=False,
+)
+@task_router.post(
     "/tasks/{task_id}/cancel",
     response_model=TaskResponse,
     summary="Cancel a task",
@@ -375,13 +388,14 @@ async def cancel_task(
         results={"detail": "Task cancelled"},
     )
     await publish_task_cancellation(task_id=task_id)
-    # background_tasks.add_task(
-    #     publish_task_cancellation,
-    #     task_id=task_id,
-    # )
     return TaskResponse.model_validate(task, from_attributes=True)
 
 
+@task_router.delete(
+    "/tasks/{task_id}/",
+    response_model=None,
+    include_in_schema=False,
+)
 @task_router.delete(
     "/tasks/{task_id}",
     response_model=None,
@@ -444,14 +458,20 @@ async def delete_task(
 
 
 @task_router.delete(
+    "/tasks/",
+    response_model=None,
+    include_in_schema=False,
+)
+@task_router.delete(
     "/tasks",
     response_model=None,
-    summary="Delete all tasks",
-    description="Delete all tasks for the current client",
+    summary="Delete multiple tasks",
+    description="Delete multiple tasks for the current client",
 )
-async def delete_all_tasks(
+async def delete_tasks(
     client_id: Annotated[str, Depends(validate_tasks_audience)],
     session: Annotated[AsyncSession, Depends(get_db)],
+    ids: Annotated[List[str] | None, Query()] = None,
     force: Annotated[bool | None, False] = False,
 ) -> Response:
     """Delete all tasks for a client.
@@ -462,6 +482,9 @@ async def delete_all_tasks(
         The client ID.
     session : AsyncSession
         The database session dependency.
+    ids : List[str] | None, optional
+        The list of task IDs to delete, by default None
+        (delete all tasks if None).
     force : bool, optional
         Whether to force delete all tasks, by default False.
 
@@ -478,6 +501,7 @@ async def delete_all_tasks(
     task_ids_to_delete = await TaskService.soft_delete_client_tasks(
         session,
         client_id=client_id,
+        ids=ids,
         inactive_only=force is not True,
     )
 

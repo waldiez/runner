@@ -4,7 +4,7 @@
 
 from typing import Annotated, List
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi_pagination import Page
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -220,15 +220,17 @@ async def delete_client(
 @client_router.delete(
     "/clients",
     response_model=None,
-    summary="Delete all clients",
-    description="Delete all clients.",
+    summary="Delete multiple clients",
+    description="Delete multiple clients.",
 )
 async def delete_clients(
     client_id: Annotated[str, Depends(validate_clients_audience)],
     session: Annotated[AsyncSession, Depends(get_db)],
-    audiences: List[str] | None = None,
+    ids: Annotated[List[str] | None, Query()] = None,
+    audiences: Annotated[List[str] | None, Query()] = None,
+    excluded: Annotated[List[str] | None, Query()] = None,
 ) -> Response:
-    """Delete all clients.
+    """Delete multiple clients.
 
     The current client will not be deleted.
     An optional audience filter can be provided to delete only clients
@@ -240,8 +242,12 @@ async def delete_clients(
         The current client ID.
     session : AsyncSession
         The database session.
+    ids: List[str] | None
+        An optional list of client IDs to include in the deletion.
     audiences : List[str] | None
-        An optional list of audiences to filter the clients.
+        An optional list of audience to filter the clients.
+    excluded : List[str] | None
+        An optional list of client IDs to exclude from deletion.
 
     Returns
     -------
@@ -253,7 +259,14 @@ async def delete_clients(
         if audiences
         else []
     )
+    # for sure, not the one that was used for this request
+    excluded = [client_id]
+    if excluded:
+        excluded = [client_id] + excluded
+    excluded = list(set(excluded))
+    if ids and client_id in ids:
+        ids.remove(client_id)
     await ClientService.delete_clients(
-        session, audiences=audience_filter, excluded=[client_id]
+        session, audiences=audience_filter, excluded=[client_id], ids=ids
     )
     return Response(status_code=204)
