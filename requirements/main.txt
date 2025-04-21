@@ -6,7 +6,7 @@ alembic==1.15.2
 anyio==4.9.0
 bcrypt==4.3.0
 fakeredis==2.28.1
-fastapi-pagination==0.12.34
+fastapi-pagination==0.13.0
 fastapi[all]==0.115.12
 faststream[redis,cli]==0.5.39
 hiredis==3.1.0
