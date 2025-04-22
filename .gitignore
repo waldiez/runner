@@ -4,6 +4,7 @@
 **/build/
 **/dist/
 **/site/
+.idea/
 .env
 .env.*
 .test_env
