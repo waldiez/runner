@@ -254,6 +254,11 @@ async def delete_clients(
     Response
         The response.
     """
+    if ids and client_id in ids:
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot delete the client you use to make this request.",
+        )
     audience_filter = (
         [audience for audience in audiences if audience in VALID_AUDIENCES]
         if audiences
@@ -264,8 +269,6 @@ async def delete_clients(
     if excluded:
         excluded = [client_id] + excluded
     excluded = list(set(excluded))
-    if ids and client_id in ids:
-        ids.remove(client_id)
     await ClientService.delete_clients(
         session, audiences=audience_filter, excluded=[client_id], ids=ids
     )

@@ -2,7 +2,7 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
 # pylint: disable=missing-function-docstring, missing-param-doc
-# pylint: disable=missing-return-doc, missing-yield-doc
+# pylint: disable=missing-return-doc, missing-yield-doc, missing-raises-doc
 """Test client routes."""
 
 from typing import AsyncGenerator
@@ -159,3 +159,15 @@ async def test_delete_clients_with_audience(client: AsyncClient) -> None:
         params={"audiences": "tasks-api"},
     )
     assert response.status_code == 204
+
+
+@pytest.mark.anyio
+async def test_delete_using_the_client_of_the_request(
+    client: AsyncClient, clients_api_client: ClientCreateResponse
+) -> None:
+    """Test delete using the client of the request."""
+    response = await client.delete(
+        "/api/v1/clients/",
+        params={"ids": clients_api_client.id},
+    )
+    assert response.status_code == 400
