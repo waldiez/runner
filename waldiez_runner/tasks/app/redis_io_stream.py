@@ -361,11 +361,7 @@ class RedisIOStream(IOStream):
                     continue
                 LOG.debug("Received message: %s", message)
                 request_id, user_input = self.parse_pubsub_input(message)
-                if (
-                    not request_id
-                    or not isinstance(user_input, str)
-                    or request_id != input_request_id
-                ):
+                if not request_id or request_id != input_request_id:
                     continue
 
                 if self._acquire_lock(lock_key):
@@ -374,7 +370,7 @@ class RedisIOStream(IOStream):
                             continue
 
                         self._mark_request_processed(request_id)
-                        return user_input
+                        return user_input or "\n"
                     finally:
                         self._release_lock(lock_key)
         except BaseException:  # pragma: no cover
@@ -447,7 +443,20 @@ class RedisIOStream(IOStream):
             return None, None
         if "data" not in message_dict:
             return None, None
-        return message_dict["request_id"], message_dict["data"]
+        user_input = str(message_dict.get("data", "")).lower()
+        if user_input in [
+            "",
+            "\n",
+            "/\\n",
+            '""',
+            "''",
+            '"/\\n"',
+            "'/\\n'",
+            "none",
+            "null",
+        ]:
+            user_input = "\n"
+        return message_dict["request_id"], user_input
 
     @staticmethod
     def try_do(func: Callable[..., Any], *args: Any, **kwargs: Any) -> None:

@@ -12,8 +12,36 @@ import pytest
 from fastapi_pagination import Params
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from waldiez_runner.models import TaskStatus
+from waldiez_runner.models import Task, TaskCreate, TaskStatus
 from waldiez_runner.services import _task_service as TaskService
+
+
+def get_new_task_data(client_id: str, filename: str) -> TaskCreate:
+    """Get new task data."""
+    return TaskCreate(
+        client_id=client_id,
+        flow_id="Sample Flow",
+        filename=filename,
+        input_timeout=180,
+        schedule_type=None,
+        scheduled_time=None,
+        cron_expression=None,
+        expires_at=None,
+    )
+
+
+async def get_new_task(
+    async_session: AsyncSession, client_id: str, filename: str
+) -> Task:
+    """Get new task."""
+    task_create = get_new_task_data(
+        client_id=client_id,
+        filename=filename,
+    )
+    return await TaskService.create_task(
+        async_session,
+        task_create=task_create,
+    )
 
 
 @pytest.fixture(scope="function", name="pagination_params")
@@ -26,15 +54,14 @@ def pagination_params_fixture() -> Params:
 async def test_create_task(async_session: AsyncSession) -> None:
     """Test task creation."""
     client_id = "test_create_task"
-    task = await TaskService.create_task(
+    task = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
         filename="file1",
     )
+    await async_session.refresh(task)
     assert task is not None
     assert task.client_id == client_id
-    assert task.flow_id == "Sample Flow"
     assert task.status == TaskStatus.PENDING
     await TaskService.delete_task(async_session, task.id)
 
@@ -43,16 +70,14 @@ async def test_create_task(async_session: AsyncSession) -> None:
 async def test_get_task(async_session: AsyncSession) -> None:
     """Test retrieving a task."""
     client_id = "test_get_task"
-    created_task = await TaskService.create_task(
+    task = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
         filename="file1",
     )
-    await async_session.refresh(created_task)
-    fetched_task = await TaskService.get_task(async_session, created_task.id)
+    fetched_task = await TaskService.get_task(async_session, task.id)
     assert fetched_task is not None
-    assert fetched_task.id == created_task.id
+    assert fetched_task.id == task.id
     assert fetched_task.client_id == client_id
     await TaskService.delete_task(async_session, fetched_task.id)
 
@@ -69,10 +94,9 @@ async def test_get_nonexistent_task(async_session: AsyncSession) -> None:
 async def test_update_task_status(async_session: AsyncSession) -> None:
     """Test updating task status."""
     client_id = "test_update_task_status"
-    task = await TaskService.create_task(
+    task = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
         filename="file1",
     )
     await TaskService.update_task_status(
@@ -100,10 +124,9 @@ async def test_update_nonexistent_task_status(
 async def test_update_task_results(async_session: AsyncSession) -> None:
     """Test updating task results."""
     client_id = "test_update_task_results"
-    task = await TaskService.create_task(
+    task = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
         filename="file1",
     )
     await TaskService.update_task_status(
@@ -138,10 +161,9 @@ async def test_update_nonexistent_task_results(
 async def test_delete_task(async_session: AsyncSession) -> None:
     """Test deleting a task."""
     client_id = "test_delete_task"
-    task = await TaskService.create_task(
+    task = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
         filename="file1",
     )
     await TaskService.delete_task(async_session, task.id)
@@ -163,10 +185,9 @@ async def test_delete_nonexistent_task(async_session: AsyncSession) -> None:
 async def test_get_active_client_task(async_session: AsyncSession) -> None:
     """Test getting an active client task."""
     client_id = "test_get_active_client_task"
-    task = await TaskService.create_task(
+    task = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
         filename="file1",
     )
     await TaskService.update_task_status(
@@ -199,19 +220,16 @@ async def test_get_client_tasks(
 ) -> None:
     """Test getting all client tasks."""
     client_id = "test_get_client_tasks"
-    task1 = await TaskService.create_task(
+    task1 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
         filename="file1",
     )
-    task2 = await TaskService.create_task(
+    task2 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
         filename="file2",
     )
-
     client_tasks = await TaskService.get_client_tasks(
         async_session,
         client_id=client_id,
@@ -240,10 +258,9 @@ async def test_get_no_client_tasks(
 async def test_delete_client_flow_task(async_session: AsyncSession) -> None:
     """Test deleting a client task."""
     client_id = "test_delete_client_flow_task"
-    task = await TaskService.create_task(
+    task = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
         filename="file1",
     )
     await TaskService.delete_client_flow_task(
@@ -282,23 +299,20 @@ async def test_get_tasks_to_delete(
 ) -> None:
     """Test getting tasks to delete."""
     client_id = "test_get_tasks_to_delete"
-    task1 = await TaskService.create_task(
+    task1 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
         filename="file1",
     )
-    task2 = await TaskService.create_task(
+    task2 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
-        filename="file1",
+        filename="file2",
     )
-    task3 = await TaskService.create_task(
+    task3 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
-        filename="file1",
+        filename="file3",
     )
     task1.mark_deleted()
     task2.mark_deleted()
@@ -326,23 +340,20 @@ async def test_get_pending_tasks(
 ) -> None:
     """Test getting pending tasks."""
     client_id = "test_get_pending_tasks"
-    task1 = await TaskService.create_task(
+    task1 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
         filename="file1",
     )
-    task2 = await TaskService.create_task(
+    task2 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
-        filename="file1",
+        filename="file2",
     )
-    task3 = await TaskService.create_task(
+    task3 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
-        filename="file1",
+        filename="file3",
     )
     await TaskService.update_task_status(
         async_session, task1.id, TaskStatus.PENDING
@@ -371,35 +382,30 @@ async def test_update_waiting_for_input_tasks(
 ) -> None:
     """Test updating waiting for input tasks."""
     client_id = "test_update_waiting_for_input_tasks"
-    task1 = await TaskService.create_task(
+    task1 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
         filename="file1",
     )
-    task2 = await TaskService.create_task(
+    task2 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
-        filename="file1",
+        filename="file2",
     )
-    task3 = await TaskService.create_task(
+    task3 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
-        filename="file1",
+        filename="file3",
     )
-    task4 = await TaskService.create_task(
+    task4 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
-        filename="file1",
+        filename="file4",
     )
-    task5 = await TaskService.create_task(
+    task5 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
-        filename="file1",
+        filename="file5",
     )
     await TaskService.update_task_status(
         async_session, task1.id, TaskStatus.WAITING_FOR_INPUT
@@ -446,24 +452,23 @@ async def test_update_waiting_for_input_tasks_no_old_tasks(
 ) -> None:
     """Test updating waiting for input tasks with no old tasks."""
     client_id = "test_update_waiting_for_input_tasks_no_old_tasks"
-    task1 = await TaskService.create_task(
+    task = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
         filename="file1",
     )
     await TaskService.update_task_status(
-        async_session, task1.id, TaskStatus.WAITING_FOR_INPUT
+        async_session, task.id, TaskStatus.WAITING_FOR_INPUT
     )
 
     await TaskService.update_waiting_for_input_tasks(
         async_session,
         older_than=datetime.now(timezone.utc) - timedelta(hours=1),
     )
-    updated_task1 = await TaskService.get_task(async_session, task1.id)
+    updated_task1 = await TaskService.get_task(async_session, task.id)
     assert updated_task1 is not None
     assert updated_task1.status == TaskStatus.WAITING_FOR_INPUT
-    await TaskService.delete_task(async_session, task1.id)
+    await TaskService.delete_task(async_session, task.id)
 
 
 @pytest.mark.anyio
@@ -473,23 +478,20 @@ async def test_get_active_tasks(
 ) -> None:
     """Test getting active tasks."""
     client_id = "test_get_active_tasks"
-    task1 = await TaskService.create_task(
+    task1 = await get_new_task(
         async_session,
-        client_id=f"{client_id}1",
-        flow_id="flow1",
+        client_id=client_id,
         filename="file1",
     )
-    task2 = await TaskService.create_task(
+    task2 = await get_new_task(
         async_session,
-        client_id=f"{client_id}2",
-        flow_id="flow2",
-        filename="file1",
+        client_id=client_id,
+        filename="file2",
     )
-    task3 = await TaskService.create_task(
+    task3 = await get_new_task(
         async_session,
-        client_id=f"{client_id}3",
-        flow_id="flow3",
-        filename="file1",
+        client_id=client_id,
+        filename="file3",
     )
     await TaskService.update_task_status(
         async_session, task1.id, TaskStatus.FAILED
@@ -513,17 +515,20 @@ async def test_delete_client_tasks(
 ) -> None:
     """Test deleting client tasks."""
     client_id = "test_delete_client_tasks"
-    task1 = await TaskService.create_task(
-        async_session, client_id=client_id, flow_id="flow1", filename="file1"
+    task1 = await get_new_task(
+        async_session,
+        client_id=client_id,
+        filename="file1",
     )
-    task2 = await TaskService.create_task(
-        async_session, client_id=client_id, flow_id="flow2", filename="file1"
+    task2 = await get_new_task(
+        async_session,
+        client_id=client_id,
+        filename="file2",
     )
-    task3 = await TaskService.create_task(
+    task3 = await get_new_task(
         async_session,
         client_id=f"{client_id}1",
-        flow_id="flow3",
-        filename="file1",
+        filename="file3",
     )
     await TaskService.delete_client_tasks(async_session, client_id=client_id)
 
@@ -541,26 +546,26 @@ async def test_soft_delete_client_tasks(
 ) -> None:
     """Test soft deleting client tasks."""
     client_id = "test_soft_delete_client_tasks"
-    task1 = await TaskService.create_task(
+    task1 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="flow1",
         filename="file1",
     )
     task1.status = TaskStatus.COMPLETED
     async_session.add(task1)
     await async_session.commit()
-    task2 = await TaskService.create_task(
-        async_session, client_id=client_id, flow_id="flow2", filename="file1"
+    task2 = await get_new_task(
+        async_session,
+        client_id=client_id,
+        filename="file2",
     )
     task2.status = TaskStatus.FAILED
     async_session.add(task2)
     await async_session.commit()
-    task3 = await TaskService.create_task(
+    task3 = await get_new_task(
         async_session,
         client_id=f"{client_id}1",
-        flow_id="flow3",
-        filename="file1",
+        filename="file3",
     )
     await TaskService.soft_delete_client_tasks(
         async_session, client_id=client_id, inactive_only=True
@@ -583,30 +588,29 @@ async def test_soft_delete_client_tasks_not_inactive_only(
 ) -> None:
     """Test soft deleting client tasks without inactive_only."""
     client_id = "test_soft_delete_client_tasks_not_inactive_only"
-    task1 = await TaskService.create_task(
+    task1 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="flow1",
         filename="file1",
+    )
+    task2 = await get_new_task(
+        async_session,
+        client_id=client_id,
+        filename="file2",
+    )
+    task3 = await get_new_task(
+        async_session,
+        client_id=f"{client_id}1",
+        filename="file3",
     )
     task1.status = TaskStatus.COMPLETED
     async_session.add(task1)
     await async_session.commit()
-    task2 = await TaskService.create_task(
-        async_session, client_id=client_id, flow_id="flow2", filename="file1"
-    )
     task2.status = TaskStatus.FAILED
     async_session.add(task2)
     await async_session.commit()
     for task in (task1, task2):
         await async_session.refresh(task)
-
-    task3 = await TaskService.create_task(
-        async_session,
-        client_id=f"{client_id}1",
-        flow_id="flow3",
-        filename="file1",
-    )
     await TaskService.soft_delete_client_tasks(
         async_session, client_id=client_id, inactive_only=False
     )
@@ -626,23 +630,20 @@ async def test_ensure_deleting_owned_only_tasks(
 ) -> None:
     """Test ensuring only owned tasks are deleted."""
     client_id = "test_ensure_deleting_owned_only_tasks"
-    task1 = await TaskService.create_task(
+    task1 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="flow1",
         filename="file1",
     )
-    task2 = await TaskService.create_task(
+    task2 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="flow2",
-        filename="file1",
+        filename="file2",
     )
-    task3 = await TaskService.create_task(
+    task3 = await get_new_task(
         async_session,
         client_id=f"{client_id}1",
-        flow_id="flow3",
-        filename="file1",
+        filename="file3",
     )
     await TaskService.soft_delete_client_tasks(
         async_session,
@@ -672,20 +673,20 @@ async def test_delete_client_tasks_with_ids(
 ) -> None:
     """Test deleting client tasks with IDs."""
     client_id = "test_delete_client_tasks_with_ids"
-    task1 = await TaskService.create_task(
+    task1 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="flow1",
         filename="file1",
     )
-    task2 = await TaskService.create_task(
-        async_session, client_id=client_id, flow_id="flow2", filename="file1"
+    task2 = await get_new_task(
+        async_session,
+        client_id=client_id,
+        filename="file2",
     )
-    task3 = await TaskService.create_task(
+    task3 = await get_new_task(
         async_session,
         client_id=f"{client_id}1",
-        flow_id="flow3",
-        filename="file1",
+        filename="file3",
     )
     await TaskService.soft_delete_client_tasks(
         async_session,
@@ -714,23 +715,20 @@ async def test_get_stuck_tasks(
 ) -> None:
     """Test getting stuck tasks."""
     client_id = "test_get_stuck_tasks"
-    task1 = await TaskService.create_task(
+    task1 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="flow1",
         filename="file1",
     )
-    task2 = await TaskService.create_task(
+    task2 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="flow2",
-        filename="file1",
+        filename="file2",
     )
-    task3 = await TaskService.create_task(
+    task3 = await get_new_task(
         async_session,
         client_id=client_id,
-        flow_id="flow3",
-        filename="file1",
+        filename="file3",
     )
     task1.results = {"results": "Test Results"}
     task2.results = {"results": "Test Results"}
