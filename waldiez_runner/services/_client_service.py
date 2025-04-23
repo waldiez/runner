@@ -8,7 +8,7 @@ import logging
 from typing import List, Sequence
 
 from fastapi_pagination import Page, Params
-from fastapi_pagination.ext.sqlalchemy import paginate
+from fastapi_pagination.ext.sqlalchemy import apaginate
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.sql import delete
@@ -149,7 +149,7 @@ async def get_clients(
         """
         return [ClientResponse.from_client(client) for client in items]
 
-    page = await paginate(
+    page = await apaginate(
         session,
         select(Client).order_by(Client.created_at),
         params=params,

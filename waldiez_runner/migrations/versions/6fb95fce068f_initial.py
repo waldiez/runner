@@ -31,9 +31,9 @@ def upgrade() -> None:
         sa.Column("audience", sa.String(), nullable=False),
         sa.Column("description", sa.String(), nullable=True),
         sa.Column("id", sa.String(), nullable=False),
-        sa.Column("created_at", sa.DateTime(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(), nullable=False),
-        sa.Column("deleted_at", sa.DateTime(), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -60,9 +60,9 @@ def upgrade() -> None:
         ),
         sa.Column("results", sa.JSON(), nullable=True),
         sa.Column("id", sa.String(), nullable=False),
-        sa.Column("created_at", sa.DateTime(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(), nullable=False),
-        sa.Column("deleted_at", sa.DateTime(), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(

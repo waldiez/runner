@@ -94,7 +94,7 @@ class TasksAPIClient(BaseAPIClient):
             raise e
         return response.json()
 
-    def get_task_status(self, task_id: str) -> Dict[str, Any]:
+    def get_task(self, task_id: str) -> Dict[str, Any]:
         """Retrieve the status of a task.
 
         Parameters
@@ -122,6 +122,43 @@ class TasksAPIClient(BaseAPIClient):
                 response = client.get(url)
                 response.raise_for_status()
         except httpx.HTTPStatusError as e:  # pragma: no cover
+            self.handle_error(e.response.text)
+            raise e
+        except httpx.HTTPError as e:  # pragma: no cover
+            self.handle_error(str(e))
+            raise e
+        return response.json()
+
+    def update_task(self, task_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update a task.
+
+        Parameters
+        ----------
+        task_id : str
+            The task ID
+        data : Dict[str, Any]
+            The data to update
+
+        Returns
+        -------
+        Dict[str, Any]
+            The response JSON
+
+        Raises
+        ------
+        httpx.HTTPError
+            If the request fails
+        """
+        self.ensure_configured()
+        url = f"{self.url_prefix}/{task_id}"
+        try:
+            with httpx.Client(
+                auth=self._auth,
+                base_url=self._auth.base_url,  # type: ignore
+            ) as client:
+                response = client.put(url, json=data)
+                response.raise_for_status()
+        except httpx.HTTPStatusError as e:
             self.handle_error(e.response.text)
             raise e
         except httpx.HTTPError as e:  # pragma: no cover
@@ -398,7 +435,7 @@ class TasksAPIClient(BaseAPIClient):
             raise e
         return response.json()
 
-    async def a_get_task_status(self, task_id: str) -> Dict[str, Any]:
+    async def a_get_task(self, task_id: str) -> Dict[str, Any]:
         """Retrieve the status of a task asynchronously.
 
         Parameters
@@ -429,6 +466,45 @@ class TasksAPIClient(BaseAPIClient):
             self.handle_error(e.response.text)
             raise e
         except httpx.HTTPError as e:  # pragma: no cover
+            self.handle_error(str(e))
+            raise e
+        return response.json()
+
+    async def a_update_task(
+        self, task_id: str, data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Update a task asynchronously.
+
+        Parameters
+        ----------
+        task_id : str
+            The task ID
+        data : Dict[str, Any]
+            The data to update
+
+        Returns
+        -------
+        Dict[str, Any]
+            The response JSON
+
+        Raises
+        ------
+        httpx.HTTPError
+            If the request fails
+        """
+        self.ensure_configured()
+        url = f"{self.url_prefix}/{task_id}"
+        try:
+            async with httpx.AsyncClient(
+                auth=self._auth,
+                base_url=self._auth.base_url,  # type: ignore
+            ) as client:
+                response = await client.put(url, json=data)
+                response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            self.handle_error(e.response.text)
+            raise e
+        except httpx.HTTPError as e:
             self.handle_error(str(e))
             raise e
         return response.json()

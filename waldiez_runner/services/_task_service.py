@@ -9,12 +9,17 @@ from typing import Any, Dict, List, Sequence
 
 import sqlalchemy.sql.functions
 from fastapi_pagination import Page, Params
-from fastapi_pagination.ext.sqlalchemy import paginate
+from fastapi_pagination.ext.sqlalchemy import apaginate
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.sql.expression import delete, update
 
-from waldiez_runner.models.task import Task, TaskResponse
+from waldiez_runner.models.task import (
+    Task,
+    TaskCreate,
+    TaskResponse,
+    TaskUpdate,
+)
 from waldiez_runner.models.task_status import TaskStatus
 
 
@@ -37,10 +42,7 @@ def task_transformer(items: Sequence[Task]) -> Sequence[TaskResponse]:
 
 async def create_task(
     session: AsyncSession,
-    client_id: str,
-    flow_id: str,
-    filename: str,
-    input_timeout: int = 180,
+    task_create: TaskCreate,
 ) -> Task:
     """Create a new task in the database.
 
@@ -48,15 +50,8 @@ async def create_task(
     ----------
     session : AsyncSession
         SQLAlchemy async session.
-    client_id : str
-        Client ID.
-    flow_id : str
-        Flow id.
-    filename : str
-        The task's entry point filename.
-    input_timeout : int
-        The timeout for input requests.
-        Default is 180 seconds.
+    task_create : TaskCreate
+        Task creation data.
 
     Returns
     -------
@@ -64,15 +59,51 @@ async def create_task(
         The created task.
     """
     task = Task(
-        client_id=client_id,
-        flow_id=flow_id,
-        filename=filename,
-        input_timeout=input_timeout,
+        client_id=task_create.client_id,
+        flow_id=task_create.flow_id,
+        filename=task_create.filename,
+        input_timeout=task_create.input_timeout,
+        schedule_type=task_create.schedule_type,
+        scheduled_time=task_create.scheduled_time,
+        cron_expression=task_create.cron_expression,
+        expires_at=task_create.expires_at,
     )
     session.add(task)
     await session.commit()
     await session.refresh(task)
     return task
+
+
+async def update_task(
+    session: AsyncSession,
+    task_id: str,
+    task_update: TaskUpdate,
+) -> Task | None:
+    """Update a task in the database.
+
+    Parameters
+    ----------
+    session : AsyncSession
+        SQLAlchemy async session.
+    task_id : str
+        Task ID.
+    task_update : TaskUpdate
+        Task update data.
+
+    Returns
+    -------
+    Task | None
+        The updated task or None if not found.
+    """
+    query = (
+        update(Task)
+        .where(Task.id == task_id, Task.deleted_at.is_(None))
+        .values(**task_update.model_dump(exclude_unset=True))
+        .returning(Task)
+    )
+    result = await session.execute(query)
+    await session.commit()
+    return result.scalar_one_or_none()
 
 
 async def get_task(
@@ -120,7 +151,7 @@ async def get_client_tasks(
         List of tasks for the client.
     """
 
-    page = await paginate(
+    page = await apaginate(
         session,
         select(Task)
         .where(Task.client_id == client_id, Task.deleted_at.is_(None))
@@ -149,7 +180,7 @@ async def get_active_client_tasks(
     Page[Task]
         List of active tasks for the client.
     """
-    page = await paginate(
+    page = await apaginate(
         async_session,
         select(Task)
         .where(
@@ -185,7 +216,7 @@ async def get_tasks_to_delete(
     List[Task]
         List of tasks older than the given date.
     """
-    page = await paginate(
+    page = await apaginate(
         session,
         select(Task)
         .where(
@@ -215,7 +246,7 @@ async def get_pending_tasks(
     Page[Task]
         List of pending tasks.
     """
-    page = await paginate(
+    page = await apaginate(
         session,
         select(Task)
         .where(Task.status == TaskStatus.PENDING, Task.deleted_at.is_(None))
@@ -240,7 +271,7 @@ async def get_active_tasks(session: AsyncSession, params: Params) -> Page[Task]:
     Page[Task]
         List of active tasks.
     """
-    page = await paginate(
+    page = await apaginate(
         session,
         select(Task)
         .where(
@@ -519,13 +550,14 @@ async def get_stuck_tasks(
     Page[Task]
         List of tasks to check.
     """
-    page = await paginate(
+    page = await apaginate(
         session,
         select(Task)
         .where(
             Task.status.notin_(
                 [TaskStatus.COMPLETED, TaskStatus.CANCELLED, TaskStatus.FAILED]
             ),
+            Task.schedule_type.is_(None),
             Task.results.isnot(None),
             Task.deleted_at.is_(None),
         )

@@ -6,13 +6,15 @@ import asyncio
 import json
 import logging
 import os
-from typing import Annotated, List
+from datetime import datetime
+from typing import Annotated, List, Optional
 
 from fastapi import (
     APIRouter,
     BackgroundTasks,
     Depends,
     File,
+    Form,
     HTTPException,
     Query,
     Response,
@@ -20,9 +22,10 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi_pagination import Page
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
+from typing_extensions import Literal
 
 from waldiez_runner.dependencies import (
     ALLOWED_EXTENSIONS,
@@ -34,7 +37,12 @@ from waldiez_runner.dependencies import (
     get_storage,
 )
 from waldiez_runner.middleware.slow_api import limiter
-from waldiez_runner.models import TaskResponse, TaskStatus
+from waldiez_runner.models import (
+    TaskCreate,
+    TaskResponse,
+    TaskStatus,
+    TaskUpdate,
+)
 from waldiez_runner.services.task_service import TaskService
 from waldiez_runner.tasks import broker
 from waldiez_runner.tasks import delete_task as delete_task_job
@@ -90,6 +98,7 @@ async def get_client_tasks(
     return await TaskService.get_client_tasks(session, client_id, params=params)
 
 
+# pylint: disable=too-many-locals
 @task_router.post("/tasks/", include_in_schema=False)
 @task_router.post(
     "/tasks",
@@ -102,7 +111,12 @@ async def create_task(
     session: Annotated[AsyncSession, Depends(get_db)],
     storage: Annotated[Storage, Depends(get_storage)],
     file: Annotated[UploadFile, File(...)],
-    input_timeout: int = 180,
+    input_timeout: int = Form(180),
+    schedule_type: Optional[Literal["once", "cron"]] = Form(None),
+    scheduled_time: Optional[datetime] = Form(None),
+    cron_expression: Optional[str] = Form(None),
+    expires_at: Optional[datetime] = Form(None),
+    trigger_now: bool = Form(False),
 ) -> TaskResponse:
     """Create a task.
 
@@ -118,6 +132,16 @@ async def create_task(
         The file to process.
     input_timeout : int, optional
         The timeout for input requests, by default 180
+    schedule_type : Optional[Literal["once", "cron"]], optional
+        The type of schedule, by default None
+    scheduled_time : Optional[datetime], optional
+        The time to schedule the task, by default None
+    cron_expression : Optional[str], optional
+        The cron expression for scheduling, by default None
+    expires_at : Optional[datetime], optional
+        The expiration time for the task, by default None
+    trigger_now : bool, optional
+        Whether to also trigger the task now (if cron), by default False
 
     Returns
     -------
@@ -129,19 +153,34 @@ async def create_task(
     HTTPException
         If the task cannot be created.
     """
-    file_hash, filename, save_path = await validate_file(
+    file_hash, filename, save_path = await validate_task_input(
         session=session,
         file=file,
         client_id=client_id,
         storage=storage,
+        schedule_type=schedule_type,
     )
     try:
-        task = await TaskService.create_task(
-            session,
+        task_create = TaskCreate(
             client_id=client_id,
             flow_id=file_hash,
             filename=filename,
             input_timeout=input_timeout,
+            schedule_type=schedule_type,
+            scheduled_time=scheduled_time,
+            cron_expression=cron_expression,
+            expires_at=expires_at,
+        )
+    except ValidationError as error:
+        await storage.delete_file(save_path)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=error.json(),
+        ) from error
+    try:
+        task = await TaskService.create_task(
+            session,
+            task_create=task_create,
         )
         # relative to root if local, or "bucket" if other (e.g. S3, GCS)
         dst = os.path.join(client_id, str(task.id), filename)
@@ -162,7 +201,10 @@ async def create_task(
             status_code=500, detail="Internal server error"
         ) from error
     task_response = TaskResponse.model_validate(task, from_attributes=True)
-    await _trigger_run_task(task_response, session, storage)
+    if task.schedule_type is None or trigger_now:
+        await _trigger_run_task(task_response, session, storage)
+    if task.schedule_type is not None:
+        await _schedule_task(task_response, session, storage)
     return task_response
 
 
@@ -201,8 +243,64 @@ async def get_task(
     """
     task = await TaskService.get_task(session, task_id=task_id)
     if task is None or task.client_id != client_id:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+        )
     return TaskResponse.model_validate(task)
+
+
+@task_router.patch(
+    "/tasks/{task_id}/",
+    response_model=TaskResponse,
+    include_in_schema=False,
+)
+@task_router.patch(
+    "/tasks/{task_id}",
+    response_model=TaskResponse,
+    summary="Update a task",
+    description="Update a task by ID for the current client",
+)
+async def update_task(
+    task_id: str,
+    task_update: TaskUpdate,
+    client_id: Annotated[str, Depends(validate_tasks_audience)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> TaskResponse:
+    """Update a task.
+
+    Parameters
+    ----------
+    task_id : str
+        The task ID.
+    task_update : TaskUpdate
+        The task update data.
+    client_id : str
+        The client ID.
+    session : AsyncSession
+        The database session.
+
+    Returns
+    -------
+    TaskResponse
+        The updated task.
+
+    Raises
+    ------
+    HTTPException
+        If the task is not found or an error occurs.
+    """
+    task = await TaskService.get_task(session, task_id=task_id)
+    if task is None or task.client_id != client_id:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if task.is_inactive():
+        raise HTTPException(
+            status_code=400,
+            detail=(f"Cannot update task with status {task.get_status()}"),
+        )
+    updated = await TaskService.update_task(
+        session, task_id=task_id, task_update=task_update
+    )
+    return TaskResponse.model_validate(updated, from_attributes=True)
 
 
 @task_router.post("/tasks/{task_id}/input/", include_in_schema=False)
@@ -668,11 +766,12 @@ def _validate_uploaded_file(file: UploadFile) -> str:
     return file.filename
 
 
-async def validate_file(
+async def validate_task_input(
     session: AsyncSession,
     file: UploadFile,
     client_id: str,
     storage: Storage,
+    schedule_type: Optional[Literal["once", "cron"]] = None,
 ) -> tuple[str, str, str]:
     """Validate the uploaded file.
 
@@ -686,6 +785,8 @@ async def validate_file(
         The client ID.
     storage : Storage
         The storage service.
+    schedule_type : Optional[Literal["once", "cron"]], optional
+        The type of schedule, by default None
 
     Returns
     -------
@@ -698,12 +799,13 @@ async def validate_file(
         If the file is invalid or
         if the maximum number of tasks per client is reached.
     """
-    active_tasks = await TaskService.get_active_client_tasks(
-        session,
-        client_id=client_id,
-    )
-    if len(active_tasks.items) >= MAX_TASKS_PER_CLIENT:
-        raise HTTPException(status_code=400, detail=MAX_TASKS_ERROR)
+    if schedule_type is None:
+        active_tasks = await TaskService.get_active_client_tasks(
+            session,
+            client_id=client_id,
+        )
+        if len(active_tasks.items) >= MAX_TASKS_PER_CLIENT:
+            raise HTTPException(status_code=400, detail=MAX_TASKS_ERROR)
     filename = _validate_uploaded_file(file)
     file_hash, saved_path = await storage.save_file(client_id, file)
     active_task = next(
@@ -720,3 +822,30 @@ async def validate_file(
             ),
         )
     return file_hash, filename, saved_path
+
+
+async def _schedule_task(
+    task: TaskResponse,
+    _session: AsyncSession,
+    _storage: Storage,
+) -> None:
+    """Schedule a task.
+
+    Parameters
+    ----------
+    task : TaskResponse
+        The task to schedule.
+    session : AsyncSession
+        The database session.
+    storage : Storage
+        The storage service.
+    """
+    LOG.debug(
+        "Scheduling task %s with schedule type %s",
+        task.id,
+        task.schedule_type,
+    )
+    raise NotImplementedError(
+        "Scheduling tasks is not implemented yet. "
+        "Please check the documentation for updates."
+    )

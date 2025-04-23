@@ -366,7 +366,7 @@ def test_force_delete_task(
     client.delete_task("task1", force=True)
 
 
-def test_get_task_status(
+def test_get_task(
     httpx_mock: HTTPXMock,
     auth: Auth,
 ) -> None:
@@ -390,7 +390,7 @@ def test_get_task_status(
     )
     client = TasksClient()
     client.configure("http://localhost:8000", "id", "secret")
-    status = client.get_task_status("task1").model_dump()
+    status = client.get_task("task1").model_dump()
     assert status["status"] == "RUNNING"
 
 
@@ -592,7 +592,7 @@ async def test_a_download_task_results(
 
 
 @pytest.mark.anyio
-async def test_a_get_task_status(
+async def test_a_get_task(
     httpx_mock: HTTPXMock,
     tasks_client: TasksClient,
 ) -> None:
@@ -613,7 +613,7 @@ async def test_a_get_task_status(
             "results": None,
         },
     )
-    response = await tasks_client.a_get_task_status("task1")
+    response = await tasks_client.a_get_task("task1")
     task = response.model_dump()
     assert task["status"] == "RUNNING"
 

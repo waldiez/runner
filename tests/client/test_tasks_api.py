@@ -61,7 +61,7 @@ def test_create_task(client: TasksAPIClient, httpx_mock: HTTPXMock) -> None:
     assert response == {"task_id": "12345"}
 
 
-def test_get_task_status(client: TasksAPIClient, httpx_mock: HTTPXMock) -> None:
+def test_get_task(client: TasksAPIClient, httpx_mock: HTTPXMock) -> None:
     """Test retrieving task status."""
     httpx_mock.add_response(
         method="GET",
@@ -70,7 +70,7 @@ def test_get_task_status(client: TasksAPIClient, httpx_mock: HTTPXMock) -> None:
         status_code=200,
     )
 
-    response = client.get_task_status("12345")
+    response = client.get_task("12345")
     assert response == {"status": "completed"}
 
 
@@ -246,7 +246,7 @@ async def test_a_create_task(
 
 
 @pytest.mark.anyio
-async def test_a_get_task_status(
+async def test_a_get_task(
     client: TasksAPIClient, httpx_mock: HTTPXMock
 ) -> None:
     """Test retrieving task status asynchronously."""
@@ -257,7 +257,7 @@ async def test_a_get_task_status(
         status_code=200,
     )
 
-    response = await client.a_get_task_status("12345")
+    response = await client.a_get_task("12345")
     assert response == {"status": "completed"}
 
 
