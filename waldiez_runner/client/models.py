@@ -148,7 +148,35 @@ class TaskStatus(str, Enum):
     WAITING_FOR_INPUT = "WAITING_FOR_INPUT"
 
 
-class TaskCreateRequest(ModelBase):
+class TaskScheduleBase(ModelBase):
+    """Common schedule-related fields (mirrors TaskBase on server)."""
+
+    schedule_type: Annotated[
+        Optional[Literal["once", "cron"]],
+        Field(None, description="Type of schedule: 'once' or 'cron'"),
+    ] = None
+
+    scheduled_time: Annotated[
+        Optional[datetime],
+        Field(
+            None, description="Datetime to run task if scheduled (for 'once')"
+        ),
+    ] = None
+
+    cron_expression: Annotated[
+        Optional[str],
+        Field(None, description="Cron expression if scheduled (for 'cron')"),
+    ] = None
+
+    expires_at: Annotated[
+        Optional[datetime],
+        Field(
+            None, description="Optional expiration datetime for scheduled task"
+        ),
+    ] = None
+
+
+class TaskCreateRequest(TaskScheduleBase):
     """Request model for creating a new task."""
 
     # file_data: bytes, file_name: str, input_timeout: int = 180
@@ -169,7 +197,20 @@ class TaskCreateRequest(ModelBase):
     ] = 180
 
 
-class TaskResponse(ModelBase):
+class TaskUpdateRequest(TaskScheduleBase):
+    """Request model for updating a task."""
+
+    input_timeout: Annotated[
+        Optional[int],
+        Field(
+            None,
+            ge=1,
+            description="Optional timeout for input requests (in seconds)",
+        ),
+    ] = None
+
+
+class TaskResponse(TaskScheduleBase):
     """Response returned when interacting with tasks."""
 
     id: Annotated[str, Field(..., description="Unique task identifier")]
@@ -200,6 +241,13 @@ class TaskResponse(ModelBase):
         Optional[Union[dict[str, Any], list[dict[str, Any]]]],
         Field(None, description="Results returned by the task, if completed"),
     ]
+    triggered_at: Annotated[
+        Optional[datetime],
+        Field(
+            None,
+            description="Time when the task was triggered (if applicable)",
+        ),
+    ] = None
 
 
 class UserInputRequest(ModelBase):

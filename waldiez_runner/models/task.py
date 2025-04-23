@@ -208,6 +208,7 @@ class TaskResponse(TaskBase):
     input_timeout: int
     input_request_id: str | None
     results: Dict[str, Any] | List[Dict[str, Any]] | None
+    triggered_at: datetime | None
 
     model_config = ConfigDict(
         from_attributes=True,

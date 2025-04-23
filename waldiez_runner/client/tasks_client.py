@@ -16,6 +16,7 @@ from .models import (
     TaskItemsRequest,
     TaskItemsResponse,
     TaskResponse,
+    TaskUpdateRequest,
     UserInputRequest,
 )
 
@@ -225,7 +226,38 @@ class TasksClient(BaseClient):
         )
         return TaskResponse.model_validate(response)
 
-    def get_task_status(self, task_id: str) -> TaskResponse:
+    def update_task(
+        self,
+        task_id: str,
+        task_data: TaskUpdateRequest | Dict[str, Any],
+    ) -> TaskResponse:
+        """Update a task synchronously.
+
+        Parameters
+        ----------
+        task_id : str
+            The task ID
+        task_data : TaskUpdateRequest | Dict[str, Any]
+            The task data
+
+        Returns
+        -------
+        TaskResponse
+            The response JSON
+
+        Raises
+        ------
+        ValueError
+            If the client is not configured
+        """
+        self._ensure_configured()
+        if isinstance(task_data, dict):
+            task_data = TaskUpdateRequest.model_validate(task_data)
+        task_dict = task_data.model_dump()
+        response = self.tasks.update_task(task_id, task_dict)  # type: ignore
+        return TaskResponse.model_validate(response)
+
+    def get_task(self, task_id: str) -> TaskResponse:
         """Retrieve the status of a task synchronously.
 
         Parameters
@@ -244,7 +276,7 @@ class TasksClient(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        response = self.tasks.get_task_status(task_id)  # type: ignore
+        response = self.tasks.get_task(task_id)  # type: ignore
         return TaskResponse.model_validate(response)
 
     def send_user_input(
@@ -505,7 +537,7 @@ class TasksClient(BaseClient):
         )
         return TaskResponse.model_validate(response)
 
-    async def a_get_task_status(self, task_id: str) -> TaskResponse:
+    async def a_get_task(self, task_id: str) -> TaskResponse:
         """Retrieve the status of a task asynchronously.
 
         Parameters
@@ -525,7 +557,41 @@ class TasksClient(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        response = await self.tasks.a_get_task_status(task_id)  # type: ignore
+        response = await self.tasks.a_get_task(task_id)  # type: ignore
+        return TaskResponse.model_validate(response)
+
+    async def a_update_task(
+        self,
+        task_id: str,
+        task_data: TaskUpdateRequest | Dict[str, Any],
+    ) -> TaskResponse:
+        """Update a task asynchronously.
+
+        Parameters
+        ----------
+        task_id : str
+            The task ID
+        task_data : TaskUpdateRequest | Dict[str, Any]
+            The task data
+
+        Returns
+        -------
+        TaskResponse
+            The response JSON
+
+        Raises
+        ------
+        ValueError
+            If the client is not configured
+        """
+        self._ensure_configured()
+        if isinstance(task_data, dict):
+            task_data = TaskUpdateRequest.model_validate(task_data)
+        task_dict = task_data.model_dump()
+        response = await self.tasks.a_update_task(  # type: ignore
+            task_id,
+            task_dict,
+        )
         return TaskResponse.model_validate(response)
 
     async def a_send_user_input(
