@@ -13,8 +13,13 @@ from taskiq import (
     SimpleRetryMiddleware,
     TaskiqScheduler,
 )
-from taskiq.schedule_sources import LabelScheduleSource
-from taskiq_redis import RedisAsyncResultBackend, RedisStreamBroker
+
+# from taskiq.schedule_sources import LabelScheduleSource
+from taskiq_redis import (
+    ListRedisScheduleSource,
+    RedisAsyncResultBackend,
+    RedisStreamBroker,
+)
 
 from waldiez_runner.config import ENV_PREFIX, TRUTHY, SettingsManager
 from waldiez_runner.dependencies import REDIS_MANAGER, RedisManager, skip_redis
@@ -87,9 +92,18 @@ def get_scheduler(the_broker: AsyncBroker) -> TaskiqScheduler:
     TaskiqScheduler
         The Taskiq Scheduler instance.
     """
-    the_scheduler = TaskiqScheduler(
-        the_broker, sources=[LabelScheduleSource(the_broker)]
+    redis_url, is_smoke_testing = get_redis_url()
+    redis_source = ListRedisScheduleSource(
+        url=redis_url,
     )
+    the_scheduler = TaskiqScheduler(
+        the_broker,
+        sources=[redis_source],
+    )
+    # in smoke tests outside a container and env without redis,
+    # we use fake redis, but we don't mock the .kiq() calls
+    # in pytest, we use fake redis too, but we mock the .kiq() calls
+    setattr(the_scheduler, "_is_smoke_testing", is_smoke_testing)
     return the_scheduler
 
 

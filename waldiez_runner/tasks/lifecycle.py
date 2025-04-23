@@ -14,9 +14,22 @@ from waldiez_runner.dependencies import (
     StorageBackend,
 )
 
-from .__base__ import broker
+from .__base__ import broker, scheduler
+from .schedule import (
+    check_stuck_tasks,
+    cleanup_old_tasks,
+    cleanup_processed_requests,
+    heartbeat,
+    trim_old_stream_entries,
+)
 
 LOG = logging.getLogger(__name__)
+
+OLD_TASKS_ARE_DELETED_AFTER = 30  # days
+EVERY_HOUR = "0 * * * *"
+EVERY_DAY = "0 0 * * *"
+EVERY_5_MINUTES = "*/5 * * * *"
+EVERY_15_MINUTES = "*/15 * * * *"
 
 
 @broker.on_event(TaskiqEvents.WORKER_STARTUP)
@@ -42,6 +55,28 @@ async def on_worker_startup(state: TaskiqState) -> None:
     # and use the one from the settings
     storage_backend: StorageBackend = "local"
     state.storage = storage_backend
+    redis_source = scheduler.sources[0]
+    # schedule tasks:
+    await cleanup_processed_requests.schedule_by_cron(  # type: ignore
+        redis_source,
+        EVERY_HOUR,
+    )
+    await cleanup_old_tasks.schedule_by_cron(  # type: ignore
+        redis_source,
+        EVERY_DAY,
+    )
+    await check_stuck_tasks.schedule_by_cron(  # type: ignore
+        redis_source,
+        EVERY_15_MINUTES,
+    )
+    await trim_old_stream_entries.schedule_by_cron(  # type: ignore
+        redis_source,
+        EVERY_DAY,
+    )
+    await heartbeat.schedule_by_cron(
+        redis_source,
+        EVERY_5_MINUTES,
+    )
 
 
 @broker.on_event(TaskiqEvents.WORKER_SHUTDOWN)
