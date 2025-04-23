@@ -3,13 +3,16 @@
 
 """Application entry point."""
 
+import http
 import logging
+import traceback
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
-from fastapi import FastAPI
-from fastapi.responses import ORJSONResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import ORJSONResponse, PlainTextResponse
 from fastapi_pagination import add_pagination
+from starlette.exceptions import HTTPException
 
 from waldiez_runner._version import __version__
 from waldiez_runner.config import SettingsManager
@@ -66,6 +69,45 @@ def get_app() -> FastAPI:
             "url": "https://www.apache.org/licenses/LICENSE-2.0",
         },
     )
+
+    @application.exception_handler(HTTPException)
+    async def http_exception_handler(
+        request: Request, exc: HTTPException | Exception
+    ) -> ORJSONResponse:
+        """Custom HTTP exception handler.
+
+        Parameters
+        ----------
+        request : Request
+            The request
+        exc : HTTPException | Exception
+            The exception
+
+        Returns
+        -------
+        ORJSONResponse
+            The response
+        """
+        LOG.exception(traceback.format_exc())
+        status_code = 500
+        if hasattr(exc, "status_code"):
+            status_code = int(exc.status_code)
+        if status_code == 500:
+            return ORJSONResponse(
+                status_code=status_code,
+                content={
+                    "detail": "Internal Server Error",
+                    "message": "An unexpected error occurred.",
+                },
+            )
+        detail = http.HTTPStatus(status_code).phrase
+        if hasattr(exc, "detail"):
+            detail = str(exc.detail)
+        return PlainTextResponse(
+            content=detail,
+            status_code=status_code,
+        )
+
     add_pagination(application)
     add_middlewares(application, settings)
     add_routes(application)
