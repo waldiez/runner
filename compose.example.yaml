@@ -190,8 +190,6 @@ services:
     init: true
     networks:
       - waldiez-internal
-    ports:
-      - "80:80"
     environment: *waldiez-runner-env
     depends_on:
       db:
