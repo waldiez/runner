@@ -25,13 +25,23 @@ from .dependencies import get_db_session, get_redis_manager, get_storage
 LOG = logging.getLogger(__name__)
 
 OLD_TASKS_ARE_DELETED_AFTER = 30  # days
-EVERY_HOUR = [{"cron": "0 * * * *"}]
-EVERY_DAY = [{"cron": "0 0 * * *"}]
-EVERY_5_MINUTES = [{"cron": "*/5 * * * *"}]
-EVERY_15_MINUTES = [{"cron": "*/15 * * * *"}]
 
 
-@broker.task(schedule=EVERY_DAY)
+# @broker.task(schedule=EVERY_5_MINUTES)
+@broker.task
+async def heartbeat() -> None:
+    """Periodic heartbeat."""
+    # just a log message for now
+    # in the future we might want to report our status to an external service.
+    # e.g. if we are in a polling mode,
+    # we can do this here.
+    # a simple log for now is ok
+    # to check if the taskiq worker is alive
+    # and the scheduling is working
+    LOG.info("Heartbeat")
+
+
+@broker.task
 async def cleanup_processed_requests(
     redis_manager: Annotated[RedisManager, TaskiqDepends(get_redis_manager)],
 ) -> None:
@@ -52,7 +62,7 @@ async def cleanup_processed_requests(
         LOG.info("Cleaned up stale processed requests.")
 
 
-@broker.task(schedule=EVERY_DAY)
+@broker.task
 async def cleanup_old_tasks(
     db_session: Annotated[AsyncSession, TaskiqDepends(get_db_session)],
     storage: Annotated[Storage, TaskiqDepends(get_storage)],
@@ -86,7 +96,7 @@ async def cleanup_old_tasks(
     LOG.info("Cleaned up old tasks.")
 
 
-@broker.task(schedule=EVERY_15_MINUTES)
+@broker.task
 async def check_stuck_tasks(
     db_session: Annotated[AsyncSession, TaskiqDepends(get_db_session)],
     storage: Annotated[Storage, TaskiqDepends(get_storage)],
@@ -123,7 +133,7 @@ async def check_stuck_tasks(
     LOG.info("Checked stuck tasks.")
 
 
-@broker.task(schedule=EVERY_DAY)
+@broker.task
 async def trim_old_stream_entries(
     redis_manager: Annotated[RedisManager, TaskiqDepends(get_redis_manager)],
     maxlen: int = 1000,
@@ -221,13 +231,3 @@ async def check_stuck_task_status(task: Task, storage: Storage) -> TaskStatus:
     if not files:
         return TaskStatus.FAILED
     return TaskStatus.COMPLETED
-
-
-@broker.task(schedule=EVERY_5_MINUTES)
-async def heartbeat() -> None:
-    """Periodic heartbeat."""
-    # just a log message for now
-    # in the future we might want to report our status to an external service.
-    # e.g. if we are in a polling mode,
-    # we can do this here.
-    LOG.info("Heartbeat")
