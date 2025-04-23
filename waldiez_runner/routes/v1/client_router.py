@@ -253,6 +253,11 @@ async def delete_clients(
     -------
     Response
         The response.
+
+    Raises
+    ------
+    HTTPException
+        If the client is not found or the client is not allowed to delete.
     """
     if ids and client_id in ids:
         raise HTTPException(

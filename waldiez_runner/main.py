@@ -7,10 +7,10 @@ import http
 import logging
 import traceback
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
 from fastapi import FastAPI, Request
-from fastapi.responses import ORJSONResponse, PlainTextResponse
+from fastapi.responses import ORJSONResponse, Response
 from fastapi_pagination import add_pagination
 from starlette.exceptions import HTTPException
 
@@ -73,7 +73,7 @@ def get_app() -> FastAPI:
     @application.exception_handler(HTTPException)
     async def http_exception_handler(
         request: Request, exc: HTTPException | Exception
-    ) -> ORJSONResponse:
+    ) -> Response:
         """Custom HTTP exception handler.
 
         Parameters
@@ -85,25 +85,29 @@ def get_app() -> FastAPI:
 
         Returns
         -------
-        ORJSONResponse
+        NResponse
             The response
         """
         LOG.exception(traceback.format_exc())
         status_code = 500
         if hasattr(exc, "status_code"):
             status_code = int(exc.status_code)
-        if status_code == 500:
+        if status_code == 500:  # pragma: no cover
             return ORJSONResponse(
                 status_code=status_code,
                 content={
-                    "detail": "Internal Server Error",
-                    "message": "An unexpected error occurred.",
+                    "detail": "An unexpected error occurred.",
                 },
             )
-        detail = http.HTTPStatus(status_code).phrase
+        detail: dict[str, Any] | list[Any] = {
+            "detail": http.HTTPStatus(status_code).phrase
+        }
         if hasattr(exc, "detail"):
-            detail = str(exc.detail)
-        return PlainTextResponse(
+            if isinstance(exc.detail, (dict, list)):
+                detail = exc.detail
+            elif isinstance(exc.detail, str):  # pragma: no cover
+                detail = {"detail": exc.detail}
+        return ORJSONResponse(
             content=detail,
             status_code=status_code,
         )
