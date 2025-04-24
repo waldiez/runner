@@ -443,8 +443,8 @@ class RedisIOStream(IOStream):
             return None, None
         if "data" not in message_dict:
             return None, None
-        user_input = str(message_dict.get("data", "")).lower()
-        if user_input in [
+        user_input = str(message_dict.get("data", ""))
+        if user_input.lower() in [
             "",
             "\n",
             "/\\n",
