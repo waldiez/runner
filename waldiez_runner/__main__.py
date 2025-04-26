@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
-"""Studio entry point module."""
+"""Runner entry point module."""
 
 from .cli import app
 
