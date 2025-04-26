@@ -224,6 +224,8 @@
         "pylance",
         "pylint",
         "pymdownx",
+        "pypa",
+        "pypi",
         "pyproject",
         "pysqlite",
         "pytest",
