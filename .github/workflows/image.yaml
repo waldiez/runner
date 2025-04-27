@@ -58,8 +58,8 @@ jobs:
           platforms: |
             linux/amd64
             linux/arm64
-          file: packages/runner/Containerfile
-          context: packages/runner
+          file: Containerfile
+          context: .
           push: true
           tags: |
             waldiez/runner:${{ steps.docker_tag.outputs.docker_tag }}
