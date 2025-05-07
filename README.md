@@ -1,6 +1,10 @@
 # Waldiez Runner
 
-Run your [Waldiez](https://github.com/waldiez/waldiez) flows in isolated environments and stream logs/input/output via Redis.
+Run your [Waldiez](https://github.com/waldiez/waldiez) flows in isolated environments and stream AG2 logs/input/output via Redis.
+
+
+https://github.com/user-attachments/assets/596ee25a-362e-4202-a4b0-894a4713e041
+
 
 ## Overview
 
