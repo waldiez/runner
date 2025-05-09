@@ -73,7 +73,7 @@ def download_openapi_json() -> bool:
 
 def start_dev() -> None:
     """Start the services."""
-    make_proc = start_services(silently=True)
+    make_proc = start_services(silently="--debug" not in sys.argv)
     make_proc.wait()
 
 
@@ -90,6 +90,7 @@ def main() -> None:
         return
     print("Starting dev server temporarily...")
     ensure_not_running("uvicorn")
+    ensure_not_running("taskiq")
     background_sub_proc = Process(target=start_dev, daemon=True)
     background_sub_proc.start()
     wait_for_services()
@@ -106,6 +107,7 @@ def main() -> None:
         print("Stopping temporary dev server...")
         background_sub_proc.join(timeout=1)
         ensure_not_running("uvicorn")
+        ensure_not_running("taskiq")
         if not all_good:
             sys.exit(1)
 

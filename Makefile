@@ -161,5 +161,9 @@ dev-no-reload: toggle drop
 smoke: toggle drop
 	$(PYTHON) scripts/test.py --smoke
 
+.PHONY: smoke-debug
+smoke-debug: toggle drop
+	$(PYTHON) scripts/test.py --smoke --debug
+
 .PHONY: some
 some: requirements forlint test smoke

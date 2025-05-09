@@ -5,7 +5,7 @@
 
 import pytest
 
-from waldiez_runner.models.cron_util import (
+from waldiez_runner.schemas.utils import (
     CronValidationError,
     normalize_and_validate_cron_expression,
 )

@@ -17,16 +17,19 @@ from pytest_mock import MockerFixture
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_200_OK, HTTP_204_NO_CONTENT
 
+from tests.types import CreateTaskCallable
 from waldiez_runner.config import Settings, SettingsManager
 from waldiez_runner.dependencies.storage import LocalStorage
 from waldiez_runner.main import get_app
-from waldiez_runner.models import ClientCreateResponse, Task, TaskStatus
-from waldiez_runner.routes.v1.task_router import get_storage  # type: ignore
-from waldiez_runner.routes.v1.task_router import (
+from waldiez_runner.models.task import Task
+from waldiez_runner.models.task_status import TaskStatus
+from waldiez_runner.routes.v1.task_router import (  # type: ignore
     MAX_TASKS_ERROR,
     MAX_TASKS_PER_CLIENT,
+    get_storage,
     validate_tasks_audience,
 )
+from waldiez_runner.schemas.client import ClientCreateResponse
 
 VALID_EXTENSION = ".waldiez"
 VALID_CONTENT_TYPE = "application/json"
@@ -93,17 +96,16 @@ async def test_get_tasks(
     client: AsyncClient,
     async_session: AsyncSession,
     client_id: str,
+    create_task: CreateTaskCallable,
 ) -> None:
     """Test getting tasks."""
-    task = Task(
+    task, _ = await create_task(
+        async_session,
         client_id=client_id,
         flow_id="flow123",
         status=TaskStatus.PENDING,
         filename="test",
     )
-    async_session.add(task)
-    await async_session.commit()
-    await async_session.refresh(task)
 
     response = await client.get("/tasks")
 
@@ -112,6 +114,93 @@ async def test_get_tasks(
     data = data_dict["items"]
     assert len(data) == 1
     assert data[0]["id"] == str(task.id)
+
+
+@pytest.mark.anyio
+async def test_get_tasks_search(
+    client: AsyncClient,
+    async_session: AsyncSession,
+    client_id: str,
+    create_task: CreateTaskCallable,
+) -> None:
+    """Test getting tasks with search."""
+    task, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        flow_id="flow123",
+        status=TaskStatus.PENDING,
+        filename="test_get_tasks_search",
+    )
+
+    response = await client.get(
+        "/tasks", params={"search": "test_get_tasks_search"}
+    )
+
+    assert response.status_code == HTTP_200_OK
+    data_dict = response.json()
+    data = data_dict["items"]
+    assert len(data) == 1
+    assert data[0]["id"] == str(task.id)
+
+
+@pytest.mark.anyio
+async def test_get_tasks_search_no_results(
+    client: AsyncClient,
+) -> None:
+    """Test getting tasks with search and no results."""
+    response = await client.get(
+        "/tasks", params={"search": "non_existent_task"}
+    )
+
+    assert response.status_code == HTTP_200_OK
+    data_dict = response.json()
+    data = data_dict["items"]
+    assert len(data) == 0
+
+
+@pytest.mark.anyio
+async def test_get_tasks_sorted(
+    client: AsyncClient,
+    async_session: AsyncSession,
+    client_id: str,
+    create_task: CreateTaskCallable,
+) -> None:
+    """Test getting tasks with ordering."""
+    task1, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        flow_id="flow123",
+        status=TaskStatus.PENDING,
+        filename="test_get_tasks_ordered_1",
+    )
+    task2, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        flow_id="flow123",
+        status=TaskStatus.PENDING,
+        filename="test_get_tasks_ordered_2",
+    )
+
+    response = await client.get(
+        "/tasks", params={"order_by": "filename", "order_type": "desc"}
+    )
+
+    assert response.status_code == HTTP_200_OK
+    data_dict = response.json()
+    data = data_dict["items"]
+    assert len(data) == 2
+    assert data[0]["id"] == str(task2.id)
+    assert data[1]["id"] == str(task1.id)
+
+    response_2 = await client.get(
+        "/tasks", params={"order_by": "filename", "order_type": "asc"}
+    )
+    assert response_2.status_code == HTTP_200_OK
+    data_dict_2 = response_2.json()
+    data_2 = data_dict_2["items"]
+    assert len(data_2) == 2
+    assert data_2[0]["id"] == str(task1.id)
+    assert data_2[1]["id"] == str(task2.id)
 
 
 @pytest.mark.anyio

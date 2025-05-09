@@ -37,18 +37,14 @@ from waldiez_runner.dependencies import (
     get_storage,
 )
 from waldiez_runner.middleware.slow_api import limiter
-from waldiez_runner.models import (
-    TaskCreate,
-    TaskResponse,
-    TaskStatus,
-    TaskUpdate,
-)
+from waldiez_runner.models import TaskStatus
+from waldiez_runner.schemas.task import TaskCreate, TaskResponse, TaskUpdate
 from waldiez_runner.services.task_service import TaskService
 from waldiez_runner.tasks import broker
 from waldiez_runner.tasks import delete_task as delete_task_job
 from waldiez_runner.tasks import run_task as run_task_job
 
-from ._common import get_pagination_params
+from ._common import Order, get_pagination_params
 
 REQUIRED_AUDIENCES = [TASK_API_AUDIENCE]
 MAX_TASKS_PER_CLIENT = 3
@@ -57,7 +53,12 @@ MAX_TASKS_ERROR = (
     "at the same time. Please wait for some tasks to finish"
 )
 LOG = logging.getLogger(__name__)
-
+TaskSort = Literal[
+    "id",
+    "flow_id",
+    "filename",
+    "status",
+]
 validate_tasks_audience = get_client_id(*REQUIRED_AUDIENCES)
 task_router = APIRouter()
 
@@ -79,6 +80,15 @@ class InputResponse(BaseModel):
 async def get_client_tasks(
     client_id: Annotated[str, Depends(validate_tasks_audience)],
     session: Annotated[AsyncSession, Depends(get_db)],
+    search: Annotated[str | None, Query(description="A term to search")] = None,
+    order_by: Annotated[
+        TaskSort | None,
+        Query(description="The field to sort the results"),
+    ] = None,
+    order_type: Annotated[
+        Order | None,
+        Query(description="The order direction, can be 'asc' or 'desc'"),
+    ] = None,
 ) -> Page[TaskResponse]:
     """Get all tasks.
 
@@ -88,6 +98,12 @@ async def get_client_tasks(
         The client ID.
     session : AsyncSession
         The database session.
+    search : str | None
+        A search term to filter the tasks.
+    order_by : str | None
+        The field to sort the tasks.
+    order_type : str | None
+        The order to sort the tasks. Can be "asc" or "desc".
 
     Returns
     -------
@@ -95,7 +111,14 @@ async def get_client_tasks(
         The tasks.
     """
     params = get_pagination_params()
-    return await TaskService.get_client_tasks(session, client_id, params=params)
+    return await TaskService.get_client_tasks(
+        session,
+        client_id,
+        params=params,
+        search=search,
+        order_by=order_by,
+        descending=order_type == "desc",
+    )
 
 
 # pylint: disable=too-many-locals

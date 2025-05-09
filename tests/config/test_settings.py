@@ -198,8 +198,6 @@ def test_settings_manager_force_reload() -> None:
         force_reload=True,
     )
     assert id(settings1) != id(settings2)  # Should be a new instance
-    print(settings1)
-    print(settings2)
     assert settings1 == settings2  # but with the same values
 
 

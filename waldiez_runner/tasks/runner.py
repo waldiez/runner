@@ -19,7 +19,8 @@ from aiofiles.os import wrap
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from waldiez_runner.dependencies import AsyncRedis, Storage
-from waldiez_runner.models import TaskResponse, TaskStatus
+from waldiez_runner.models.task_status import TaskStatus
+from waldiez_runner.schemas.task import TaskResponse
 
 from .__base__ import APP_DIR
 from .status_watcher import watch_status_and_cancel_if_needed

@@ -12,36 +12,10 @@ import pytest
 from fastapi_pagination import Params
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from waldiez_runner.models import Task, TaskCreate, TaskStatus
+from tests.types import CreateTaskCallable
+from waldiez_runner.models.task_status import TaskStatus
+from waldiez_runner.schemas.task import TaskCreate
 from waldiez_runner.services import _task_service as TaskService
-
-
-def get_new_task_data(client_id: str, filename: str) -> TaskCreate:
-    """Get new task data."""
-    return TaskCreate(
-        client_id=client_id,
-        flow_id="Sample Flow",
-        filename=filename,
-        input_timeout=180,
-        schedule_type=None,
-        scheduled_time=None,
-        cron_expression=None,
-        expires_at=None,
-    )
-
-
-async def get_new_task(
-    async_session: AsyncSession, client_id: str, filename: str
-) -> Task:
-    """Get new task."""
-    task_create = get_new_task_data(
-        client_id=client_id,
-        filename=filename,
-    )
-    return await TaskService.create_task(
-        async_session,
-        task_create=task_create,
-    )
 
 
 @pytest.fixture(scope="function", name="pagination_params")
@@ -54,11 +28,14 @@ def pagination_params_fixture() -> Params:
 async def test_create_task(async_session: AsyncSession) -> None:
     """Test task creation."""
     client_id = "test_create_task"
-    task = await get_new_task(
-        async_session,
+    task_create = TaskCreate(
         client_id=client_id,
-        filename="file1",
+        flow_id="flow1",
+        filename="file1.waldiez",
+        input_timeout=180,
     )
+    task = await TaskService.create_task(async_session, task_create)
+    await async_session.commit()
     await async_session.refresh(task)
     assert task is not None
     assert task.client_id == client_id
@@ -67,13 +44,16 @@ async def test_create_task(async_session: AsyncSession) -> None:
 
 
 @pytest.mark.anyio
-async def test_get_task(async_session: AsyncSession) -> None:
+async def test_get_task(
+    async_session: AsyncSession,
+    create_task: CreateTaskCallable,
+) -> None:
     """Test retrieving a task."""
     client_id = "test_get_task"
-    task = await get_new_task(
+
+    task, _ = await create_task(
         async_session,
         client_id=client_id,
-        filename="file1",
     )
     fetched_task = await TaskService.get_task(async_session, task.id)
     assert fetched_task is not None
@@ -91,13 +71,15 @@ async def test_get_nonexistent_task(async_session: AsyncSession) -> None:
 
 
 @pytest.mark.anyio
-async def test_update_task_status(async_session: AsyncSession) -> None:
+async def test_update_task_status(
+    async_session: AsyncSession,
+    create_task: CreateTaskCallable,
+) -> None:
     """Test updating task status."""
     client_id = "test_update_task_status"
-    task = await get_new_task(
+    task, _ = await create_task(
         async_session,
         client_id=client_id,
-        filename="file1",
     )
     await TaskService.update_task_status(
         async_session, task.id, TaskStatus.RUNNING
@@ -121,13 +103,15 @@ async def test_update_nonexistent_task_status(
 
 
 @pytest.mark.anyio
-async def test_update_task_results(async_session: AsyncSession) -> None:
+async def test_update_task_results(
+    async_session: AsyncSession,
+    create_task: CreateTaskCallable,
+) -> None:
     """Test updating task results."""
     client_id = "test_update_task_results"
-    task = await get_new_task(
+    task, _ = await create_task(
         async_session,
         client_id=client_id,
-        filename="file1",
     )
     await TaskService.update_task_status(
         async_session,
@@ -158,13 +142,15 @@ async def test_update_nonexistent_task_results(
 
 
 @pytest.mark.anyio
-async def test_delete_task(async_session: AsyncSession) -> None:
+async def test_delete_task(
+    async_session: AsyncSession,
+    create_task: CreateTaskCallable,
+) -> None:
     """Test deleting a task."""
     client_id = "test_delete_task"
-    task = await get_new_task(
+    task, _ = await create_task(
         async_session,
         client_id=client_id,
-        filename="file1",
     )
     await TaskService.delete_task(async_session, task.id)
 
@@ -182,13 +168,15 @@ async def test_delete_nonexistent_task(async_session: AsyncSession) -> None:
 
 
 @pytest.mark.anyio
-async def test_get_active_client_task(async_session: AsyncSession) -> None:
+async def test_get_active_client_task(
+    async_session: AsyncSession,
+    create_task: CreateTaskCallable,
+) -> None:
     """Test getting an active client task."""
     client_id = "test_get_active_client_task"
-    task = await get_new_task(
+    task, _ = await create_task(
         async_session,
         client_id=client_id,
-        filename="file1",
     )
     await TaskService.update_task_status(
         async_session, task.id, TaskStatus.RUNNING
@@ -216,16 +204,18 @@ async def test_get_nonexistent_active_client_tasks(
 
 @pytest.mark.anyio
 async def test_get_client_tasks(
-    async_session: AsyncSession, pagination_params: Params
+    async_session: AsyncSession,
+    create_task: CreateTaskCallable,
+    pagination_params: Params,
 ) -> None:
     """Test getting all client tasks."""
     client_id = "test_get_client_tasks"
-    task1 = await get_new_task(
+    task1, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file1",
     )
-    task2 = await get_new_task(
+    task2, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file2",
@@ -238,11 +228,194 @@ async def test_get_client_tasks(
     all_ids = [task.id for task in client_tasks.items]
     assert task1.id in all_ids
     assert task2.id in all_ids
+    await TaskService.delete_client_tasks(
+        async_session,
+        client_id=client_id,
+    )
+
+
+@pytest.mark.anyio
+async def test_get_client_tasks_with_pagination(
+    async_session: AsyncSession,
+    create_task: CreateTaskCallable,
+    pagination_params: Params,
+) -> None:
+    """Test getting client tasks with pagination."""
+    client_id = "test_get_client_tasks_with_pagination"
+    task1, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        filename="file1",
+    )
+    task2, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        filename="file2",
+    )
+    task3, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        filename="file3",
+    )
+    task4, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        filename="file4",
+    )
+    pagination_params.page = 2
+    pagination_params.size = 2
+    client_tasks = await TaskService.get_client_tasks(
+        async_session,
+        client_id=client_id,
+        params=pagination_params,
+    )
+    all_ids = [task.id for task in client_tasks.items]
+    assert task3.id in all_ids
+    assert task4.id in all_ids
+    assert task1.id not in all_ids
+    assert task2.id not in all_ids
+    await TaskService.delete_client_tasks(
+        async_session,
+        client_id=client_id,
+    )
+
+
+@pytest.mark.anyio
+async def test_get_client_tasks_with_search(
+    async_session: AsyncSession,
+    create_task: CreateTaskCallable,
+    pagination_params: Params,
+) -> None:
+    """Test getting client tasks with search."""
+    client_id = "test_get_client_tasks_with_search"
+    task1, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        filename="file1",
+    )
+    task2, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        filename="file2",
+    )
+    task3, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        filename="file3",
+    )
+    client_tasks = await TaskService.get_client_tasks(
+        async_session,
+        client_id=client_id,
+        params=pagination_params,
+        search=task1.filename,
+    )
+    all_ids = [task.id for task in client_tasks.items]
+    assert task1.id in all_ids
+    assert task2.id not in all_ids
+    assert task3.id not in all_ids
+    await TaskService.delete_client_tasks(
+        async_session,
+        client_id=client_id,
+    )
+
+
+@pytest.mark.anyio
+async def test_get_client_tasks_with_search_no_results(
+    async_session: AsyncSession,
+    create_task: CreateTaskCallable,
+    pagination_params: Params,
+) -> None:
+    """Test getting client tasks with search and no results."""
+    client_id = "test_get_client_tasks_with_search_no_results"
+    task1, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        filename="file1",
+    )
+    task2, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        filename="file2",
+    )
+    task3, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        filename="file3",
+    )
+    client_tasks = await TaskService.get_client_tasks(
+        async_session,
+        client_id=client_id,
+        params=pagination_params,
+        search="nonexistent filename",
+    )
+    all_ids = [task.id for task in client_tasks.items]
+    assert not all_ids
+    assert task1.id not in all_ids
+    assert task2.id not in all_ids
+    assert task3.id not in all_ids
+
+
+@pytest.mark.anyio
+async def test_get_client_tasks_with_order(
+    async_session: AsyncSession,
+    create_task: CreateTaskCallable,
+    pagination_params: Params,
+) -> None:
+    """Test getting client tasks with order."""
+    client_id = "test_get_client_tasks_with_order"
+    task1, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        filename="file1",
+    )
+    task2, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        filename="file2",
+    )
+    task3, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        filename="file3",
+    )
+    task4, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        filename="file4",
+    )
+    client_tasks = await TaskService.get_client_tasks(
+        async_session,
+        client_id=client_id,
+        params=pagination_params,
+        order_by="filename",
+        descending=True,
+    )
+    assert client_tasks.items[0].filename == task4.filename
+    assert client_tasks.items[1].filename == task3.filename
+    assert client_tasks.items[2].filename == task2.filename
+    assert client_tasks.items[3].filename == task1.filename
+
+    acceding_client_tasks = await TaskService.get_client_tasks(
+        async_session,
+        client_id=client_id,
+        params=pagination_params,
+        order_by="filename",
+        descending=False,
+    )
+    assert acceding_client_tasks.items[0].filename == task1.filename
+    assert acceding_client_tasks.items[1].filename == task2.filename
+    assert acceding_client_tasks.items[2].filename == task3.filename
+    assert acceding_client_tasks.items[3].filename == task4.filename
+    await TaskService.delete_client_tasks(
+        async_session,
+        client_id=client_id,
+    )
 
 
 @pytest.mark.anyio
 async def test_get_no_client_tasks(
-    async_session: AsyncSession, pagination_params: Params
+    async_session: AsyncSession,
+    pagination_params: Params,
 ) -> None:
     """Test getting no client tasks."""
     client_id = "test_get_no_client_tasks"
@@ -255,10 +428,13 @@ async def test_get_no_client_tasks(
 
 
 @pytest.mark.anyio
-async def test_delete_client_flow_task(async_session: AsyncSession) -> None:
+async def test_delete_client_flow_task(
+    async_session: AsyncSession,
+    create_task: CreateTaskCallable,
+) -> None:
     """Test deleting a client task."""
     client_id = "test_delete_client_flow_task"
-    task = await get_new_task(
+    task, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file1",
@@ -266,7 +442,7 @@ async def test_delete_client_flow_task(async_session: AsyncSession) -> None:
     await TaskService.delete_client_flow_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
+        flow_id=task.flow_id,
     )
 
     deleted_task = await TaskService.get_task(async_session, task.id)
@@ -276,7 +452,7 @@ async def test_delete_client_flow_task(async_session: AsyncSession) -> None:
     await TaskService.delete_client_flow_task(
         async_session,
         client_id=client_id,
-        flow_id="Sample Flow",
+        flow_id=task.flow_id,
     )
 
 
@@ -295,21 +471,23 @@ async def test_delete_nonexistent_client_flow_task(
 
 @pytest.mark.anyio
 async def test_get_tasks_to_delete(
-    async_session: AsyncSession, pagination_params: Params
+    async_session: AsyncSession,
+    create_task: CreateTaskCallable,
+    pagination_params: Params,
 ) -> None:
     """Test getting tasks to delete."""
     client_id = "test_get_tasks_to_delete"
-    task1 = await get_new_task(
+    task1, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file1",
     )
-    task2 = await get_new_task(
+    task2, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file2",
     )
-    task3 = await get_new_task(
+    task3, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file3",
@@ -336,21 +514,23 @@ async def test_get_tasks_to_delete(
 
 @pytest.mark.anyio
 async def test_get_pending_tasks(
-    async_session: AsyncSession, pagination_params: Params
+    async_session: AsyncSession,
+    create_task: CreateTaskCallable,
+    pagination_params: Params,
 ) -> None:
     """Test getting pending tasks."""
     client_id = "test_get_pending_tasks"
-    task1 = await get_new_task(
+    task1, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file1",
     )
-    task2 = await get_new_task(
+    task2, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file2",
     )
-    task3 = await get_new_task(
+    task3, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file3",
@@ -379,30 +559,31 @@ async def test_get_pending_tasks(
 @pytest.mark.anyio
 async def test_update_waiting_for_input_tasks(
     async_session: AsyncSession,
+    create_task: CreateTaskCallable,
 ) -> None:
     """Test updating waiting for input tasks."""
     client_id = "test_update_waiting_for_input_tasks"
-    task1 = await get_new_task(
+    task1, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file1",
     )
-    task2 = await get_new_task(
+    task2, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file2",
     )
-    task3 = await get_new_task(
+    task3, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file3",
     )
-    task4 = await get_new_task(
+    task4, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file4",
     )
-    task5 = await get_new_task(
+    task5, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file5",
@@ -449,13 +630,13 @@ async def test_update_waiting_for_input_tasks(
 @pytest.mark.anyio
 async def test_update_waiting_for_input_tasks_no_old_tasks(
     async_session: AsyncSession,
+    create_task: CreateTaskCallable,
 ) -> None:
     """Test updating waiting for input tasks with no old tasks."""
     client_id = "test_update_waiting_for_input_tasks_no_old_tasks"
-    task = await get_new_task(
+    task, _ = await create_task(
         async_session,
         client_id=client_id,
-        filename="file1",
     )
     await TaskService.update_task_status(
         async_session, task.id, TaskStatus.WAITING_FOR_INPUT
@@ -474,21 +655,22 @@ async def test_update_waiting_for_input_tasks_no_old_tasks(
 @pytest.mark.anyio
 async def test_get_active_tasks(
     async_session: AsyncSession,
+    create_task: CreateTaskCallable,
     pagination_params: Params,
 ) -> None:
     """Test getting active tasks."""
     client_id = "test_get_active_tasks"
-    task1 = await get_new_task(
+    task1, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file1",
     )
-    task2 = await get_new_task(
+    task2, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file2",
     )
-    task3 = await get_new_task(
+    task3, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file3",
@@ -512,20 +694,21 @@ async def test_get_active_tasks(
 @pytest.mark.anyio
 async def test_delete_client_tasks(
     async_session: AsyncSession,
+    create_task: CreateTaskCallable,
 ) -> None:
     """Test deleting client tasks."""
     client_id = "test_delete_client_tasks"
-    task1 = await get_new_task(
+    task1, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file1",
     )
-    task2 = await get_new_task(
+    task2, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file2",
     )
-    task3 = await get_new_task(
+    task3, _ = await create_task(
         async_session,
         client_id=f"{client_id}1",
         filename="file3",
@@ -543,10 +726,11 @@ async def test_delete_client_tasks(
 @pytest.mark.anyio
 async def test_soft_delete_client_tasks(
     async_session: AsyncSession,
+    create_task: CreateTaskCallable,
 ) -> None:
     """Test soft deleting client tasks."""
     client_id = "test_soft_delete_client_tasks"
-    task1 = await get_new_task(
+    task1, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file1",
@@ -554,7 +738,7 @@ async def test_soft_delete_client_tasks(
     task1.status = TaskStatus.COMPLETED
     async_session.add(task1)
     await async_session.commit()
-    task2 = await get_new_task(
+    task2, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file2",
@@ -562,7 +746,7 @@ async def test_soft_delete_client_tasks(
     task2.status = TaskStatus.FAILED
     async_session.add(task2)
     await async_session.commit()
-    task3 = await get_new_task(
+    task3, _ = await create_task(
         async_session,
         client_id=f"{client_id}1",
         filename="file3",
@@ -585,20 +769,21 @@ async def test_soft_delete_client_tasks(
 @pytest.mark.anyio
 async def test_soft_delete_client_tasks_not_inactive_only(
     async_session: AsyncSession,
+    create_task: CreateTaskCallable,
 ) -> None:
     """Test soft deleting client tasks without inactive_only."""
     client_id = "test_soft_delete_client_tasks_not_inactive_only"
-    task1 = await get_new_task(
+    task1, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file1",
     )
-    task2 = await get_new_task(
+    task2, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file2",
     )
-    task3 = await get_new_task(
+    task3, _ = await create_task(
         async_session,
         client_id=f"{client_id}1",
         filename="file3",
@@ -627,20 +812,21 @@ async def test_soft_delete_client_tasks_not_inactive_only(
 @pytest.mark.anyio
 async def test_ensure_deleting_owned_only_tasks(
     async_session: AsyncSession,
+    create_task: CreateTaskCallable,
 ) -> None:
     """Test ensuring only owned tasks are deleted."""
     client_id = "test_ensure_deleting_owned_only_tasks"
-    task1 = await get_new_task(
+    task1, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file1",
     )
-    task2 = await get_new_task(
+    task2, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file2",
     )
-    task3 = await get_new_task(
+    task3, _ = await create_task(
         async_session,
         client_id=f"{client_id}1",
         filename="file3",
@@ -670,20 +856,21 @@ async def test_ensure_deleting_owned_only_tasks(
 @pytest.mark.anyio
 async def test_delete_client_tasks_with_ids(
     async_session: AsyncSession,
+    create_task: CreateTaskCallable,
 ) -> None:
     """Test deleting client tasks with IDs."""
     client_id = "test_delete_client_tasks_with_ids"
-    task1 = await get_new_task(
+    task1, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file1",
     )
-    task2 = await get_new_task(
+    task2, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file2",
     )
-    task3 = await get_new_task(
+    task3, _ = await create_task(
         async_session,
         client_id=f"{client_id}1",
         filename="file3",
@@ -711,21 +898,23 @@ async def test_delete_client_tasks_with_ids(
 
 @pytest.mark.anyio
 async def test_get_stuck_tasks(
-    async_session: AsyncSession, pagination_params: Params
+    async_session: AsyncSession,
+    create_task: CreateTaskCallable,
+    pagination_params: Params,
 ) -> None:
     """Test getting stuck tasks."""
     client_id = "test_get_stuck_tasks"
-    task1 = await get_new_task(
+    task1, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file1",
     )
-    task2 = await get_new_task(
+    task2, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file2",
     )
-    task3 = await get_new_task(
+    task3, _ = await create_task(
         async_session,
         client_id=client_id,
         filename="file3",

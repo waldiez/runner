@@ -11,11 +11,13 @@ from unittest.mock import patch
 import pytest
 from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from tests.types import CreateClientCallable
 from waldiez_runner.config import Settings, SettingsManager
 from waldiez_runner.main import get_app
-from waldiez_runner.models import ClientCreateResponse
 from waldiez_runner.routes.v1.client_router import validate_clients_audience
+from waldiez_runner.schemas.client import ClientCreateResponse
 
 
 @pytest.fixture(name="client")
@@ -53,6 +55,163 @@ async def test_get_clients(client: AsyncClient) -> None:
     assert "page" in response_data
     assert "total" in response_data
     assert len(response_data["items"]) > 0
+
+
+@pytest.mark.anyio
+async def test_get_clients_search_name(
+    client: AsyncClient,
+    async_session: AsyncSession,
+    create_client: CreateClientCallable,
+) -> None:
+    """Test get clients with search."""
+    c, _ = await create_client(
+        async_session,
+        name="Super Duper Client",
+        description="Another client",
+    )
+    response = await client.get(
+        "/api/v1/clients",
+        params={"search": "Super Duper"},
+    )
+    assert response.status_code == 200
+    response_data = response.json()
+    assert "items" in response_data
+    assert "page" in response_data
+    assert "total" in response_data
+    assert len(response_data["items"]) > 0
+    await async_session.delete(c)
+    await async_session.commit()
+
+
+@pytest.mark.anyio
+async def test_get_clients_search_name_not_found(
+    client: AsyncClient,
+    async_session: AsyncSession,
+    create_client: CreateClientCallable,
+) -> None:
+    """Test get clients with search not found."""
+    c, _ = await create_client(
+        async_session,
+        name="Super Duper Client",
+        description="Another client",
+    )
+    response = await client.get(
+        "/api/v1/clients",
+        params={"search": "Not Found"},
+    )
+    assert response.status_code == 200
+    response_data = response.json()
+    assert "items" in response_data
+    assert "page" in response_data
+    assert "total" in response_data
+    assert len(response_data["items"]) == 0
+    await async_session.delete(c)
+    await async_session.commit()
+
+
+@pytest.mark.anyio
+async def test_get_clients_search_description(
+    client: AsyncClient,
+    async_session: AsyncSession,
+    create_client: CreateClientCallable,
+) -> None:
+    """Test get clients with search."""
+    c, _ = await create_client(
+        async_session,
+        name="Super Duper Client",
+        description="Another client",
+    )
+    response = await client.get(
+        "/api/v1/clients",
+        params={"search": "Another"},
+    )
+    assert response.status_code == 200
+    response_data = response.json()
+    assert "items" in response_data
+    assert "page" in response_data
+    assert "total" in response_data
+    assert len(response_data["items"]) > 0
+    await async_session.delete(c)
+    await async_session.commit()
+
+
+@pytest.mark.anyio
+async def test_get_clients_order_by(
+    client: AsyncClient,
+    async_session: AsyncSession,
+    create_client: CreateClientCallable,
+) -> None:
+    """Test get clients with order by."""
+    c, _ = await create_client(
+        async_session,
+        name="A Super Duper Client",
+        description="Another client",
+    )
+    response = await client.get(
+        "/api/v1/clients",
+        params={"order_by": "name", "order_type": "asc"},
+    )
+    assert response.status_code == 200
+    response_data = response.json()
+    assert "items" in response_data
+    assert "page" in response_data
+    assert "total" in response_data
+    assert len(response_data["items"]) > 0
+    assert response_data["items"][0]["name"] == "A Super Duper Client"
+    await async_session.delete(c)
+    await async_session.commit()
+
+
+@pytest.mark.anyio
+async def test_get_clients_order_by_desc(
+    client: AsyncClient,
+    async_session: AsyncSession,
+    create_client: CreateClientCallable,
+) -> None:
+    """Test get clients with order by desc."""
+    c1, _ = await create_client(
+        async_session,
+    )
+    c, _ = await create_client(
+        async_session,
+        name="Z a super Duper Client",
+        description="Another client",
+    )
+    response = await client.get(
+        "/api/v1/clients",
+        params={"order_by": "name", "order_type": "desc"},
+    )
+    assert response.status_code == 200
+    response_data = response.json()
+    assert "items" in response_data
+    assert "page" in response_data
+    assert "total" in response_data
+    assert len(response_data["items"]) > 0
+    assert response_data["items"][0]["name"] == "Z a super Duper Client"
+    await async_session.delete(c)
+    await async_session.delete(c1)
+    await async_session.commit()
+
+
+@pytest.mark.anyio
+async def test_get_clients_order_by_invalid(
+    client: AsyncClient,
+    async_session: AsyncSession,
+    create_client: CreateClientCallable,
+) -> None:
+    """Test get clients with order by invalid."""
+    c, _ = await create_client(
+        async_session,
+        name="A Super Duper Client",
+        description="Another client",
+    )
+    response = await client.get(
+        "/api/v1/clients",
+        params={"order_by": "invalid", "order_type": "asc"},
+    )
+    assert response.status_code == 422
+    await async_session.delete(c)
+    await async_session.commit()
 
 
 @pytest.mark.anyio

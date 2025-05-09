@@ -137,6 +137,26 @@ class PaginatedRequest(ModelBase):
     size: Annotated[int, Field(50, ge=1, le=100, description="Page size")] = 50
 
 
+class OrderSearchRequest(ModelBase):
+    """Generic order and search request model."""
+
+    order_by: Annotated[
+        Optional[str],
+        Field(
+            None,
+            description="Field to order by (e.g., 'created_at', 'updated_at')",
+        ),
+    ] = None
+    order_type: Annotated[
+        Optional[Literal["asc", "desc"]],
+        Field(None, description="Order direction: 'asc' or 'desc'"),
+    ] = None
+    search: Annotated[
+        Optional[str],
+        Field(None, description="Search term for filtering results"),
+    ] = None
+
+
 class TaskStatus(str, Enum):
     """Possible task statuses."""
 
@@ -330,14 +350,17 @@ class ClientCreateResponse(ClientResponse):
     ]
 
 
-TaskItemsRequest = PaginatedRequest
-"""Request model for listing tasks."""
+class TaskItemsRequest(PaginatedRequest, OrderSearchRequest):
+    """Request model for listing tasks."""
+
 
 TaskItemsResponse = PaginatedResponse[TaskResponse]
 """List of tasks with pagination."""
 
-ClientItemsRequest = PaginatedRequest
-"""Request model for listing clients."""
+
+class ClientItemsRequest(PaginatedRequest, OrderSearchRequest):
+    """Request model for listing clients."""
+
 
 ClientItemsResponse = PaginatedResponse[ClientResponse]
 """List of clients with pagination."""

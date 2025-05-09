@@ -16,7 +16,8 @@ from taskiq import TaskiqDepends
 
 from waldiez_runner.config import SettingsManager
 from waldiez_runner.dependencies import RedisManager, Storage
-from waldiez_runner.models import TaskResponse, TaskStatus
+from waldiez_runner.models.task_status import TaskStatus
+from waldiez_runner.schemas.task import TaskResponse
 from waldiez_runner.services import TaskService
 
 from .__base__ import broker

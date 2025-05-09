@@ -7,6 +7,7 @@ from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi_pagination import Page
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing_extensions import Literal
 
 from waldiez_runner.dependencies import (
     CLIENT_API_AUDIENCE,
@@ -14,7 +15,7 @@ from waldiez_runner.dependencies import (
     get_client_id,
     get_db,
 )
-from waldiez_runner.models.client import (
+from waldiez_runner.schemas.client import (
     ClientCreate,
     ClientCreateResponse,
     ClientResponse,
@@ -22,9 +23,18 @@ from waldiez_runner.models.client import (
 )
 from waldiez_runner.services.client_service import ClientService
 
-from ._common import get_pagination_params
+from ._common import Order, get_pagination_params
 
 REQUIRED_AUDIENCES = [CLIENT_API_AUDIENCE]
+
+CLientSort = Literal[
+    "client_id",
+    "audience",
+    "description",
+    "name",
+]
+"""The field to sort the clients."""
+
 
 validate_clients_audience = get_client_id(*REQUIRED_AUDIENCES)
 
@@ -41,6 +51,9 @@ client_router = APIRouter()
 async def get_clients(
     _: Annotated[str, Depends(validate_clients_audience)],
     session: Annotated[AsyncSession, Depends(get_db)],
+    search: Annotated[str | None, Query()] = None,
+    order_by: Annotated[CLientSort | None, Query()] = None,
+    order_type: Annotated[Order | None, Query()] = None,
 ) -> Page[ClientResponse]:
     """Get all clients.
 
@@ -48,6 +61,12 @@ async def get_clients(
     ----------
     session : AsyncSession
         The database session.
+    search : str | None
+        A search term to filter the clients.
+    order_by : CLientSort | None
+        The field to sort the clients.
+    order_type : Order | None
+        The order type to sort the clients. Can be "asc" or "desc".
 
     Returns
     -------
@@ -55,7 +74,13 @@ async def get_clients(
         The clients.
     """
     params = get_pagination_params()
-    return await ClientService.get_clients(session, params=params)
+    return await ClientService.get_clients(
+        session,
+        params=params,
+        search=search,
+        order_by=order_by,
+        descending=order_type == "desc",
+    )
 
 
 @client_router.post("/clients/", include_in_schema=False)

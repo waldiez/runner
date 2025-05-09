@@ -34,7 +34,6 @@ else:
     Redis = redis.Redis
     AsyncRedis = a_redis.Redis
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -206,8 +205,8 @@ class RedisManager:
                 # pylint: disable=broad-exception-caught
                 try:
                     self._server.serve_forever()
-                except BaseException:  # pragma: no cover
-                    LOG.debug("Fake Redis server stopped.")
+                except BaseException as error:  # pragma: no cover
+                    LOG.debug("Fake Redis server error: %s", error)
 
             self._server_thread = Thread(
                 target=thread_target,

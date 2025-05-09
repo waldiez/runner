@@ -15,8 +15,8 @@ from httpx import ASGITransport, AsyncClient
 
 from waldiez_runner.config import Settings, SettingsManager
 from waldiez_runner.main import get_app
-from waldiez_runner.models import ClientCreateResponse
 from waldiez_runner.routes.other import validate_clients_audience
+from waldiez_runner.schemas.client import ClientCreateResponse
 
 ROOT_MODULE = "waldiez_runner"
 

@@ -95,9 +95,7 @@ def parse_status_message(raw_data: str | bytes) -> ParsedStatus | None:
     ParsedStatus | None
         The parsed status message or None if invalid.
     """
-    LOG.error("Parsing status message: %s", raw_data)
     message = load_redis_message_dict(raw_data=raw_data)
-    LOG.error("Parsed message: %s", message)
     if not message:
         return None
     status_str = message.get("status")

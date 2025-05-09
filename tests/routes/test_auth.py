@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from waldiez_runner.config import Settings, SettingsManager
 from waldiez_runner.main import get_app
-from waldiez_runner.models import ClientCreateResponse
+from waldiez_runner.schemas.client import ClientCreateResponse
 
 ROOT_MODULE = "waldiez_runner"
 

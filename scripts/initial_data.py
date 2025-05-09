@@ -28,14 +28,19 @@ LOG = logging.getLogger(__name__)
 
 try:
     from waldiez_runner.config import SettingsManager
-    from waldiez_runner.dependencies import CLIENT_API_AUDIENCE, VALID_AUDIENCES
-    from waldiez_runner.models import Client, ClientCreate, ClientCreateResponse
 except ImportError:
     sys.path.append(str(ROOT_DIR))
     from waldiez_runner.config import SettingsManager
-    from waldiez_runner.dependencies import CLIENT_API_AUDIENCE, VALID_AUDIENCES
-    from waldiez_runner.models import Client, ClientCreate, ClientCreateResponse
-
+# pylint: disable=wrong-import-position
+from waldiez_runner.dependencies import (  # noqa: E402
+    CLIENT_API_AUDIENCE,
+    VALID_AUDIENCES,
+)
+from waldiez_runner.models.client import Client  # noqa: E402
+from waldiez_runner.schemas.client import (  # noqa: E402
+    ClientCreate,
+    ClientCreateResponse,
+)
 
 OTHER_AUDIENCES = [
     audience for audience in VALID_AUDIENCES if audience != CLIENT_API_AUDIENCE

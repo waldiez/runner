@@ -83,7 +83,6 @@ async def test_gzip_skipped_on_excluded_route(
     response = await client_conditional.get(
         "/api/v1/tasks/123/download", headers={"Accept-Encoding": "gzip"}
     )
-    print(response.content)
     assert response.status_code == 200
     assert "Content-Encoding" not in response.headers
 

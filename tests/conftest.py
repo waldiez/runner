@@ -7,6 +7,7 @@
 import os
 import secrets
 import shutil
+import uuid
 from pathlib import Path
 from typing import AsyncGenerator, Generator, Tuple
 from unittest.mock import patch
@@ -21,14 +22,13 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from tests.types import CreateClientCallable, CreateTaskCallable
 from waldiez_runner.client.auth import Auth
 from waldiez_runner.config import Settings, SettingsManager
-from waldiez_runner.models import (
-    Base,
-    Client,
-    ClientCreate,
-    ClientCreateResponse,
-)
+from waldiez_runner.models import Base, Client, Task, TaskStatus
+from waldiez_runner.schemas.client import ClientCreate, ClientCreateResponse
+from waldiez_runner.schemas.task import TaskCreate, TaskResponse
+from waldiez_runner.services import ClientService, TaskService
 
 TEST_DOT_ENV_PATH = Path(".test_env")
 DOT_ENV_PATH_DOTTED = "waldiez_runner.config.settings.DOT_ENV_PATH"
@@ -133,63 +133,6 @@ async def async_session_fixture() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-async def _create_client(
-    session: AsyncSession,
-    audience: str,
-) -> Tuple[Client, ClientCreateResponse]:
-    """Create a client."""
-    audience_parts = audience.split("-")
-    # tasks-api -> Tasks API
-    description = audience_parts[0].capitalize() + audience_parts[1].upper()
-    client_create = ClientCreate(
-        description=description,
-        audience=audience,
-    )
-    async with session:
-        client = Client(
-            client_id=client_create.client_id,
-            client_secret=client_create.hashed_secret(),
-            audience=audience,
-            description=client_create.description,
-        )
-        session.add(client)
-        await session.commit()
-        await session.refresh(client)
-        return client, ClientCreateResponse.from_client(
-            client, client_create.plain_secret
-        )
-
-
-async def _delete_client(
-    async_session: AsyncSession,
-    client: Client,
-) -> None:
-    """Delete a client."""
-    async with async_session:
-        await async_session.delete(client)
-        await async_session.commit()
-
-
-@pytest.fixture(name="tasks_api_client")
-async def tasks_api_client_fixture(
-    async_session: AsyncSession,
-) -> AsyncGenerator[ClientCreateResponse, None]:
-    """Fixture to create a client_id for the tasks API."""
-    client, response = await _create_client(async_session, "tasks-api")
-    yield response
-    await _delete_client(async_session, client)
-
-
-@pytest.fixture(name="clients_api_client")
-async def clients_api_client_fixture(
-    async_session: AsyncSession,
-) -> AsyncGenerator[ClientCreateResponse, None]:
-    """Fixture to create a client_id for the clients API."""
-    client, response = await _create_client(async_session, "clients-api")
-    yield response
-    await _delete_client(async_session, client)
-
-
 @pytest.fixture(name="fake_redis")
 def fake_redis_fixture() -> fakeredis.FakeRedis:
     """Fake Redis client fixture."""
@@ -224,3 +167,172 @@ def auth_fixture(httpx_mock: HTTPXMock) -> Auth:
         is_reusable=True,
     )
     return auth
+
+
+async def _create_client(
+    session: AsyncSession,
+    audience: str,
+    name: str = "Test Client",
+    description: str | None = None,
+    client_id: str | None = None,
+) -> Tuple[Client, ClientCreateResponse]:
+    """Create a client."""
+    if description is None:
+        audience_parts = audience.split("-")
+        if len(audience_parts) == 1:
+            description = audience_parts[0].capitalize() + " API"
+        else:
+            # tasks-api -> Tasks API
+            description = (
+                audience_parts[0].capitalize() + audience_parts[1].upper()
+            )
+    client_create = ClientCreate(
+        name=name,
+        client_id=client_id or str(uuid.uuid4()),
+        description=description,
+        audience=audience,
+    )
+    response = await ClientService.create_client(
+        session=session,
+        client_create=client_create,
+    )
+    client = await ClientService.get_client_in_db(
+        session=session,
+        client_id=response.id,
+    )
+    if client is None:
+        raise ValueError("Client not found")
+    return client, response
+
+
+async def _delete_client(
+    async_session: AsyncSession,
+    client: Client,
+) -> None:
+    """Delete a client."""
+    async with async_session:
+        await async_session.delete(client)
+        await async_session.commit()
+
+
+@pytest.fixture(name="create_client")
+def client_factory() -> CreateClientCallable:
+    """Fixture to create a client.
+
+    Returns
+    -------
+    Callable
+        A callable that takes a session and returns a client and a response.
+        The callable takes the following parameters:
+        - session: The database session.
+        - name: The name of the client.
+        - description: The description of the client.
+        - audience: The audience of the client.
+        - client_id: The client ID of the client.
+    """
+
+    async def _create(
+        session: AsyncSession,
+        audience: str | None = None,
+        name: str | None = None,
+        description: str | None = None,
+        client_id: str | None = None,
+    ) -> Tuple[Client, ClientCreateResponse]:
+        """Create a client."""
+        if audience is None:
+            audience = "tasks-api"
+        if name is None:
+            name = "Test Client"
+        return await _create_client(
+            session=session,
+            audience=audience,
+            name=name,
+            description=description,
+            client_id=client_id,
+        )
+
+    return _create
+
+
+@pytest.fixture(name="tasks_api_client")
+async def tasks_api_client_fixture(
+    async_session: AsyncSession,
+) -> AsyncGenerator[ClientCreateResponse, None]:
+    """Fixture to create a client_id for the tasks API."""
+    client, response = await _create_client(async_session, "tasks-api")
+    yield response
+    await _delete_client(async_session, client)
+
+
+@pytest.fixture(name="clients_api_client")
+async def clients_api_client_fixture(
+    async_session: AsyncSession,
+) -> AsyncGenerator[ClientCreateResponse, None]:
+    """Fixture to create a client_id for the clients API."""
+    client, response = await _create_client(async_session, "clients-api")
+    yield response
+    await _delete_client(async_session, client)
+
+
+async def _create_task(
+    session: AsyncSession,
+    client_id: str,
+    flow_id: str = "flow1",
+    filename: str = "file1.waldiez",
+    status: TaskStatus = TaskStatus.PENDING,
+    input_timeout: int = 180,
+) -> Tuple[Task, TaskResponse]:
+    """Create a task."""
+    task_create = TaskCreate(
+        client_id=client_id,
+        flow_id=flow_id,
+        filename=filename,
+        input_timeout=input_timeout,
+    )
+    task = await TaskService.create_task(
+        session=session,
+        task_create=task_create,
+    )
+    if status != task.status:
+        task.status = status
+        await session.commit()
+        await session.refresh(task)
+    return task, TaskResponse.model_validate(task)
+
+
+@pytest.fixture(name="create_task")
+def create_task_fixture() -> CreateTaskCallable:
+    """Fixture to create a task.
+
+    Returns
+    -------
+    Callable
+        A callable that takes a session and returns a task and a response.
+        The callable takes the following parameters:
+        - session: The database session.
+        - client_id: The client ID of the task.
+        - flow_id: The flow ID of the task.
+        - filename: The filename of the task.
+        - status: The status of the task.
+        - input_timeout: The input timeout of the task.
+    """
+
+    async def _create(
+        session: AsyncSession,
+        client_id: str,
+        flow_id: str = "flow1",
+        filename: str = "file1.waldiez",
+        status: TaskStatus = TaskStatus.PENDING,
+        input_timeout: int = 180,
+    ) -> Tuple[Task, TaskResponse]:
+        """Create a task."""
+        return await _create_task(
+            session=session,
+            client_id=client_id,
+            flow_id=flow_id,
+            filename=filename,
+            status=status,
+            input_timeout=input_timeout,
+        )
+
+    return _create

@@ -4,6 +4,10 @@
 
 from fastapi_pagination import Params
 from fastapi_pagination.api import request
+from typing_extensions import Literal
+
+Order = Literal["asc", "desc"]
+"""Order type for sorting."""
 
 
 def get_pagination_params() -> Params:

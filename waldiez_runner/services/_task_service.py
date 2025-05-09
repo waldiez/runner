@@ -10,17 +10,14 @@ from typing import Any, Dict, List, Sequence
 import sqlalchemy.sql.functions
 from fastapi_pagination import Page, Params
 from fastapi_pagination.ext.sqlalchemy import apaginate
+from sqlalchemy import asc, desc, or_
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.sql.expression import delete, update
 
-from waldiez_runner.models.task import (
-    Task,
-    TaskCreate,
-    TaskResponse,
-    TaskUpdate,
-)
+from waldiez_runner.models.task import Task
 from waldiez_runner.models.task_status import TaskStatus
+from waldiez_runner.schemas.task import TaskCreate, TaskResponse, TaskUpdate
 
 
 def task_transformer(items: Sequence[Task]) -> Sequence[TaskResponse]:
@@ -38,6 +35,75 @@ def task_transformer(items: Sequence[Task]) -> Sequence[TaskResponse]:
     """
     # return [TaskResponse.from_orm(task) for task in items]
     return [TaskResponse.model_validate(task) for task in items]
+
+
+async def get_client_tasks(
+    session: AsyncSession,
+    client_id: str,
+    params: Params,
+    search: str | None = None,
+    order_by: str | None = None,
+    descending: bool = False,
+) -> Page[TaskResponse]:
+    """Retrieve all tasks for a client.
+
+    Parameters
+    ----------
+    session : AsyncSession
+        SQLAlchemy async session.
+    client_id : str
+        Client ID.
+    params : Params
+        Pagination parameters.
+    search : str | None
+        Optional search term.
+    order_by : str | None
+        Optional field to order by.
+    descending : bool
+        Whether to order in descending order. Default is False.
+
+    Returns
+    -------
+    Sequence[TaskResponse]
+        List of tasks for the client.
+
+    Raises
+    ------
+    ValueError
+        If an invalid field is provided for ordering.
+    """
+
+    query = select(Task).where(
+        Task.client_id == client_id, Task.deleted_at.is_(None)
+    )
+    if search:
+        # a simple ilike
+        query = query.where(
+            or_(
+                Task.filename.ilike(f"%{search}%"),
+                Task.status.ilike(f"%{search}%"),
+            )
+        )
+    if order_by:
+        if order_by not in Task.__table__.columns:  # pragma: no cover
+            # already checked in the router
+            raise ValueError(f"Invalid field for ordering: {order_by}")
+        if descending:
+            query = query.order_by(desc(getattr(Task, order_by)))
+        else:
+            query = query.order_by(asc(getattr(Task, order_by)))
+    else:
+        query = query.order_by(
+            desc(Task.created_at) if descending else asc(Task.created_at)
+        )
+
+    page = await apaginate(
+        session,
+        query,
+        params=params,
+        transformer=task_transformer,
+    )
+    return page
 
 
 async def create_task(
@@ -127,39 +193,6 @@ async def get_task(
     query = select(Task).where(Task.id == task_id, Task.deleted_at.is_(None))
     result = await session.execute(query)
     return result.scalar_one_or_none()
-
-
-async def get_client_tasks(
-    session: AsyncSession,
-    client_id: str,
-    params: Params,
-) -> Page[TaskResponse]:
-    """Retrieve all tasks for a client.
-
-    Parameters
-    ----------
-    session : AsyncSession
-        SQLAlchemy async session.
-    client_id : str
-        Client ID.
-    params : Params
-        Pagination parameters.
-
-    Returns
-    -------
-    Sequence[TaskResponse]
-        List of tasks for the client.
-    """
-
-    page = await apaginate(
-        session,
-        select(Task)
-        .where(Task.client_id == client_id, Task.deleted_at.is_(None))
-        .order_by(Task.created_at),
-        params=params,
-        transformer=task_transformer,
-    )
-    return page
 
 
 async def get_active_client_tasks(
@@ -335,11 +368,9 @@ async def soft_delete_client_tasks(
         .values(deleted_at=datetime.now(timezone.utc))
         .returning(Task.id)
     )
-    print(query.compile(compile_kwargs={"literal_binds": True}))
     result = await session.execute(query)
     await session.commit()
     deleted_ids = list(result.scalars())
-    print(f"Soft deleted tasks: {deleted_ids}")
     return deleted_ids
 
 
