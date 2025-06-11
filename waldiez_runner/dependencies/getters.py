@@ -2,9 +2,9 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 """App dependency getters."""
 
-from typing import Any, AsyncGenerator, Callable, Coroutine, List
+from typing import Any, AsyncGenerator, Callable, Coroutine, Dict, List
 
-from fastapi import Depends, HTTPException, Security
+from fastapi import Depends, HTTPException, Request, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import Annotated
@@ -13,7 +13,8 @@ from waldiez_runner.config import Settings
 from waldiez_runner.models import Base
 from waldiez_runner.services.client_service import ClientService
 
-from .auth import get_client_id_from_token
+from .auth import get_client_id_from_token, verify_external_auth_token
+from .context import RequestContext, get_request_context
 from .jwks import JWKSCache
 from .lifecycle import app_state
 from .storage import Storage, get_storage_backend
@@ -46,6 +47,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 def get_client_id(
     *expected_audiences: str,
+    allow_external_auth: bool = True 
 ) -> Callable[
     [HTTPAuthorizationCredentials],
     Coroutine[Any, Any, str],
@@ -56,6 +58,8 @@ def get_client_id(
     ----------
     *expected_audiences : str
         The expected audiences.
+    allow_external_auth : bool, optional
+        Whether to allow external authentication, by default True
 
     Returns
     -------
@@ -68,6 +72,8 @@ def get_client_id(
             HTTPAuthorizationCredentials, Security(bearer_scheme)
         ],
         session: AsyncSession = Depends(get_db),
+        request: Request = None,
+        context: RequestContext = Depends(get_request_context),
     ) -> str:
         """Check the audience of the JWT payload.
 
@@ -77,10 +83,15 @@ def get_client_id(
             The authorization credentials.
         session : AsyncSession
             The database session.
+        request : Request, optional
+            The current request, by default None
+        context : RequestContext
+            The request context.
+            
         Returns
         -------
         str
-            The subject of the JWT.
+            The subject of the JWT or "external" for external tokens.
 
         Raises
         ------
@@ -100,22 +111,151 @@ def get_client_id(
             )
         if scheme.lower() != "bearer":
             raise HTTPException(status_code=401, detail="Invalid credentials.")
+        
         settings = app_state.settings
         jwks_cache = app_state.jwks_cache
         if not settings or not jwks_cache:
             raise RuntimeError("Settings or JWKs cache not initialized")
+        
+        # First try standard JWT verification
         client_id, exception = await get_client_id_from_token(
             audience, token, settings, jwks_cache
         )
-        if exception or not client_id:
+
+        # If successful, verify the client exists in the database
+        if client_id and not exception:
+            client = await ClientService.get_client_in_db(session, None, client_id)
+            if not client:
+                raise HTTPException(status_code=401, detail="Invalid credentials.")
+            return client.id
+
+        # If standard auth failed and external auth is allowed, try that next
+        if allow_external_auth and settings.enable_external_auth:
+            token_response, ext_exception = await verify_external_auth_token(token, settings)
+            
+            if token_response and not ext_exception:
+                # Store in context for other parts of the request to access
+                context.external_user_info = token_response.user_info
+                context.is_external_auth = True
+                
+                # Return a special identifier for external auth
+                return "external"
+                
+        # If we get here, all verification methods failed
+        raise HTTPException(
+            status_code=getattr(exception, "status_code", 401),
+            detail=getattr(exception, "detail", "Invalid credentials."),
+        ) from exception
+
+    return dependency
+
+
+def get_external_user_info(
+) -> Callable[
+    [HTTPAuthorizationCredentials, Request],
+    Coroutine[Any, Any, Dict[str, Any]],
+]:
+    """Verify an external token and return user info.
+
+    Returns
+    -------
+    Callable[[HTTPAuthorizationCredentials, Request], Coroutine[Any, Any, Dict[str, Any]]]
+        The dependency.
+    """
+
+    async def dependency(
+        credentials: Annotated[
+            HTTPAuthorizationCredentials, Security(bearer_scheme)
+        ],
+        request: Request,
+        context: RequestContext = Depends(get_request_context),
+        settings: Settings = Depends(get_settings),
+    ) -> Dict[str, Any]:
+        """Verify an external token and return user info.
+
+        Parameters
+        ----------
+        credentials : HTTPAuthorizationCredentials
+            The authorization credentials.
+        request : Request
+            The current request.
+        context : RequestContext
+            The request context.
+        settings : Settings
+            The application settings.
+            
+        Returns
+        -------
+        Dict[str, Any]
+            User information from the external token.
+
+        Raises
+        ------
+        HTTPException
+            If the token is invalid.
+        """
+        token = credentials.credentials
+        scheme = credentials.scheme
+        
+        if scheme.lower() != "bearer":
+            raise HTTPException(status_code=401, detail="Invalid authentication scheme.")
+            
+        # Try external verification
+        token_response, exception = await verify_external_auth_token(token, settings)
+        
+        if exception or not token_response:
             raise HTTPException(
                 status_code=getattr(exception, "status_code", 401),
-                detail=getattr(exception, "detail", "Invalid credentials."),
+                detail=getattr(exception, "detail", "Invalid external token."),
             ) from exception
-        client = await ClientService.get_client_in_db(session, None, client_id)
-        if not client:
-            raise HTTPException(status_code=401, detail="Invalid credentials.")
-        return client.id
+            
+        # Store in context for other parts of the request to access
+        context.external_user_info = token_response.user_info
+        context.is_external_auth = True
+        
+        return token_response.user_info
+
+    return dependency
+
+
+def get_user_info() -> Callable[
+    [Request],
+    Coroutine[Any, Any, Dict[str, Any]],
+]:
+    """Get user info from the request context.
+
+    Returns
+    -------
+    Callable[[Request], Coroutine[Any, Any, Dict[str, Any]]]
+        The dependency.
+    """
+
+    async def dependency(
+        context: RequestContext = Depends(get_request_context),
+    ) -> Dict[str, Any]:
+        """Get user info from the request context.
+
+        Parameters
+        ----------
+        context : RequestContext
+            The request context.
+            
+        Returns
+        -------
+        Dict[str, Any]
+            User information.
+
+        Raises
+        ------
+        HTTPException
+            If no user info is available.
+        """
+        if not context.external_user_info:
+            raise HTTPException(
+                status_code=401, 
+                detail="No external user information available."
+            )
+        return context.external_user_info
 
     return dependency
 

@@ -29,7 +29,16 @@ from ._auth import (
     get_use_local_auth,
     get_use_oidc_auth,
 )
-from ._common import DOT_ENV_PATH, ENV_PREFIX, ROOT_DIR, is_testing, to_kebab
+from ._common import (
+    DOT_ENV_PATH,
+    ENV_PREFIX,
+    ROOT_DIR,
+    get_enable_external_auth,
+    get_external_auth_secret,
+    get_external_auth_verify_url,
+    is_testing,
+    to_kebab,
+)
 from ._postgres import (
     get_db_host,
     get_db_name,
@@ -140,6 +149,10 @@ class Settings(BaseSettings):
     oidc_jwks_cache_ttl: Annotated[int, Field(ge=1, le=3600)] = (
         get_oidc_jwks_cache_ttl()
     )
+    # External authentication settings
+    enable_external_auth: bool = get_enable_external_auth()
+    external_auth_verify_url: str = get_external_auth_verify_url()
+    external_auth_secret: str = get_external_auth_secret()
     # Task specific
     input_timeout: Annotated[int, Field(ge=1, le=3600)] = get_input_timeout()
 
