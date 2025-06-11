@@ -11,7 +11,7 @@ Recommended: Auth header if Python client, subprotocol if JS client.
 """
 
 import logging
-from typing import Tuple
+from typing import Tuple, cast
 
 from fastapi import Depends, WebSocket
 
@@ -50,20 +50,32 @@ async def get_ws_client_id(
         The client ID and the subprotocol to use to accept the connection.
     """
     token_sources = [
-        {"method": _get_jwt_from_query_params, "name": "query parameters", "subprotocol": None},
+        {
+            "method": _get_jwt_from_query_params,
+            "name": "query parameters",
+            "subprotocol": None,
+        },
         {"method": _get_jwt_from_cookie, "name": "cookie", "subprotocol": None},
-        {"method": _get_jwt_from_auth_header, "name": "auth header", "subprotocol": None},
-        {"method": _get_jwt_from_subprotocol, "name": "subprotocol", "subprotocol": TASK_API_AUDIENCE},
+        {
+            "method": _get_jwt_from_auth_header,
+            "name": "auth header",
+            "subprotocol": None,
+        },
+        {
+            "method": _get_jwt_from_subprotocol,
+            "name": "subprotocol",
+            "subprotocol": TASK_API_AUDIENCE,
+        },
     ]
-    
+
     # Try each token source in order of priority
     for source in token_sources:
-        token = source["method"](websocket)
+        token = source["method"](websocket)  # type: ignore[operator]
         if not token:
             continue
-            
-        LOG.debug(f"Found token in {source['name']}")
-        
+
+        LOG.debug("Found token in %s", source["name"])
+
         # Try internal validation
         client_id, exception = await get_client_id_from_token(
             expected_audience=TASK_API_AUDIENCE,
@@ -71,23 +83,61 @@ async def get_ws_client_id(
             settings=settings,
             jwks_cache=jwks_cache,
         )
-        
+
         if client_id and not exception:
-            return client_id, source["subprotocol"]
-            
+            subprotocol = cast(str | None, source["subprotocol"])
+            return client_id, subprotocol
+
         # Try external validation if enabled and internal failed
         if settings.enable_external_auth:
             try:
-                token_response, ext_exception = await verify_external_auth_token(token, settings)
-                if token_response and not ext_exception and token_response.valid:
-                    # Store user info on websocket state
-                    websocket.state.external_user_info = token_response.user_info
-                    return "external", source["subprotocol"]
-            except Exception as err:
-                LOG.warning(f"External validation error for {source['name']} token: {err}")
-    
+                external_validated = await _try_external_validation(
+                    token, settings, websocket
+                )
+            except (ValueError, ConnectionError, TimeoutError) as err:
+                LOG.warning(
+                    "External validation error for %s token: %s",
+                    source["name"],
+                    err,
+                )
+                external_validated = False
+
+            if external_validated:
+                subprotocol = cast(str | None, source["subprotocol"])
+                return "external", subprotocol
+
     # No valid token found
     return None, None
+
+
+async def _try_external_validation(
+    token: str, settings: Settings, websocket: WebSocket
+) -> bool:
+    """Try to validate token with external service.
+
+    Parameters
+    ----------
+    token : str
+        The token to validate
+    settings : Settings
+        Application settings
+    websocket : WebSocket
+        The websocket connection
+
+    Returns
+    -------
+    bool
+        True if validation succeeded, False otherwise
+    """
+    token_response, ext_exception = await verify_external_auth_token(
+        token, settings
+    )
+
+    if token_response and not ext_exception and token_response.valid:
+        # Store user info on websocket state
+        websocket.state.external_user_info = token_response.user_info
+        return True
+    return False
 
 
 def _get_jwt_from_cookie(websocket: WebSocket) -> str | None:

@@ -12,6 +12,7 @@ import jwt.algorithms
 import pytest
 from fastapi import HTTPException
 
+from waldiez_runner.config.settings import Settings
 from waldiez_runner.dependencies.auth import (
     decode_local_jwt,
     decode_oidc_jwt,
@@ -151,15 +152,20 @@ async def test_decode_oidc_jwt_key_not_found() -> None:
             )
 
 
-class MockSettings:
+class MockedSettings(Settings):
     """Mock settings for tests."""
-    
+
+    enable_external_auth: bool
+    external_auth_verify_url: str
+    external_auth_secret: str
+
+    # pylint: disable=super-init-not-called
     def __init__(
-        self, 
-        enable_external_auth=True, 
-        external_auth_verify_url="https://example.com/verify",
-        external_auth_secret="test-secret"
-    ):
+        self,
+        enable_external_auth: bool = True,
+        external_auth_verify_url: str = "https://example.com/verify",
+        external_auth_secret: str = "test-secret",  # nosec B107
+    ) -> None:
         self.enable_external_auth = enable_external_auth
         self.external_auth_verify_url = external_auth_verify_url
         self.external_auth_secret = external_auth_secret
@@ -168,10 +174,10 @@ class MockSettings:
 @pytest.mark.asyncio
 async def test_verify_external_auth_token_disabled() -> None:
     """Test verifying external auth token when disabled."""
-    settings = MockSettings(enable_external_auth=False)
-    
+    settings = MockedSettings(enable_external_auth=False)
+
     response, exception = await verify_external_auth_token("token", settings)
-    
+
     assert response is None
     assert isinstance(exception, HTTPException)
     assert exception.status_code == 401
@@ -181,10 +187,10 @@ async def test_verify_external_auth_token_disabled() -> None:
 @pytest.mark.asyncio
 async def test_verify_external_auth_token_no_url() -> None:
     """Test verifying external auth token with no URL configured."""
-    settings = MockSettings(external_auth_verify_url="")
-    
+    settings = MockedSettings(external_auth_verify_url="")
+
     response, exception = await verify_external_auth_token("token", settings)
-    
+
     assert response is None
     assert isinstance(exception, HTTPException)
     assert exception.status_code == 401
@@ -193,37 +199,44 @@ async def test_verify_external_auth_token_no_url() -> None:
 
 @pytest.mark.asyncio
 @patch("waldiez_runner.services.ExternalTokenService.verify_external_token")
-async def test_verify_external_auth_token_success(mock_verify: AsyncMock) -> None:
+async def test_verify_external_auth_token_success(
+    mock_verify: AsyncMock,
+) -> None:
     """Test successful external auth token verification."""
-    settings = MockSettings()
+    settings = MockedSettings()
     token_response = ExternalTokenService.ExternalTokenResponse(
-        valid=True, 
-        user_info={"id": "user123", "name": "Test User"}
+        valid=True, user_info={"id": "user123", "name": "Test User"}
     )
     mock_verify.return_value = (token_response, None)
-    
-    response, exception = await verify_external_auth_token("test-token", settings)
-    
+
+    response, exception = await verify_external_auth_token(
+        "test-token", settings
+    )
+
     assert exception is None
     assert response is token_response
     assert response.user_info["id"] == "user123"
     mock_verify.assert_awaited_once_with(
-        "test-token", 
-        "https://example.com/verify",
-        "test-secret"
+        "test-token", "https://example.com/verify", "test-secret"
     )
 
 
 @pytest.mark.asyncio
 @patch("waldiez_runner.services.ExternalTokenService.verify_external_token")
-async def test_verify_external_auth_token_failure(mock_verify: AsyncMock) -> None:
+async def test_verify_external_auth_token_failure(
+    mock_verify: AsyncMock,
+) -> None:
     """Test failed external auth token verification."""
-    settings = MockSettings()
+    settings = MockedSettings()
     expected_exception = HTTPException(status_code=401, detail="Invalid token")
     mock_verify.return_value = (None, expected_exception)
-    
-    response, exception = await verify_external_auth_token("bad-token", settings)
-    
+
+    response, exception = await verify_external_auth_token(
+        "bad-token", settings
+    )
+
     assert response is None
     assert exception is expected_exception
-    mock_verify.assert_awaited_once_with("bad-token", "https://example.com/verify", "test-secret")
+    mock_verify.assert_awaited_once_with(
+        "bad-token", "https://example.com/verify", "test-secret"
+    )

@@ -178,7 +178,9 @@ def get_enable_external_auth() -> bool:
     bool
         Whether to enable external authentication
     """
-    return get_value("--enable-external-auth", "ENABLE_EXTERNAL_AUTH", bool, False)
+    return get_value(
+        "--enable-external-auth", "ENABLE_EXTERNAL_AUTH", bool, False
+    )
 
 
 def get_external_auth_verify_url() -> str:
@@ -193,7 +195,7 @@ def get_external_auth_verify_url() -> str:
         "--external-auth-verify-url",
         "EXTERNAL_AUTH_VERIFY_URL",
         str,
-        "https://example.com/verify"
+        "https://example.com/verify",
     )
 
 
@@ -205,9 +207,4 @@ def get_external_auth_secret() -> str:
     str
         The external auth verification secret
     """
-    return get_value(
-        "--external-auth-secret",
-        "EXTERNAL_AUTH_SECRET",
-        str,
-        ""
-    )
+    return get_value("--external-auth-secret", "EXTERNAL_AUTH_SECRET", str, "")

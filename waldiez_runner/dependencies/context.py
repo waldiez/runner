@@ -7,22 +7,27 @@ from typing import Any, Dict, Optional
 from fastapi import Request
 
 
+# pylint: disable=too-few-public-methods
 class RequestContext:
     """Request context for storing state during request processing."""
-    
-    def __init__(self):
+
+    external_user_info: Optional[Dict[str, Any]]
+    is_external_auth: bool
+
+    def __init__(self) -> None:
         """Initialize an empty context."""
-        self.external_user_info: Optional[Dict[str, Any]] = None
-        self.is_external_auth: bool = False
+        self.external_user_info = None
+        self.is_external_auth = False
+
 
 async def get_request_context(request: Request) -> RequestContext:
     """Get or create a RequestContext for the current request.
-    
+
     Parameters
     ----------
     request : Request
         The current request
-        
+
     Returns
     -------
     RequestContext
