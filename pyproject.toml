@@ -172,7 +172,7 @@ exclude = '''
 
 # mypy
 [tool.mypy]
-files = "."
+# files = "."
 show_error_codes = true
 # xcode/dmypy: follow-imports=silent not supported
 # follow_imports = "skip"
