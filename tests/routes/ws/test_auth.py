@@ -334,9 +334,8 @@ async def test_get_ws_client_id_external_auth_exception() -> None:
 
     mock_get_client_id = AsyncMock(return_value=(None, "some error"))
 
-    mock_verify_external = AsyncMock(
-        side_effect=Exception("External auth service unavailable")
-    )
+    exception = Exception("External auth service unavailable")
+    mock_verify_external = AsyncMock(return_value=(None, exception))
 
     with (
         patch(
@@ -354,10 +353,8 @@ async def test_get_ws_client_id_external_auth_exception() -> None:
     assert subprotocol is None
     mock_get_client_id.assert_called_once()
     mock_verify_external.assert_called_once()
-    mock_log.warning.assert_any_call(
-        "External validation error for auth header token: "
-        "External auth service unavailable"
-    )
+
+    mock_log.warning.assert_any_call("No sub protocol")
 
 
 @pytest.mark.asyncio

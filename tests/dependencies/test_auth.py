@@ -155,26 +155,30 @@ async def test_decode_oidc_jwt_key_not_found() -> None:
 class MockedSettings(Settings):
     """Mock settings for tests."""
 
-    enable_external_auth: bool
-    external_auth_verify_url: str
-    external_auth_secret: str
+    # Don't declare these fields at class level in Pydantic v2
+    # enable_external_auth: bool
+    # external_auth_verify_url: str
+    # external_auth_secret: str
 
-    # pylint: disable=super-init-not-called
-    def __init__(
-        self,
+    @classmethod
+    def create_mock(
+        cls,
         enable_external_auth: bool = True,
         external_auth_verify_url: str = "https://example.com/verify",
         external_auth_secret: str = "test-secret",  # nosec B107
-    ) -> None:
-        self.enable_external_auth = enable_external_auth
-        self.external_auth_verify_url = external_auth_verify_url
-        self.external_auth_secret = external_auth_secret
+    ) -> "MockedSettings":
+        """Create a mocked settings object."""
+        return cls.model_construct(
+            enable_external_auth=enable_external_auth,
+            external_auth_verify_url=external_auth_verify_url,
+            external_auth_secret=external_auth_secret,
+        )
 
 
 @pytest.mark.asyncio
 async def test_verify_external_auth_token_disabled() -> None:
     """Test verifying external auth token when disabled."""
-    settings = MockedSettings(enable_external_auth=False)
+    settings = MockedSettings.create_mock(enable_external_auth=False)
 
     response, exception = await verify_external_auth_token("token", settings)
 
@@ -187,7 +191,7 @@ async def test_verify_external_auth_token_disabled() -> None:
 @pytest.mark.asyncio
 async def test_verify_external_auth_token_no_url() -> None:
     """Test verifying external auth token with no URL configured."""
-    settings = MockedSettings(external_auth_verify_url="")
+    settings = MockedSettings.create_mock(external_auth_verify_url="")
 
     response, exception = await verify_external_auth_token("token", settings)
 
@@ -203,7 +207,7 @@ async def test_verify_external_auth_token_success(
     mock_verify: AsyncMock,
 ) -> None:
     """Test successful external auth token verification."""
-    settings = MockedSettings()
+    settings = MockedSettings.create_mock()
     token_response = ExternalTokenService.ExternalTokenResponse(
         valid=True, user_info={"id": "user123", "name": "Test User"}
     )
@@ -227,7 +231,7 @@ async def test_verify_external_auth_token_failure(
     mock_verify: AsyncMock,
 ) -> None:
     """Test failed external auth token verification."""
-    settings = MockedSettings()
+    settings = MockedSettings.create_mock()
     expected_exception = HTTPException(status_code=401, detail="Invalid token")
     mock_verify.return_value = (None, expected_exception)
 
