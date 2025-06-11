@@ -40,7 +40,6 @@ async def verify_external_token(
         A tuple containing the verification response (if successful) and an
         exception (if verification failed)
     """
-    # Prepare the payload outside the try block
     payload = {"token": token}
     if secret:
         payload["secret"] = secret
