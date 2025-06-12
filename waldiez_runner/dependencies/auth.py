@@ -4,12 +4,13 @@
 """Authentication related functions for dependencies."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Tuple
 
 import jwt
 import jwt.algorithms
 from fastapi import HTTPException
 
+from ..services.external_token_service import ExternalTokenService
 from .jwks import JWKSCache
 
 TASK_API_AUDIENCE = "tasks-api"
@@ -205,3 +206,40 @@ async def get_client_id_from_token(
     except BaseException as e:
         LOG.error("Error while decoding token: %s", e)
         return None, e
+
+
+async def verify_external_auth_token(
+    token: str,
+    settings: "Settings",
+) -> Tuple[
+    Optional[ExternalTokenService.ExternalTokenResponse],
+    Optional[BaseException],
+]:
+    """Verify an external token.
+
+    Parameters
+    ----------
+    token : str
+        The token to verify
+    settings : Settings
+        The application settings
+
+    Returns
+    -------
+    Tuple[Optional[ExternalTokenService.ExternalTokenResponse],
+    Optional[BaseException]]
+        A tuple containing:
+        - The token response object if verification succeeded, None otherwise
+        - An exception if verification failed, None otherwise
+    """
+    if (
+        not settings.enable_external_auth
+        or not settings.external_auth_verify_url
+    ):
+        return None, HTTPException(
+            status_code=401, detail="External auth not enabled"
+        )
+
+    return await ExternalTokenService.verify_external_token(
+        token, settings.external_auth_verify_url, settings.external_auth_secret
+    )

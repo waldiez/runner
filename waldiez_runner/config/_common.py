@@ -168,3 +168,43 @@ def _get_bool(
     is_truthy = from_env.lower() not in FALSY
     # os.environ[f"{ENV_PREFIX}{env_key}"] = str(is_truthy)
     return is_truthy
+
+
+def get_enable_external_auth() -> bool:
+    """Get whether to enable external authentication.
+
+    Returns
+    -------
+    bool
+        Whether to enable external authentication
+    """
+    return get_value(
+        "--enable-external-auth", "ENABLE_EXTERNAL_AUTH", bool, False
+    )
+
+
+def get_external_auth_verify_url() -> str:
+    """Get the external auth verification URL.
+
+    Returns
+    -------
+    str
+        The external auth verification URL
+    """
+    return get_value(
+        "--external-auth-verify-url",
+        "EXTERNAL_AUTH_VERIFY_URL",
+        str,
+        "https://example.com/verify",
+    )
+
+
+def get_external_auth_secret() -> str:
+    """Get the external auth verification secret.
+
+    Returns
+    -------
+    str
+        The external auth verification secret
+    """
+    return get_value("--external-auth-secret", "EXTERNAL_AUTH_SECRET", str, "")

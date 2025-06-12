@@ -9,14 +9,18 @@ from .auth import (
     VALID_AUDIENCES,
     Audience,
     get_client_id_from_token,
+    verify_external_auth_token,
 )
+from .context import RequestContext, get_request_context
 from .database import DatabaseManager
 from .getters import (
     get_client_id,
     get_db,
+    get_external_user_info,
     get_jwks_cache,
     get_settings,
     get_storage,
+    get_user_info,
 )
 from .jwks import JWKSCache
 from .lifecycle import AppState, app_state, on_shutdown, on_startup
@@ -56,4 +60,9 @@ __all__ = [
     "TASK_API_AUDIENCE",
     "ALLOWED_EXTENSIONS",
     "ALLOWED_MIME_TYPES",
+    "get_external_user_info",
+    "get_user_info",
+    "verify_external_auth_token",
+    "RequestContext",
+    "get_request_context",
 ]

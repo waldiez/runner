@@ -11,7 +11,7 @@ Recommended: Auth header if Python client, subprotocol if JS client.
 """
 
 import logging
-from typing import Tuple
+from typing import Tuple, cast
 
 from fastapi import Depends, WebSocket
 
@@ -23,6 +23,7 @@ from waldiez_runner.dependencies import (
     get_jwks_cache,
     get_settings,
 )
+from waldiez_runner.dependencies.auth import verify_external_auth_token
 
 LOG = logging.getLogger(__name__)
 
@@ -48,46 +49,95 @@ async def get_ws_client_id(
     Tuple[str | None, str | None]
         The client ID and the subprotocol to use to accept the connection.
     """
-    query_token = _get_jwt_from_query_params(websocket)
-    if query_token:
-        client_id, _ = await get_client_id_from_token(
+    token_sources = [
+        {
+            "method": _get_jwt_from_query_params,
+            "name": "query parameters",
+            "subprotocol": None,
+        },
+        {"method": _get_jwt_from_cookie, "name": "cookie", "subprotocol": None},
+        {
+            "method": _get_jwt_from_auth_header,
+            "name": "auth header",
+            "subprotocol": None,
+        },
+        {
+            "method": _get_jwt_from_subprotocol,
+            "name": "subprotocol",
+            "subprotocol": TASK_API_AUDIENCE,
+        },
+    ]
+
+    # Try each token source in order of priority
+    for source in token_sources:
+        token = source["method"](websocket)  # type: ignore[operator]
+        if not token:
+            continue
+
+        LOG.debug("Found token in %s", source["name"])
+
+        # Try internal validation
+        client_id, exception = await get_client_id_from_token(
             expected_audience=TASK_API_AUDIENCE,
-            token=query_token,
+            token=token,
             settings=settings,
             jwks_cache=jwks_cache,
         )
-        return client_id, None
-    jwt_cookie = _get_jwt_from_cookie(websocket)
-    if jwt_cookie:
-        LOG.debug("Found token in cookie")
-        client_id, _ = await get_client_id_from_token(
-            expected_audience=TASK_API_AUDIENCE,
-            token=jwt_cookie,
-            settings=settings,
-            jwks_cache=jwks_cache,
-        )
-        return client_id, None
-    jwt_auth_header = _get_jwt_from_auth_header(websocket)
-    if jwt_auth_header:
-        LOG.debug("Found token in auth header")
-        client_id, _ = await get_client_id_from_token(
-            expected_audience=TASK_API_AUDIENCE,
-            token=jwt_auth_header,
-            settings=settings,
-            jwks_cache=jwks_cache,
-        )
-        return client_id, None
-    jwt_from_subprotocol = _get_jwt_from_subprotocol(websocket)
-    if jwt_from_subprotocol:
-        LOG.debug("Found token in subprotocol")
-        client_id, _ = await get_client_id_from_token(
-            expected_audience=TASK_API_AUDIENCE,
-            token=jwt_from_subprotocol,
-            settings=settings,
-            jwks_cache=jwks_cache,
-        )
-        return client_id, TASK_API_AUDIENCE
+
+        if client_id and not exception:
+            subprotocol = cast(str | None, source["subprotocol"])
+            return client_id, subprotocol
+
+        # Try external validation if enabled and internal failed
+        if settings.enable_external_auth:
+            try:
+                external_validated = await _try_external_validation(
+                    token, settings, websocket
+                )
+            except (ValueError, ConnectionError, TimeoutError) as err:
+                LOG.warning(
+                    "External validation error for %s token: %s",
+                    source["name"],
+                    err,
+                )
+                external_validated = False
+
+            if external_validated:
+                subprotocol = cast(str | None, source["subprotocol"])
+                return "external", subprotocol
+
+    # No valid token found
     return None, None
+
+
+async def _try_external_validation(
+    token: str, settings: Settings, websocket: WebSocket
+) -> bool:
+    """Try to validate token with external service.
+
+    Parameters
+    ----------
+    token : str
+        The token to validate
+    settings : Settings
+        Application settings
+    websocket : WebSocket
+        The websocket connection
+
+    Returns
+    -------
+    bool
+        True if validation succeeded, False otherwise
+    """
+    token_response, ext_exception = await verify_external_auth_token(
+        token, settings
+    )
+
+    if token_response and not ext_exception and token_response.valid:
+        # Store user info on websocket state
+        websocket.state.external_user_info = token_response.user_info
+        return True
+    return False
 
 
 def _get_jwt_from_cookie(websocket: WebSocket) -> str | None:
