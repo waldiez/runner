@@ -51,7 +51,7 @@ function renderMessage({ sender, role, content, type }) {
     ? `${IMG_DIR}/user.webp`
     : role === "system"
     ? `${IMG_DIR}/system.webp`
-    : `${IMG_DIR}/ai.webp`;
+    : `${IMG_DIR}/assistant.webp`;
 
   const bubble = document.createElement("div");
   bubble.classList.add(
@@ -59,7 +59,7 @@ function renderMessage({ sender, role, content, type }) {
       ? "system-message"
       : isUser
       ? "user-message"
-      : "ai-message"
+      : "assistant-message"
   );
 
   const nameTag = document.createElement("div");

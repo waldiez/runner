@@ -70,7 +70,7 @@
 }
 
 /* Message bubble styles */
-.user-message, .ai-message {
+.user-message, .assistant-message {
   padding: 10px 14px;
   border-radius: 8px;
   font-size: 0.95rem;
@@ -85,12 +85,12 @@
   color: #eee;
 }
 
-.ai-message {
+.assistant-message {
   background-color: #e8e8e8;
   color: #111;
 }
 
-body.dark .ai-message {
+body.dark .assistant-message {
   background-color: #b3b3b3;
   color: #111;
 }

@@ -30,12 +30,12 @@ function renderMessage({ name, role, content, type }) {
     ? `${IMG_DIR}/system.webp`
     : isUser
     ? `${IMG_DIR}/user.webp`
-    : `${IMG_DIR}/ai.webp`;
+    : `${IMG_DIR}/assistant.webp`;
   avatar.alt = name || role;
 
   const bubble = document.createElement("div");
   bubble.classList.add(
-    isUser ? "user-message" : isSystem ? "system-message" : "ai-message"
+    isUser ? "user-message" : isSystem ? "system-message" : "assistant-message"
   );
 
   const nameTag = document.createElement("div");
