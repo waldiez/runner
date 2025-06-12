@@ -149,7 +149,6 @@ path = "waldiez_runner/_version.py"
 [tool.black]
 line-length = 80
 skip-string-normalization=true
-skip_magic_trailing_comma=false
 include = '''
     \.pyi?$
 '''
@@ -175,7 +174,7 @@ exclude = '''
 files = "."
 explicit_package_bases = false
 show_error_codes = true
-no_namespace_packages = true
+namespace_packages = false
 # xcode/dmypy: follow-imports=silent not supported
 # follow_imports = "skip"
 platform = "linux"

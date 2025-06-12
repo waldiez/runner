@@ -6,7 +6,6 @@ import logging
 import os
 import secrets
 import sys
-import tempfile
 import traceback
 from pathlib import Path
 from typing import List, Tuple
@@ -20,11 +19,6 @@ from tenacity import (
     retry,
     stop_after_attempt,
     wait_fixed,
-)
-from waldiez.utils.pysqlite3_checker import (
-    check_pysqlite3,
-    download_sqlite_amalgamation,
-    install_pysqlite3,
 )
 
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
@@ -52,27 +46,6 @@ else:
     load_dotenv(DOT_ENV_PATH, override=True)
 
 os.environ[f"{ENV_PREFIX}TESTING"] = "false"
-
-
-# pylint: disable=duplicate-code
-def try_check_pysqlite3() -> None:
-    """Check if pysqlite3 is installed and if not, install it.
-
-    Before waldiez tries:
-     if on linux and arm64, pysqlite3-binary is not available
-    and we need to install it manually.
-    """
-    cwd = os.getcwd()
-    tmp_dir = tempfile.gettempdir()
-    os.chdir(tmp_dir)
-    try:
-        check_pysqlite3()
-    except BaseException:  # pylint: disable=broad-exception-caught
-        download_path = download_sqlite_amalgamation()
-        install_pysqlite3(download_path)
-    finally:
-        os.chdir(cwd)
-    check_pysqlite3()
 
 
 @retry(
@@ -247,7 +220,6 @@ def ensure_secrets() -> None:
 
 def main() -> None:
     """Perform pre-start actions."""
-    try_check_pysqlite3()
     if "--secrets" in sys.argv:
         ensure_secrets()
         return

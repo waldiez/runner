@@ -84,8 +84,8 @@ from typing import (
 
 import redis
 import redis.asyncio as a_redis
+from autogen.events.base_event import BaseEvent  # type: ignore
 from autogen.io import IOStream  # type: ignore
-from autogen.messages import BaseMessage  # type: ignore
 from typing_extensions import TypedDict
 
 if TYPE_CHECKING:
@@ -207,7 +207,7 @@ class RedisIOStream(IOStream):
         """
         LOG.debug("Sending print message: %s", payload)
         RedisIOStream.try_do(
-            self.redis.xadd,
+            self.redis.xadd,  # pyright: ignore
             self.task_output_stream,
             payload,
             maxlen=self.max_stream_size,
@@ -226,7 +226,7 @@ class RedisIOStream(IOStream):
         """
         LOG.debug("Sending print message: %s", payload)
         RedisIOStream.try_do(
-            self.redis.xadd,
+            self.redis.xadd,  # pyright: ignore
             self.common_output_stream,
             payload,
             maxlen=self.max_stream_size,
@@ -266,21 +266,21 @@ class RedisIOStream(IOStream):
                 message += io_value
         end = kwargs.get("end", "\n")
         message += end
-        payload = {
+        payload: dict[str, Any] = {
             "type": "print",
             "data": message,
         }
         self._print(payload)
 
-    def send(self, message: BaseMessage) -> None:
+    def send(self, message: BaseEvent) -> None:
         """Send a structured message to Redis.
 
         Parameters
         ----------
-        message : Dict[str, Any]
+        message : BaseEvent
             The message to send.
         """
-        payload = {
+        payload: dict[str, Any] = {
             "type": "print",
             "data": message.model_dump_json(),
         }
@@ -443,7 +443,7 @@ class RedisIOStream(IOStream):
             return None, None
         if "data" not in message_dict:
             return None, None
-        user_input = str(message_dict.get("data", ""))
+        user_input = str(message_dict.get("data", ""))  # pyright: ignore
         if user_input.lower() in [
             "",
             "\n",
@@ -456,7 +456,7 @@ class RedisIOStream(IOStream):
             "null",
         ]:
             user_input = "\n"
-        return message_dict["request_id"], user_input
+        return message_dict["request_id"], user_input  # pyright: ignore
 
     @staticmethod
     def try_do(func: Callable[..., Any], *args: Any, **kwargs: Any) -> None:
@@ -629,7 +629,10 @@ class RedisIOStream(IOStream):
         """
         for key in redis_client.scan_iter("task:*:output", count=100):
             RedisIOStream.try_do(
-                redis_client.xtrim, key, maxlen=maxlen, approximate=approximate
+                redis_client.xtrim,  # pyright: ignore
+                key,
+                maxlen=maxlen,
+                approximate=approximate,
             )
 
     @staticmethod
@@ -702,7 +705,7 @@ class RedisIOStream(IOStream):
         ):
             before = await redis_client.xlen(key)
             await RedisIOStream.a_try_do(
-                redis_client.xtrim,
+                redis_client.xtrim,  # pyright: ignore
                 key,
                 maxlen=maxlen,
                 approximate=approximate,

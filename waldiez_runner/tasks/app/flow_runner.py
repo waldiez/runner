@@ -6,7 +6,7 @@ import asyncio
 import json
 import logging
 import traceback
-from typing import Any, Dict, List
+from typing import Any
 
 from autogen import ChatResult  # type: ignore[import-untyped]
 from waldiez import Waldiez, WaldiezRunner
@@ -56,7 +56,7 @@ class FlowRunner:
             input_timeout=self.input_timeout,
         )
 
-    async def run(self) -> List[Dict[str, Any]]:
+    async def run(self) -> list[dict[str, Any]]:
         """Run the Waldiez flow and return the results.
 
         Returns
@@ -66,9 +66,10 @@ class FlowRunner:
         """
         results: (
             ChatResult
-            | Dict[str, ChatResult]
-            | List[Dict[str, ChatResult]]
-            | Dict[str, Any]
+            | dict[str, ChatResult]
+            | list[dict[str, ChatResult]]
+            | dict[str, Any]
+            | dict[int, Any]
         )
         if not self.waldiez.is_async:
             results = await asyncio.to_thread(self.run_sync)
@@ -77,7 +78,9 @@ class FlowRunner:
         with RedisIOStream.set_default(self.io_stream):
             try:
                 runner = WaldiezRunner(self.waldiez)
-                results = await runner.a_run(output_path=self.output_path)
+                results = await runner.a_run(  # pyright: ignore
+                    output_path=self.output_path,
+                )
             except BaseException as e:  # pylint: disable=broad-exception-caught
                 tb = traceback.format_exc()
                 results = {
@@ -88,7 +91,7 @@ class FlowRunner:
         self.io_stream.close()
         return serializable_results
 
-    def run_sync(self) -> List[Dict[str, Any]]:
+    def run_sync(self) -> list[dict[str, Any]]:
         """Run the Waldiez flow synchronously and return the results.
 
         Returns
@@ -98,14 +101,17 @@ class FlowRunner:
         """
         results: (
             ChatResult
-            | Dict[str, ChatResult]
-            | List[Dict[str, ChatResult]]
-            | Dict[str, Any]
+            | dict[str, ChatResult]
+            | list[dict[int, ChatResult]]
+            | dict[str, Any]
+            | dict[int, Any]
         )
         with RedisIOStream.set_default(self.io_stream):
             try:
                 runner = WaldiezRunner(self.waldiez)
-                results = runner.run(output_path=self.output_path)
+                results = runner.run(  # pyright: ignore
+                    output_path=self.output_path,
+                )
             except BaseException as e:  # pylint: disable=broad-exception-caught
                 tb = traceback.format_exc()
                 results = {  # pylint: disable=redefined-variable-type
@@ -158,7 +164,7 @@ class FlowRunner:
             The task ID.
         """
         LOG.debug("Got input request: %s", prompt)
-        task_status = {
+        task_status: dict[str, Any] = {
             "status": "WAITING_FOR_INPUT",
             "task_id": task_id,
             "data": {"prompt": prompt, "request_id": request_id},
@@ -187,7 +193,7 @@ class FlowRunner:
             The task ID.
         """
         LOG.debug("Got user input: %s", user_input)
-        task_status = {
+        task_status: dict[str, Any] = {
             "status": "RUNNING",
             "task_id": task_id,
             "data": None,

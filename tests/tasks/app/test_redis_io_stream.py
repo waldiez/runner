@@ -1,8 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
+# pyright: reportPrivateUsage=false,reportUnknownMemberType=false
+# pyright: reportUnknownVariableType=false,reportUnknownArgumentType=false
 # pylint: disable=missing-param-doc,missing-type-doc,missing-return-doc
 # pylint: disable=missing-yield-doc, protected-access
+
 
 """Tests for RedisIOStream task class."""
 
@@ -10,9 +13,11 @@ import io
 import json
 import threading
 import time
+import uuid
 
 import fakeredis
 import pytest
+from autogen.events.base_event import BaseEvent  # type: ignore[import-untyped]
 
 from waldiez_runner.tasks.app.redis_io_stream import RedisIOStream
 
@@ -88,14 +93,13 @@ def test_send(fake_redis: fakeredis.FakeRedis) -> None:
     stream.redis = fake_redis
 
     # pylint: disable=too-few-public-methods,no-self-use
-    class Message:
+    class MockEvent(BaseEvent):
         """Mock message object."""
 
-        def model_dump_json(self) -> str:
-            """Mock model dump."""
-            return json.dumps({"message": "Hello, World!"})
+        type: str = "print"
+        message: str
 
-    message = Message()
+    message = MockEvent(uuid=uuid.uuid4(), message="Hello, World!")
     stream.send(message)
 
     entries = fake_redis.xrange(f"task:{task_id}:output")
