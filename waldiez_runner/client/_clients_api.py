@@ -210,7 +210,7 @@ class ClientsAPIClient(BaseAPIClient):
             If the request fails
         """
         self.ensure_configured()
-        params = {}
+        params: dict[str, list[str]] = {}
         if ids:
             params["ids"] = ids
         if audiences:
@@ -423,7 +423,7 @@ class ClientsAPIClient(BaseAPIClient):
             If the request fails
         """
         self.ensure_configured()
-        params = {}
+        params: dict[str, list[str]] = {}
         if audiences:
             params["audiences"] = audiences
         if ids:

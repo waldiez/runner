@@ -359,11 +359,11 @@ class Settings(BaseSettings):
             if isinstance(value, bool):
                 env_value = str(value).lower()
             if isinstance(value, (list, tuple)):
-                env_value = ",".join(value)
+                env_value = ",".join(value)  # pyright: ignore
             if isinstance(value, (int, float)):
                 env_value = str(int(value))
             if not isinstance(env_value, str):
-                env_value = str(value)
+                env_value = str(value)  # pyright: ignore
             env_value = env_value if env_value != "None" else ""
             self._handle_special_key_value(key, env_value)
             os.environ[env_key] = env_value
@@ -456,7 +456,7 @@ class Settings(BaseSettings):
 
             return [value] if value else []
         if isinstance(value, list):
-            return [item for item in value if item]
+            return [item for item in value if item]  # pyright: ignore
         return []  # pragma: no cover
 
     @model_validator(mode="after")

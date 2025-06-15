@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
-# mypy: ignore-errors
+# pyright: reportMissingTypeArgument=false,reportUnknownMemberType=false
 # pylint: disable=too-many-try-statements
 # pylint: disable=broad-exception-caught, protected-access
 """Redis connection manager."""
@@ -11,7 +11,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from threading import Event, Lock, Thread
-from typing import TYPE_CHECKING, AsyncIterator
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 import redis
 import redis.asyncio as a_redis
@@ -28,11 +28,13 @@ from waldiez_runner.config import (
 from ._utils import get_available_port, is_port_available
 
 if TYPE_CHECKING:
-    Redis = redis.Redis[bytes]
-    AsyncRedis = a_redis.Redis[bytes]
+    Redis = redis.Redis[str]
+    AsyncRedis = a_redis.Redis[str]
+    ConnectionPool = a_redis.ConnectionPool[Any]
 else:
     Redis = redis.Redis
     AsyncRedis = a_redis.Redis
+    ConnectionPool = a_redis.ConnectionPool
 
 LOG = logging.getLogger(__name__)
 
@@ -40,7 +42,7 @@ LOG = logging.getLogger(__name__)
 class RedisManager:
     """Redis connection manager with support for Fake Redis."""
 
-    _pool: a_redis.ConnectionPool | None = None
+    _pool: ConnectionPool | None = None
     _stop_event = Event()
     _server: TcpFakeServer | None = None
     _server_thread: Thread | None = None
@@ -156,7 +158,7 @@ class RedisManager:
             yield client
         finally:
             if use_single_connection:
-                await client.aclose()
+                await client.aclose()  # type: ignore
 
     def start_fake_redis_server(self, new_port: bool = False) -> str:
         """Start a Fake Redis server using TcpFakeServer.
@@ -196,17 +198,16 @@ class RedisManager:
             password=None,
         )
         try:
-            self._server = TcpFakeServer(  # type: ignore
-                (host, port), server_type="redis"
-            )
+            self._server = TcpFakeServer((host, port), server_type="redis")
 
             def thread_target() -> None:
                 """Thread target to run the Fake Redis server."""
                 # pylint: disable=broad-exception-caught
-                try:
-                    self._server.serve_forever()
-                except BaseException as error:  # pragma: no cover
-                    LOG.debug("Fake Redis server error: %s", error)
+                if self._server:
+                    try:
+                        self._server.serve_forever()
+                    except BaseException as error:  # pragma: no cover
+                        LOG.debug("Fake Redis server error: %s", error)
 
             self._server_thread = Thread(
                 target=thread_target,

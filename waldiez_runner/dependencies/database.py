@@ -7,7 +7,7 @@ import contextlib
 import json
 import logging
 from asyncio import Lock
-from typing import TYPE_CHECKING, AsyncIterator
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from fastapi.exceptions import HTTPException
 from sqlalchemy.engine import Connection as ConnectionPoolEntry
@@ -44,10 +44,25 @@ class DatabaseManager:
     def setup(self) -> None:
         """Setup the database connection."""
 
-        engine_creation_args = {
+        def _serializer(obj: Any) -> str:
+            """Serialize JSON objects for the database.
+
+            Parameters
+            ----------
+            obj : Any
+                The object to serialize.
+
+            Returns
+            -------
+            str
+                The serialized JSON string.
+            """
+            return json.dumps(obj, ensure_ascii=False)
+
+        engine_creation_args: dict[str, Any] = {
             "pool_recycle": 1800,
             "pool_pre_ping": True,
-            "json_serializer": lambda obj: json.dumps(obj, ensure_ascii=False),
+            "json_serializer": _serializer,
             "echo": False,
         }
         if "sqlite" not in self._db_url:  # pragma: no cover

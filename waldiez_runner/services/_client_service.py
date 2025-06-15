@@ -5,7 +5,7 @@
 """Clients management service."""
 
 import logging
-from typing import List, Sequence
+from typing import Any, List, Sequence
 
 from fastapi_pagination import Page, Params
 from fastapi_pagination.ext.sqlalchemy import apaginate
@@ -276,7 +276,7 @@ async def delete_clients(
     List[str]
         The list of deleted client IDs.
     """
-    filters = []
+    filters: list[Any] = []
     if ids:
         filters.append(Client.id.in_(ids))
     if audiences:

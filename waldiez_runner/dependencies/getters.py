@@ -103,7 +103,11 @@ def get_client_id(
             audience = (
                 list(expected_audiences)
                 if len(expected_audiences) > 1
-                else expected_audiences[0]
+                else (
+                    expected_audiences[0]
+                    if len(expected_audiences) == 1
+                    else None
+                )
             )
         if scheme.lower() != "bearer":
             raise HTTPException(status_code=401, detail="Invalid credentials.")

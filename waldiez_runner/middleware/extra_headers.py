@@ -47,7 +47,7 @@ def parse_policy(policy: Dict[str, str | List[str]] | str) -> str:
             policy_parts = policy_part.strip().split(" ")
             policy[policy_parts[0]] = " ".join(policy_parts[1:])
 
-    policies = []
+    policies: list[str] = []
     for section, content in policy.items():
         if not isinstance(content, str):
             content = " ".join(content)

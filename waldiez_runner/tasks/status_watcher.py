@@ -2,6 +2,8 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
 # pylint: disable=broad-exception-caught
+# pyright: reportUnknownVariableType=false,reportUnknownArgumentType=false
+# pyright: reportUnknownMemberType=false,reportTypedDictNotRequiredAccess=false
 
 """Watch the status of a task and update the database accordingly.
 

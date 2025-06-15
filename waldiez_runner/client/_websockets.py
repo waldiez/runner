@@ -203,10 +203,13 @@ class SyncWebSocketClient:
         bool
             True if the listener should stop, False otherwise
         """
-        code = getattr(e.response, "status_code", None)  # fallback
+        code: int | None = getattr(e.response, "status_code", None)  # fallback
 
         if hasattr(e, "code"):  # pragma: no cover
-            code = e.code
+            try:
+                code = int(e.code)  # pyright: ignore
+            except ValueError:
+                pass
 
         if code == 1008:  # Policy Violation # pragma: no cover
             LOG.warning("Unauthorized (1008): Token likely invalid.")

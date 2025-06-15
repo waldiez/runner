@@ -272,7 +272,7 @@ async def run_app_in_venv(
         if watcher_task.done():
             try:
                 watcher_result = watcher_task.result()
-                if watcher_result is not None:
+                if watcher_result is not None:  # pyright: ignore
                     LOG.warning(
                         "Watcher task finished with result: %s", watcher_result
                     )

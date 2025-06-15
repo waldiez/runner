@@ -347,7 +347,10 @@ async def soft_delete_client_tasks(
     List[str]
         List of task IDs that were soft-deleted.
     """
-    filters = [Task.client_id == client_id, Task.deleted_at.is_(None)]
+    filters: list[Any] = [
+        Task.client_id == client_id,
+        Task.deleted_at.is_(None),
+    ]
     if ids:
         filters.append(Task.id.in_(ids))
 

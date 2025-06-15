@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
+# pyright: reportUnusedFunction=false,reportUnknownMemberType=false
+# pyright: reportUnknownArgumentType=false,reportAttributeAccessIssue=false
+
 """Application entry point."""
 
 import http
@@ -104,7 +107,7 @@ def get_app() -> FastAPI:
         }
         if hasattr(exc, "detail"):
             if isinstance(exc.detail, (dict, list)):
-                detail = exc.detail
+                detail = exc.detail  # pyright: ignore
             elif isinstance(exc.detail, str):  # pragma: no cover
                 detail = {"detail": exc.detail}
         return ORJSONResponse(

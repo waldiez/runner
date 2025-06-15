@@ -89,8 +89,8 @@ from autogen.io import IOStream  # type: ignore
 from typing_extensions import TypedDict
 
 if TYPE_CHECKING:
-    Redis = redis.Redis[bytes]
-    AsyncRedis = a_redis.Redis[bytes]
+    Redis = redis.Redis[str]
+    AsyncRedis = a_redis.Redis[str]
 else:
     Redis = redis.Redis
     AsyncRedis = a_redis.Redis

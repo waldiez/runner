@@ -208,7 +208,7 @@ class Base(DeclarativeBase, AsyncAttrs):
         """Mark the record as soft-deleted."""
         self.deleted_at = now()
 
-    type_annotation_map = {
+    type_annotation_map = {  # pyright: ignore
         enum.Enum: sqlalchemy.Enum(enum.Enum),
         typing.Literal: sqlalchemy.Enum(enum.Enum),
     }
