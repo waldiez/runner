@@ -9,7 +9,7 @@ click<8.2
 fakeredis>=2.29.0
 fastapi-pagination==0.13.2
 fastapi[all]==0.115.12
-faststream[redis,cli]==0.5.42
+faststream[redis,cli]==0.5.43
 hiredis==3.2.1
 nest-asyncio==1.6.0
 orjson==3.10.18
@@ -38,5 +38,5 @@ typer<1
 uvicorn[standard]==0.34.3
 uvloop==0.21.0; sys_platform != 'win32'
 virtualenv==20.31.2
-waldiez==0.4.8
+waldiez==0.4.9
 zipstream==1.1.4

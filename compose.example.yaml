@@ -90,9 +90,9 @@ services:
 
   check-storage-permissions:
     image: waldiez/runner:latest
-    entrypoint: ["chown", "-R", "user:user", "/home/user/app/waldiez_runner/storage"]
+    entrypoint: ["chown", "-R", "waldiez:waldiez", "/home/waldiez/app/waldiez_runner/storage"]
     volumes: &waldiez-runner-volumes
-      - runner-storage-data:/home/user/app/waldiez_runner/storage
+      - runner-storage-data:/home/waldiez/app/waldiez_runner/storage
     user: "root"
     restart: "no"
   runner:
@@ -166,7 +166,7 @@ services:
     container_name: waldiez-broker
     image: waldiez/runner:latest
     restart: unless-stopped
-    command: ["/home/user/app/scripts/start.sh", "broker"]
+    command: ["/home/waldiez/app/scripts/start.sh", "broker"]
     init: true
     networks:
       - waldiez-internal
@@ -186,7 +186,7 @@ services:
     container_name: waldiez-scheduler
     image: waldiez/runner:latest
     restart: unless-stopped
-    command: ["/home/user/app/scripts/start.sh", "scheduler"]
+    command: ["/home/waldiez/app/scripts/start.sh", "scheduler"]
     init: true
     networks:
       - waldiez-internal

@@ -5,8 +5,8 @@ set -e  # Fail on error
 # Perform pre-start checks, initial data setup and start the application
 
 # (in container)
-# app root: "/home/user/app"
-# scripts root (where this file is): /home/user/scripts
+# app root: "/home/waldiez/app"
+# scripts root (where this file is): /home/waldiez/scripts
 HERE="$(dirname "$(readlink -f "$0")")"
 ROOT_DIR="$(dirname "$HERE")"
 DEV="false"

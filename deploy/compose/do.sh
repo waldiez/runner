@@ -641,5 +641,5 @@ echo "docker compose -f compose.yaml down --rmi all --volumes"
 echo
 #
 echo "You might also want to:"
-echo "docker cp waldiez-runner:/home/user/app/clients.json ."
+echo "docker cp waldiez-runner:/home/waldiez/app/clients.json ."
 echo "to get the first two clients' (clients-api) and (tasks-api) details"

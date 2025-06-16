@@ -9,8 +9,8 @@ x-podman:
   in_pod: false
 
 x-waldiez-volumes: &waldiez-runner-volumes-dev
-  - .:/home/user/app
-  - runner-storage-data-dev:/home/user/app/waldiez_runner/storage
+  - .:/home/waldiez/app
+  - runner-storage-data-dev:/home/waldiez/app/waldiez_runner/storage
 
 x-logging: &common-logging
   options:

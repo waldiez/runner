@@ -17,84 +17,116 @@ ENV DEBCONF_NONINTERACTIVE_SEEN=true
 RUN apt update && \
     apt upgrade -y && \
     apt install -y --no-install-recommends \
-    tzdata \
-    locales \
-    bzip2 \
-    ca-certificates \
     build-essential \
+    bzip2 \
+    curl \
+    ca-certificates \
+    zip \
+    unzip \
+    git \
+    jq \
+    ffmpeg \
+    graphviz \
+    libpq-dev\
+    wget \
+    fonts-liberation \
+    openssl \
     libcairo2-dev \
     libpango1.0-dev \
     libjpeg-dev \
     libgif-dev \
     librsvg2-dev \
     libpq-dev\
-    wget \
-    fonts-liberation \
-    git \
-    openssl \
+    libgdk-pixbuf2.0-0 \
+    libnspr4 \
+    libnss3 \
+    libx11-xcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    tzdata \
+    locales \
     pandoc \
-    sudo \
-    curl \
-    tini \
-    zip \
-    unzip \
-    graphviz && \
+    xdg-utils \
+    xvfb \
+    firefox-esr \
+    chromium && \
     sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
     locale-gen en_US.UTF-8 && \
+    curl -fsSL https://deb.nodesource.com/setup_22.x -o nodesource_setup.sh && \
+    bash nodesource_setup.sh && \
+    rm nodesource_setup.sh && \
+    apt install -y nodejs && \
+    npm install -g corepack && \
+    corepack enable && \
+    yarn set version stable && \
+    npx playwright install-deps && \
     apt clean && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /var/cache/apt/archives/*
 
+# Add ChromeDriver
+RUN CHROME_VERSION=$(chromium --version | grep -oP '\d+\.\d+\.\d+') && \
+    echo "Chrome version: $CHROME_VERSION" && \
+    DRIVER_VERSION=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" | \
+    jq -r --arg ver "$CHROME_VERSION" '.channels.Stable.version') && \
+    echo "Driver version: $DRIVER_VERSION" && \
+    curl -Lo /tmp/chromedriver.zip "https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/${DRIVER_VERSION}/linux64/chromedriver-linux64.zip" && \
+    unzip /tmp/chromedriver.zip -d /usr/local/bin && \
+    mv /usr/local/bin/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver && \
+    chmod +x /usr/local/bin/chromedriver && \
+    rm -rf /tmp/chromedriver.zip /usr/local/bin/chromedriver-linux64
+
+# Add GeckoDriver (for Firefox)
+RUN GECKO_VERSION=$(curl -s https://api.github.com/repos/mozilla/geckodriver/releases/latest | jq -r '.tag_name') && \
+    curl -Lo /tmp/geckodriver.tar.gz "https://github.com/mozilla/geckodriver/releases/download/${GECKO_VERSION}/geckodriver-${GECKO_VERSION}-linux64.tar.gz" && \
+    tar -xzf /tmp/geckodriver.tar.gz -C /usr/local/bin && \
+    chmod +x /usr/local/bin/geckodriver && \
+    rm /tmp/geckodriver.tar.gz
+
+# Ensure /usr/local/bin is in the PATH
+ENV PATH="/usr/local/bin:${PATH}"
+
+# Set locale and timezone
 ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US.UTF-8 \
     LC_ALL=en_US.UTF-8 \
     LC_CTYPE=en_US.UTF-8 \
     TZ=Etc/UTC
 
-# install nodejs
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x -o nodesource_setup.sh && \
-    bash nodesource_setup.sh && \
-    apt install -y nodejs && \
-    apt clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    rm -rf /var/cache/apt/archives/*
-
-# install yarn
-RUN npm install -g corepack && \
-    corepack enable && \
-    yarn set version stable
-
 # let's hope this will not be needed (e.g. no need to open a shell)
 # if it does, I like colors
 RUN sed -i 's/^#force_color_prompt=yes/force_color_prompt=yes/' /etc/skel/.bashrc
 
-# add a non-root user
+# add a non-root user and group
 ARG GROUP_ID=1000
 ENV GROUP_ID=${GROUP_ID}
-RUN addgroup --system --gid ${GROUP_ID} user
+RUN addgroup --system --gid ${GROUP_ID} waldiez
 ARG USER_ID=1000
 ENV USER_ID=${USER_ID}
-RUN adduser --disabled-password --gecos '' --shell /bin/bash --uid ${USER_ID} --gid ${GROUP_ID} user
-RUN mkdir -p /home/user/.local/bin /home/user/app /home/user/app/waldiez_runner/storage && \
-    chown -R user:user /home/user
-ENV PATH=/home/user/.local/bin:${PATH}
+RUN adduser --disabled-password --gecos '' --shell /bin/bash --uid ${USER_ID} --gid ${GROUP_ID} waldiez
+RUN mkdir -p /home/waldiez/.local/bin /home/waldiez/app /home/waldiez/app/waldiez_runner/storage && \
+    chown -R waldiez:waldiez /home/waldiez
+ENV PATH=/home/waldiez/.local/bin:${PATH}
 
-USER user
+USER waldiez
+
+RUN npx playwright install chromium firefox
 RUN pip install --upgrade pip
 
-COPY --chown=user:user requirements/main.txt /home/user/requirements.txt
-RUN pip install -r /home/user/requirements.txt && rm /home/user/requirements.txt
+COPY --chown=waldiez:waldiez requirements/main.txt /home/waldiez/requirements.txt
+RUN pip install -r /home/waldiez/requirements.txt && rm /home/waldiez/requirements.txt
 
-COPY --chown=user:user . /home/user/app
-RUN chmod +x /home/user/app/scripts/start.sh
+COPY --chown=waldiez:waldiez . /home/waldiez/app
+RUN chmod +x /home/waldiez/app/scripts/start.sh
 
 EXPOSE 8888
-VOLUME /home/user/app/waldiez_runner/storage
+VOLUME /home/waldiez/app/waldiez_runner/storage
 
-WORKDIR /home/user/app
+WORKDIR /home/waldiez/app
 
 
 ENV TINI_SUBREAPER=true
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
-CMD ["/home/user/app/scripts/start.sh"]
+CMD ["/home/waldiez/app/scripts/start.sh"]
