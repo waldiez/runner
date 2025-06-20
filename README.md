@@ -4,7 +4,11 @@ Run your [Waldiez](https://github.com/waldiez/waldiez) flows in isolated environ
 
 <!-- markdownlint-disable MD034 -->
 
-https://github.com/user-attachments/assets/596ee25a-362e-4202-a4b0-894a4713e041
+<video
+  src="https://github.com/user-attachments/assets/596ee25a-362e-4202-a4b0-894a4713e041"
+  controls="controls" autoplay="autoplay" loop="loop"
+  muted="muted" playsinline="playsinline" width="100%" height="100%">
+</video>
 
 ## Overview
 
