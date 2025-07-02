@@ -70,7 +70,7 @@ async def get_ws_client_id(
 
     # Try each token source in order of priority
     for source in token_sources:
-        token = source["method"](websocket)  # type: ignore[operator]
+        token = source["method"](websocket)  # pyright: ignore
         if not token:
             continue
 
