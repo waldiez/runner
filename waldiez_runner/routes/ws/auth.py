@@ -11,7 +11,7 @@ Recommended: Auth header if Python client, subprotocol if JS client.
 """
 
 import logging
-from typing import Tuple, cast
+from typing import Any, Tuple, cast
 
 from fastapi import Depends, WebSocket
 
@@ -49,7 +49,7 @@ async def get_ws_client_id(
     Tuple[str | None, str | None]
         The client ID and the subprotocol to use to accept the connection.
     """
-    token_sources = [
+    token_sources: list[dict[str, Any]] = [
         {
             "method": _get_jwt_from_query_params,
             "name": "query parameters",
