@@ -12,5 +12,5 @@ pytest-httpx
 pytest-mock==3.14.1
 pytest-sugar==1.0.0
 pytest-timeout==2.4.0
-pytest-xdist==3.7.0
+pytest-xdist==3.8.0
 pytest==8.4.1

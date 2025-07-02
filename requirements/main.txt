@@ -6,9 +6,9 @@ alembic==1.16.2
 anyio==4.9.0
 bcrypt==4.3.0
 click<8.2
-fakeredis>=2.30.0
-fastapi-pagination==0.13.2
-fastapi[all]==0.115.13
+fakeredis>=2.30.1
+fastapi-pagination==0.13.3
+fastapi[all]==0.115.14
 faststream[redis,cli]==0.5.43
 hiredis==3.2.1
 nest-asyncio==1.6.0
@@ -27,7 +27,7 @@ pydantic>=2.11.3,<3.0.0
 pysqlite3-binary==0.5.4; sys_platform == 'linux' and platform_machine != 'arm64' and platform_machine != 'aarch64' and platform_machine != 'ARM64' and platform_machine != 'AARCH64'
 python-multipart==0.0.20
 python-ulid==3.0.0
-python_dotenv==1.1.0
+python_dotenv>=1.1.1
 redis<6
 slowapi==0.1.9
 taskiq-dependencies==1.5.7
@@ -35,7 +35,7 @@ taskiq-redis==1.0.9
 taskiq==0.11.17
 tenacity<10.0.0
 typer<1
-uvicorn[standard]==0.34.3
+uvicorn[standard]>=0.34.3
 uvloop==0.21.0; sys_platform != 'win32'
 virtualenv==20.31.2
 waldiez==0.5.1
