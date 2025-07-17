@@ -54,8 +54,7 @@ Once started, you can access:
 - **Static example UI**: [http://localhost](http://localhost)
 - **API**: [http://localhost/docs](http://localhost/docs) (Swagger UI)
 
-![Example Preview](static/images/getting_started_light.webp#only-light)
-![Example Preview](static/images/getting_started_dark.webp#only-dark)
+![Example Preview](https://raw.githubusercontent.com/waldiez/runner/refs/heads/main/docs/static/images/getting_started_dark.webp#only-dark)
 
 !!!Note
     Alternatively, you can open this project in VS Code with Dev Containers enabled — it uses most of the services (not nginx) via .devcontainer/compose.yaml.
@@ -80,7 +79,7 @@ You'll need the `tasks-api` credentials to:
     On the example page, you’ll be asked to paste the base URL, client ID, and secret.  
     Use the values from `clients.json` (specifically the `tasks-api` entry).
 
-🔐 See [Clients & Authentication](clients.md) for more details.
+🔐 See [Clients & Authentication](https://waldiez.github.io/runner/clients/) for more details.
 
 ### 🧪 Local Mode (Advanced)
 
@@ -133,7 +132,7 @@ Once the server is running, you can create and interact with tasks:
 
 - **Monitor task progress** via:
   - the Swagger `GET /api/v1/tasks/{task_id}`
-  - or the WebSocket endpoint `/ws/{task_id}` (see [WebSocket](websocket.md))
+  - or the WebSocket endpoint `/ws/{task_id}` (see [WebSocket](https://waldiez.github.io/runner/websocket/))
 
 - **Send input** if the task requests it:
   - Use the input box in the example UI
@@ -182,4 +181,4 @@ This project follows the [all-contributors](https://github.com/all-contributors/
 
 ## License
 
-This project is licensed under the [Apache License, Version 2.0 (Apache-2.0)](https://github.com/waldiez/vscode/blob/main/LICENSE).
+This project is licensed under the [Apache License, Version 2.0 (Apache-2.0)](https://github.com/waldiez/runner/blob/main/LICENSE).
