@@ -40,6 +40,12 @@ DB_PATH.unlink(missing_ok=True)
 DATABASE_URL = f"sqlite+aiosqlite:///{DB_PATH}"
 
 
+@pytest.fixture(scope="function")
+def anyio_backend() -> str:
+    """Return the backend to use for anyio tests."""
+    return "asyncio"
+
+
 @pytest.fixture(scope="function", autouse=True)
 def reset_settings_and_env() -> Generator[None, None, None]:
     """Automatically reset SettingsManager before each test."""
