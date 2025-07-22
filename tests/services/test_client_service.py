@@ -17,17 +17,25 @@ from waldiez_runner.services import ClientService
 @pytest.mark.anyio
 async def test_get_clients(async_session: AsyncSession) -> None:
     """Test retrieving all clients."""
+    await ClientService.delete_clients(async_session, excluded=[])
     client_create1 = ClientCreate()
     client_create2 = ClientCreate()
     await ClientService.create_client(async_session, client_create1)
     await ClientService.create_client(async_session, client_create2)
-    params = Params(page=1, size=10)
-    clients = await ClientService.get_clients(async_session, params=params)
+    params = Params(page=1, size=20)
+    clients = await ClientService.get_clients(
+        async_session,
+        params=params,
+        descending=True,
+    )
 
     assert len(clients.items) >= 2
     client_ids = [client.client_id for client in clients.items]
     assert client_create1.client_id in client_ids
     assert client_create2.client_id in client_ids
+    await ClientService.delete_clients(
+        async_session, ids=[client.id for client in clients.items]
+    )
 
 
 @pytest.mark.anyio
