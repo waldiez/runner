@@ -1,18 +1,18 @@
 aiocsv==1.3.2
 aiofiles==24.1.0
-aiohttp>=3.12.13
+aiohttp==3.12.14
 aiosqlite==0.21.0
-alembic==1.16.2
+alembic==1.16.4
 anyio==4.9.0
 bcrypt==4.3.0
 click<8.2
 fakeredis>=2.30.1
 fastapi-pagination==0.13.3
-fastapi[all]>=0.115.14
-faststream[redis,cli]==0.5.44
+fastapi[all]==0.116.1
+faststream[redis,cli]==0.5.48
 hiredis==3.2.1
 nest-asyncio==1.6.0
-orjson==3.10.18
+orjson==3.11.0
 psutil==7.0.0
 psycopg>=3.2.9; sys_platform == 'linux'
 psycopg>=3.2.9; sys_platform == 'win32' and platform_machine == 'AARCH64'
@@ -32,11 +32,12 @@ redis<6
 slowapi==0.1.9
 taskiq-dependencies==1.5.7
 taskiq-redis==1.0.9
-taskiq==0.11.17
+taskiq==0.11.18
 tenacity<10.0.0
+trio==0.30.0
 typer<1
-uvicorn[standard]>=0.34.3
+uvicorn[standard]==0.35.0
 uvloop==0.21.0; sys_platform != 'win32'
-virtualenv==20.31.2
+virtualenv==20.32.0
 waldiez==0.5.3
 zipstream==1.1.4
