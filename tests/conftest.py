@@ -53,12 +53,6 @@ def reset_settings_and_env() -> Generator[None, None, None]:
     os.environ[f"{ENV_KEY_PREFIX}TESTING"] = "1"
 
 
-@pytest.fixture(autouse=True)
-def anyio_backend() -> str:
-    """Return the anyio backend to use."""
-    return "asyncio"
-
-
 def _ensure_keys() -> None:
     """Ensure secret_key, client_id and client_secret are set."""
     # in case a .env does not exist, or the keys are not set
