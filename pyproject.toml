@@ -138,7 +138,7 @@ docs = [
   'mkdocs-material==9.6.15',
   'mkdocs-mermaid2-plugin==1.2.1',
   'mkdocs-minify-html-plugin==0.3.1',
-  'mkdocstrings[crystal,python]==0.29.1',
+  'mkdocstrings[crystal,python]==0.30.0',
   'mkdocstrings-python==1.16.12',
   'neoteroi-mkdocs==1.1.2',
 ]
