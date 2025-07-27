@@ -104,5 +104,5 @@ def get_db_url() -> str | None:
     str | None
         The Postgres URL
     """
-    value = get_value("--postgres-url", "POSTGRES_URL", str, None)
+    value = get_value("--postgres-url", "POSTGRES_URL", str, "")
     return value if value else None

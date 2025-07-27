@@ -78,6 +78,7 @@ services:
       - runner-redis-data:/data
     healthcheck:
       <<: *common-healthcheck
+      # noinspection ComposeUnknownValues
       test:
         - CMD-SHELL
         - >
@@ -153,6 +154,7 @@ services:
     volumes: *waldiez-runner-volumes
     healthcheck:
       <<: *common-healthcheck
+      # noinspection ComposeUnknownValues
       test:
         - CMD
         - curl

@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
+# pyright: reportUnusedFunction=false
+
 """Waldiez runner routes."""
 
 from fastapi import APIRouter, FastAPI, Response
@@ -36,6 +38,7 @@ def add_routes(app: FastAPI) -> None:
     app.include_router(ws_router)
     # app.include_router(stream_router)
 
+    # noinspection PyUnusedLocal
     @app.get("/{full_path:path}", include_in_schema=False)
     async def catch_all(full_path: str = "") -> Response:
         """Catch all requests.

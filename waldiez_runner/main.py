@@ -27,6 +27,7 @@ LOG = logging.getLogger(__name__)
 
 
 # pylint: disable=unused-argument
+# noinspection PyUnusedLocal
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     """Application lifespan context manager.
@@ -73,6 +74,7 @@ def get_app() -> FastAPI:
         },
     )
 
+    # noinspection PyUnusedLocal
     @application.exception_handler(HTTPException)
     async def http_exception_handler(
         request: Request, exc: HTTPException | Exception

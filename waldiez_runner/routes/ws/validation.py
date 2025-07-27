@@ -4,7 +4,6 @@
 """WebSocket connection validation."""
 
 import logging
-from typing import Tuple
 
 from fastapi import Depends, HTTPException, WebSocket, WebSocketException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,7 +24,8 @@ from .manager import TooManyClientsException, WsTaskManager
 from .registry import TooManyTasksException, WsTaskRegistry
 
 ws_task_registry = WsTaskRegistry(
-    max_active_tasks=MAX_ACTIVE_TASKS, max_clients_per_task=MAX_CLIENTS_PER_TASK
+    max_active_tasks=MAX_ACTIVE_TASKS,
+    max_clients_per_task=MAX_CLIENTS_PER_TASK,
 )
 
 LOG = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ async def validate_websocket_connection(
     websocket: WebSocket,
     session: Annotated[AsyncSession, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
-) -> Tuple[Task, WsTaskManager, str | None]:
+) -> tuple[Task, WsTaskManager, str | None]:
     """Dependency to validate WebSocket before accepting the connection.
 
     Parameters
@@ -52,7 +52,7 @@ async def validate_websocket_connection(
 
     Returns
     -------
-    Tuple[Task, WsTaskManager, str | None]
+    tuple[Task, WsTaskManager, str | None]
         The task, the task manager, and the subprotocol if any.
 
     Raises
@@ -95,7 +95,7 @@ async def _validate_ws_connection(
     websocket: WebSocket,
     session: AsyncSession,
     task_id: str,
-) -> Tuple[Task, WsTaskManager]:
+) -> tuple[Task, WsTaskManager]:
     """Validate the WebSocket connection.
 
     Parameters
@@ -109,7 +109,7 @@ async def _validate_ws_connection(
 
     Returns
     -------
-    Tuple[Task, WsTaskManager]
+    tuple[Task, WsTaskManager]
         The task and the task manager.
 
     Raises

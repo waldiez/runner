@@ -91,7 +91,7 @@ def get_oidc_issuer_url() -> str | None:
     str | None
         The OIDC issuer URL
     """
-    value = get_value("--oidc-issuer-url", "OIDC_ISSUER_URL", str, None)
+    value = get_value("--oidc-issuer-url", "OIDC_ISSUER_URL", str, "")
     if not value:  # skip empty strings
         return None
     return value
@@ -105,7 +105,7 @@ def get_oidc_audience() -> str | None:
     str | None
         The OIDC audience
     """
-    value = get_value("--oidc-audience", "OIDC_AUDIENCE", str, None)
+    value = get_value("--oidc-audience", "OIDC_AUDIENCE", str, "")
     if not value:  # also skip empty strings
         return None
     return value
@@ -119,7 +119,7 @@ def get_oidc_jwks_url() -> str | None:
     str | None
         The OIDC JWKS URL
     """
-    value = get_value("--oidc-jwks-url", "OIDC_JWKS_URL", str, None)
+    value = get_value("--oidc-jwks-url", "OIDC_JWKS_URL", str, "")
     if not value:  # also skip empty strings
         return None
     return value

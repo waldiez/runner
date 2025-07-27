@@ -6,6 +6,7 @@
 """Test waldiez_runner.tasks.results_serialization.*."""
 
 from dataclasses import dataclass
+from typing import Any
 
 from waldiez_runner.tasks.app.results_serialization import (
     make_serializable_results,
@@ -16,14 +17,14 @@ from waldiez_runner.tasks.app.results_serialization import (
 
 def test_serialize_dict_basic() -> None:
     """Test serialize_dict function with basic data types."""
-    data = {"key1": "value1", "key2": 2, "key3": 3.5}
+    data: dict[str, Any] = {"key1": "value1", "key2": 2, "key3": 3.5}
     result = serialize_dict(data)
     assert result == [{"key1": "value1", "key2": 2, "key3": 3.5}]
 
 
 def test_serialize_dict_with_nested_dict() -> None:
     """Test serialize_dict function with nested dictionaries."""
-    data = {"key1": {"sub_key1": "sub_value1"}, "key2": 2}
+    data: dict[str, Any] = {"key1": {"sub_key1": "sub_value1"}, "key2": 2}
     result = serialize_dict(data)
     assert result == [{"key1": {"sub_key1": "sub_value1"}, "key2": 2}]
 
@@ -45,7 +46,7 @@ def test_serialize_dict_with_dataclass() -> None:
 # Test Cases for serialize_list function
 def test_serialize_list_basic() -> None:
     """Test serialize_list function with basic data types."""
-    data = ["string", 123, 45.67]
+    data: list[Any] = ["string", 123, 45.67]
     result = serialize_list(data)
     assert result == ["string", 123, 45.67]
 
@@ -80,7 +81,7 @@ def test_serialize_list_with_dataclass() -> None:
 
 def test_make_serializable_results_with_dict() -> None:
     """Test serialize_results function with dictionary."""
-    data = {"key1": "value1", "key2": 2}
+    data: dict[str, Any] = {"key1": "value1", "key2": 2}
     result = make_serializable_results(data)
     assert result == [{"key1": "value1", "key2": 2}]
 
@@ -101,7 +102,11 @@ def test_make_serializable_results_with_mixed_types() -> None:
         age: int
 
     person = Person(name="Alice", age=30)
-    data = {"key1": person, "key2": 2, "key3": ["item1", "item2"]}
+    data: dict[str, Any] = {
+        "key1": person,
+        "key2": 2,
+        "key3": ["item1", "item2"],
+    }
     result = make_serializable_results(data)
     assert result == [
         {

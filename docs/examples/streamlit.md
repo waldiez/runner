@@ -1,4 +1,4 @@
-This page demonstrates how to build an interactive web application using [Streamlit](https://streamlit.io/) and the `waldiez_runner.client` to interact with the Waldiez Runner backend.
+from docs.examples.app import base_urlThis page demonstrates how to build an interactive web application using [Streamlit](https://streamlit.io/) and the `waldiez_runner.client` to interact with the Waldiez Runner backend.
 
 ## Overview
 
@@ -55,6 +55,10 @@ This section highlights the key parts of the code that interact with the `waldie
 **Authentication**
 
 ```python
+from  waldiez_runner.client import TasksClient
+base_url = "http://localhost:8000"  # or your backend URL
+client_id = "your_client_id"  # from clients.json
+client_secret = "your_client_secret"  # from clients.json
 client = TasksClient()
 client.configure(base_url, client_id, client_secret)
 client.authenticate()
@@ -63,6 +67,7 @@ client.authenticate()
 **Task Submission**
 
 ```python
+from waldiez_runner.client import TaskCreateRequest
 task_req = TaskCreateRequest(file_data=..., file_name="...", input_timeout=...)
 task = client.create_task(task_req)
 ```
@@ -71,7 +76,7 @@ task = client.create_task(task_req)
 
 ```python
 client.start_ws_listener(
-    task_id,
+    task.id,
     on_message=on_msg,
     on_error=on_err,
     in_thread=False,

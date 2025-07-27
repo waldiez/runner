@@ -21,6 +21,7 @@ from waldiez_runner.schemas.client import ClientCreateResponse
 ROOT_MODULE = "waldiez_runner"
 
 
+# noinspection DuplicatedCode
 @pytest.fixture(name="client")
 async def client_fixture(
     tasks_api_client: ClientCreateResponse,

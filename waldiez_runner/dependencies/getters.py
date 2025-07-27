@@ -2,7 +2,7 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 """App dependency getters."""
 
-from typing import Any, AsyncGenerator, Callable, Coroutine, Dict, List
+from typing import Any, AsyncGenerator, Callable, Coroutine
 
 from fastapi import Depends, HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -98,7 +98,7 @@ def get_client_id(
         """
         token = credentials.credentials
         scheme = credentials.scheme
-        audience: str | List[str] | None = None
+        audience: str | list[str] | None = None
         if expected_audiences:
             audience = (
                 list(expected_audiences)
@@ -158,7 +158,7 @@ def get_client_id(
 
 def get_external_user_info() -> Callable[
     [HTTPAuthorizationCredentials],
-    Coroutine[Any, Any, Dict[str, Any]],
+    Coroutine[Any, Any, dict[str, Any]],
 ]:
     """Verify an external token and return user info.
 
@@ -175,7 +175,7 @@ def get_external_user_info() -> Callable[
         ],
         context: RequestContext = Depends(get_request_context),
         settings: Settings = Depends(get_settings),
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Verify an external token and return user info.
 
         Parameters
@@ -189,7 +189,7 @@ def get_external_user_info() -> Callable[
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             User information from the external token.
 
         Raises
@@ -227,19 +227,19 @@ def get_external_user_info() -> Callable[
 
 def get_user_info() -> Callable[
     [RequestContext],
-    Coroutine[Any, Any, Dict[str, Any]],
+    Coroutine[Any, Any, dict[str, Any]],
 ]:
     """Get user info from the request context.
 
     Returns
     -------
-    Callable[[RequestContext], Coroutine[Any, Any, Dict[str, Any]]]
+    Callable[[RequestContext], Coroutine[Any, Any, dict[str, Any]]]
         The dependency.
     """
 
     async def dependency(
         context: RequestContext = Depends(get_request_context),
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get user info from the request context.
 
         Parameters
@@ -249,7 +249,7 @@ def get_user_info() -> Callable[
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             User information.
 
         Raises

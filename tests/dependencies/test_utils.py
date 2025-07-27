@@ -4,6 +4,7 @@
 
 import socket
 
+# noinspection PyProtectedMember
 from waldiez_runner.dependencies._utils import (
     get_available_port,
     is_port_available,

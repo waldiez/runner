@@ -158,6 +158,7 @@ async def test_get_tasks_search_no_results(
     assert len(data) == 0
 
 
+# noinspection DuplicatedCode
 @pytest.mark.anyio
 async def test_get_tasks_sorted(
     client: AsyncClient,
@@ -425,7 +426,7 @@ async def test_cancel_task_invalid_status(
     assert response.status_code == 400
     # pylint: disable=no-member
     assert response.json() == {
-        "detail": (f"Cannot cancel task with status {task.get_status()}")
+        "detail": f"Cannot cancel task with status {task.get_status()}"
     }
 
 
@@ -495,6 +496,7 @@ async def test_delete_active_task(
     assert response.status_code == 400
 
 
+# noinspection DuplicatedCode
 @pytest.mark.anyio
 async def test_download_task(
     client: AsyncClient,
@@ -507,7 +509,7 @@ async def test_download_task(
         client_id=client_id,
         flow_id="flow123",
         status=TaskStatus.COMPLETED,
-        results="test",
+        results={"test": "result"},
         filename="test",
     )
     async_session.add(task)

@@ -7,7 +7,7 @@
 
 import re
 from collections import OrderedDict
-from typing import Dict, List, Optional
+from typing import Optional
 
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -25,12 +25,12 @@ CSP: dict[str, str | list[str]] = {
 }
 
 
-def parse_policy(policy: Dict[str, str | List[str]] | str) -> str:
+def parse_policy(policy: dict[str, str | list[str]] | str) -> str:
     """Parse a given policy dict to string.
 
     Parameters
     ----------
-    policy : Dict[str, str | List[str]] | str
+    policy : dict[str, str | list[str]] | str
         The policy dict or string
 
     Returns
@@ -67,7 +67,7 @@ class ExtraHeadersMiddleware:
     def __init__(
         self,
         app: ASGIApp,
-        exclude_patterns: Optional[List[str]] = None,
+        exclude_patterns: Optional[list[str]] = None,
         csp: bool = True,
         force_ssl: bool = True,
         max_age: int = 31556926,
@@ -78,6 +78,8 @@ class ExtraHeadersMiddleware:
         ----------
         app: ASGIApp
             The ASGI Application
+        exclude_patterns: list[str], optional
+            List of regex patterns to exclude from adding headers
         csp: bool
             Whether to add a Content-Security-Policy header
         force_ssl: bool

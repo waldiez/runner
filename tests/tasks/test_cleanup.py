@@ -25,6 +25,7 @@ async def test_delete_task(mock_delete_task: AsyncMock) -> None:
     """Test deleting a single task."""
     mock_storage = AsyncMock()
 
+    # noinspection PyTypeChecker
     await delete_task(
         task_id="task1",
         client_id="client1",

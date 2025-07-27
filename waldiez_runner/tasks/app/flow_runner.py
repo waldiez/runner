@@ -8,7 +8,10 @@ import logging
 import traceback
 from typing import Any
 
-from autogen import ChatResult  # type: ignore[import-untyped]
+from autogen.io.run_response import (  # type: ignore
+    AsyncRunResponseProtocol,
+    RunResponseProtocol,
+)
 from waldiez import Waldiez, WaldiezRunner
 
 from .redis_io_stream import RedisIOStream
@@ -65,9 +68,9 @@ class FlowRunner:
             The results of the flow execution.
         """
         results: (
-            ChatResult
-            | dict[str, ChatResult]
-            | list[dict[str, ChatResult]]
+            list[RunResponseProtocol]
+            | list[AsyncRunResponseProtocol]
+            | list[dict[str, Any]]
             | dict[str, Any]
             | dict[int, Any]
         )
@@ -100,9 +103,8 @@ class FlowRunner:
             The results of the flow execution.
         """
         results: (
-            ChatResult
-            | dict[str, ChatResult]
-            | list[dict[int, ChatResult]]
+            list[RunResponseProtocol]
+            | list[AsyncRunResponseProtocol]
             | dict[str, Any]
             | dict[int, Any]
         )

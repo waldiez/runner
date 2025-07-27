@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
+
+# pyright: reportUnknownMemberType=false
 """Local filesystem-based storage backend."""
 
 # We might later want to add more backends like S3 (with boto?).
@@ -11,7 +13,6 @@ import logging
 import shutil
 import tempfile
 from pathlib import Path
-from typing import List, Tuple
 
 import aiofiles
 import puremagic
@@ -39,11 +40,12 @@ class LocalStorage:
         self.root_dir.mkdir(exist_ok=True, parents=True)
 
     # pylint: disable=unused-argument,no-self-use
+    # noinspection PyMethodMayBeStatic,PyUnusedLocal
     async def save_file(
         self,
         parent_name: str,
         file: UploadFile,
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """Save an uploaded file to a temporary location and return its path.
 
         Parameters
@@ -55,7 +57,7 @@ class LocalStorage:
 
         Returns
         -------
-        Tuple[str, str]
+        tuple[str, str]
             The MD5 hash and the temporary file path.
 
         Raises
@@ -184,17 +186,17 @@ class LocalStorage:
         parent_path = Path(full_parent_folder).resolve()
         await os.makedirs(parent_path, exist_ok=True)
 
-        async def cleanup(temp_dir: str | None) -> None:
+        async def cleanup(tmp_dir: str | None) -> None:
             """Clean up the temporary directory.
 
             Parameters
             ----------
-            temp_dir : str | None
+            tmp_dir : str | None
                 The temporary directory.
             """
-            if temp_dir and await os.path.isdir(temp_dir):
+            if tmp_dir and await os.path.isdir(tmp_dir):
                 rmtree = os.wrap(shutil.rmtree)
-                await rmtree(str(temp_dir), ignore_errors=True)
+                await rmtree(str(tmp_dir), ignore_errors=True)
 
         temp_dir: str | None = None
         # pylint: disable=too-many-try-statements, broad-exception-caught
@@ -367,7 +369,7 @@ class LocalStorage:
                 detail="Failed to delete folder",
             ) from error
 
-    async def list_files(self, folder_path: str) -> List[str]:
+    async def list_files(self, folder_path: str) -> list[str]:
         """List all files in a folder.
 
         Parameters
@@ -377,7 +379,7 @@ class LocalStorage:
 
         Returns
         -------
-        List[str]
+        list[str]
             List of file paths.
 
         Raises
@@ -385,14 +387,14 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        folder = Path(folder_path).resolve()
-        if not await os.path.exists(folder) or not await os.path.isdir(folder):
-            folder = (self.root_dir / folder_path).resolve()
-        if not await os.path.exists(folder) or not await os.path.isdir(folder):
-            LOG.warning("Folder not found: %s", folder)
+        root = Path(folder_path).resolve()
+        if not await os.path.exists(root) or not await os.path.isdir(root):
+            root = (self.root_dir / folder_path).resolve()
+        if not await os.path.exists(root) or not await os.path.isdir(root):
+            LOG.warning("Folder not found: %s", root)
             return []
 
-        async def folder_tree(folder: str, max_depth: int = 10) -> List[str]:
+        async def folder_tree(folder: str, max_depth: int = 10) -> list[str]:
             """List files recursively in a folder.
 
             Parameters
@@ -404,10 +406,10 @@ class LocalStorage:
 
             Returns
             -------
-            List[str]
+            list[str]
                 List of file paths.
             """
-            files: List[str] = []
+            files: list[str] = []
             if max_depth < 0:
                 return files
             for item in await os.listdir(folder):
@@ -420,4 +422,4 @@ class LocalStorage:
                     files.append(item)
             return files
 
-        return await folder_tree(str(folder))
+        return await folder_tree(str(root))

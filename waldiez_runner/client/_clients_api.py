@@ -2,7 +2,7 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 """Clients API client implementation."""
 
-from typing import Any, Dict, List
+from typing import Any
 
 import httpx
 
@@ -17,19 +17,19 @@ class ClientsAPIClient(BaseAPIClient):
     url_prefix = "/api/v1/clients"
 
     def list_clients(
-        self, params: Dict[str, Any] | None = None
-    ) -> Dict[str, Any]:
+        self, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Get all clients.
 
         Parameters
         ----------
-        params : Dict[str, Any] | None
+        params : dict[str, Any] | None
             The query parameters to filter the clients
             like for pagination, etc.
             If None, the server defaults will be used.
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The (paginated) list of clients ("items" key in the response)
 
         Raises
@@ -53,7 +53,7 @@ class ClientsAPIClient(BaseAPIClient):
             self.handle_error(str(e))
             raise e
 
-    def get_client(self, client_id: str) -> Dict[str, Any]:
+    def get_client(self, client_id: str) -> dict[str, Any]:
         """Get a client by ID.
 
         Parameters
@@ -63,7 +63,7 @@ class ClientsAPIClient(BaseAPIClient):
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The client data
 
         Raises
@@ -86,17 +86,17 @@ class ClientsAPIClient(BaseAPIClient):
             self.handle_error(str(e))
             raise e
 
-    def create_client(self, client_data: Dict[str, Any]) -> Dict[str, Any]:
+    def create_client(self, client_data: dict[str, Any]) -> dict[str, Any]:
         """Create a new client.
 
         Parameters
         ----------
-        client_data : Dict[str, Any]
+        client_data : dict[str, Any]
             The client data
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The created client data
 
         Raises
@@ -121,20 +121,22 @@ class ClientsAPIClient(BaseAPIClient):
             raise e
 
     def update_client(
-        self, client_id: str, update_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self,
+        client_id: str,
+        update_data: dict[str, Any],
+    ) -> dict[str, Any]:
         """Update a client.
 
         Parameters
         ----------
         client_id : str
             The client ID
-        update_data : Dict[str, Any]
+        update_data : dict[str, Any]
             The update data
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The updated client data
 
         Raises
@@ -188,17 +190,17 @@ class ClientsAPIClient(BaseAPIClient):
 
     def delete_clients(
         self,
-        ids: List[str] | None = None,
-        audiences: List[str] | None = None,
+        ids: list[str] | None = None,
+        audiences: list[str] | None = None,
     ) -> None:
         """Delete clients by ids or audiences or all.
 
         Parameters
         ----------
-        ids : List[str] | None
+        ids : list[str] | None
             The list of client IDs to delete
             If None, all clients will be deleted
-        audiences : List[str] | None
+        audiences : list[str] | None
             The list of audiences to delete clients for
             If None, all clients will be deleted
 
@@ -227,20 +229,20 @@ class ClientsAPIClient(BaseAPIClient):
             raise e
 
     async def a_list_clients(
-        self, params: Dict[str, Any] | None = None
-    ) -> Dict[str, Any]:
+        self, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Get all clients asynchronously.
 
         Parameters
         ----------
-        params : Dict[str, Any] | None
+        params : dict[str, Any] | None
             The query parameters to filter the clients
             like for pagination, etc.
             If None, the server defaults will be used.
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The (paginated) list of clients ("items" key in the response)
 
         Raises
@@ -265,7 +267,7 @@ class ClientsAPIClient(BaseAPIClient):
             self.handle_error(str(e))
             raise e
 
-    async def a_get_client(self, client_id: str) -> Dict[str, Any]:
+    async def a_get_client(self, client_id: str) -> dict[str, Any]:
         """Get a client by ID asynchronously.
 
         Parameters
@@ -275,7 +277,7 @@ class ClientsAPIClient(BaseAPIClient):
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The client data
 
         Raises
@@ -299,18 +301,18 @@ class ClientsAPIClient(BaseAPIClient):
             raise e
 
     async def a_create_client(
-        self, client_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, client_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Create a new client asynchronously.
 
         Parameters
         ----------
-        client_data : Dict[str, Any]
+        client_data : dict[str, Any]
             The client data
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The created client data
 
         Raises
@@ -334,20 +336,20 @@ class ClientsAPIClient(BaseAPIClient):
             raise e
 
     async def a_update_client(
-        self, client_id: str, update_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, client_id: str, update_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Update a client asynchronously.
 
         Parameters
         ----------
         client_id : str
             The client ID
-        update_data : Dict[str, Any]
+        update_data : dict[str, Any]
             The update data
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The updated client data
 
         Raises
@@ -401,17 +403,17 @@ class ClientsAPIClient(BaseAPIClient):
 
     async def a_delete_clients(
         self,
-        ids: List[str] | None = None,
-        audiences: List[str] | None = None,
+        ids: list[str] | None = None,
+        audiences: list[str] | None = None,
     ) -> None:
         """Delete clients by audience asynchronously.
 
         Parameters
         ----------
-        ids : List[str] | None
+        ids : list[str] | None
             The list of client IDs to delete
             If None, all clients will be deleted
-        audiences : List[str] | None
+        audiences : list[str] | None
             The list of audiences to delete clients for
             If None, all clients will be deleted
 

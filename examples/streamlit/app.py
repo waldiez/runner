@@ -1,5 +1,8 @@
 """A Streamlit app demo for Waldiez Runner."""
 
+# pyright: reportPrivateUsage=false,reportPrivateImportUsage=false
+# pyright: reportUnknownMemberType=false,reportArgumentType=false
+# pyright: reportUnknownArgumentType=false
 import json
 import os
 import sys
@@ -233,7 +236,7 @@ if st.session_state.client:
                 )
                 task = st.session_state.client.create_task(task_req)
                 st.session_state.task = task
-                st.session_state.messages.clear()
+                st.session_state.messages.clear()  # pyright: ignore[]
                 st.session_state.messages_queue.queue.clear()
                 st.success(f"Task submitted: {task.id}")
             except Exception as e:

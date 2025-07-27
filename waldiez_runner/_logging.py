@@ -5,7 +5,7 @@
 import os
 import sys
 from enum import Enum
-from typing import Any, Dict, Literal, Tuple, get_args
+from typing import Any, Literal, get_args
 
 import uvicorn.config
 
@@ -27,7 +27,7 @@ LogLevelType = Literal["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"]
 
 
 # fmt: off
-def get_logging_config(log_level: str) -> Dict[str, Any]:
+def get_logging_config(log_level: str) -> dict[str, Any]:
     """Get logging config dict.
 
     Parameters
@@ -37,7 +37,7 @@ def get_logging_config(log_level: str) -> Dict[str, Any]:
 
     Returns
     -------
-    Dict[str, Any]
+    dict[str, Any]
         The logging config dict
     """
     # skip spamming logs from these modules
@@ -102,7 +102,7 @@ def get_log_level() -> LogLevelType:
     if "--debug" in sys.argv:
         os.environ[f"{ENV_PREFIX}LOG_LEVEL"] = "DEBUG"
         return "DEBUG"
-    possible_log_levels: Tuple[LogLevelType, ...] = get_args(LogLevelType)
+    possible_log_levels: tuple[LogLevelType, ...] = get_args(LogLevelType)
     if "--log-level" in sys.argv:
         log_level_index = sys.argv.index("--log-level") + 1
         if log_level_index < len(sys.argv):

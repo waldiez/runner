@@ -10,7 +10,7 @@ import sys
 import time
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import httpx
 
@@ -35,9 +35,11 @@ def _try_stop_on_windows(service_name: str) -> None:
         f"ForEach-Object {{Stop-Process -Id $_.ProcessId -Force}}"
         '"'
     )
+    # pylint: disable=broad-exception-caught
+    # noinspection PyBroadException
     try:
         subprocess.run(powershell_cmd, shell=True, check=False, cwd=cwd)
-    except BaseException:  # pylint: disable=broad-exception-caught
+    except BaseException:
         pass
 
 
@@ -146,12 +148,12 @@ def is_make_available() -> bool:
     return shutil.which("make") is not None
 
 
-def try_run(cmd: List[str]) -> bool:
+def try_run(cmd: list[str]) -> bool:
     """Run a command safely and return True if successful.
 
     Parameters
     ----------
-    cmd : List[str]
+    cmd : list[str]
         The command to run.
 
     Returns
@@ -297,16 +299,16 @@ def is_arch_based() -> bool:
 
 
 @lru_cache(maxsize=1)
-def read_os_release() -> Dict[str, str]:
+def read_os_release() -> dict[str, str]:
     """Parse /etc/os-release into a dict.
 
     Returns
     -------
-    Dict[str, str]
+    dict[str, str]
         The key-value pairs from the
         /etc/os-release file.
     """
-    result = {}
+    result: dict[str, str] = {}
     # pylint: disable=too-many-try-statements
     try:
         with open("/etc/os-release", "r", encoding="utf-8") as f:

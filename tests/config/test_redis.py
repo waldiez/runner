@@ -11,7 +11,10 @@ from typing import Generator
 
 import pytest
 
+# noinspection PyProtectedMember
 from waldiez_runner.config._common import ENV_PREFIX
+
+# noinspection PyProtectedMember
 from waldiez_runner.config._redis import (
     get_redis_db,
     get_redis_enabled,
@@ -22,6 +25,7 @@ from waldiez_runner.config._redis import (
     get_redis_url,
 )
 
+# noinspection DuplicatedCode
 THIS_FILE = Path(__file__).resolve()
 
 

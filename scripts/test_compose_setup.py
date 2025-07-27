@@ -7,15 +7,15 @@ import argparse
 import platform
 import subprocess
 import sys
-from typing import Any, List
+from typing import Any
 
 ALL_VM_BOXES = ["ubuntu", "debian", "fedora", "centos", "rocky"]
 # https://portal.cloud.hashicorp.com/vagrant/discover/bento/debian-12
 NO_ARM64_BOXES = ["debian"]  # for virtualbox
-P_OPENED: List[subprocess.Popen[Any]] = []
+P_OPENED: list[subprocess.Popen[Any]] = []
 
 
-def get_vm_boxes() -> List[str]:
+def get_vm_boxes() -> list[str]:
     """Get the list of VM boxes to test.
 
     Returns
@@ -61,7 +61,7 @@ def check_vagrant() -> bool:
     return True
 
 
-def run_command(cmd: List[str], cwd: str | None = None) -> bool:
+def run_command(cmd: list[str], cwd: str | None = None) -> bool:
     """Run a command in a subprocess and return True if successful.
 
     Parameters
@@ -98,6 +98,7 @@ def run_command(cmd: List[str], cwd: str | None = None) -> bool:
     except KeyboardInterrupt:
         print("\n[!] Caught Ctrl+C — terminating subprocess...")
         for p in P_OPENED:
+            # noinspection PyBroadException
             try:
                 p.terminate()
             except Exception:

@@ -4,7 +4,7 @@
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import List
+from typing import Any, List
 
 import jwt
 from fastapi import APIRouter, Depends, Form, HTTPException
@@ -224,7 +224,7 @@ def generate_tokens(
     access_expires_at = now + ACCESS_TOKEN_EXPIRY
     refresh_expires_at = now + REFRESH_TOKEN_EXPIRY
 
-    access_payload = {
+    access_payload: dict[str, Any] = {
         "sub": client_id,
         "aud": audience,
         "exp": access_expires_at,
@@ -232,7 +232,7 @@ def generate_tokens(
         "type": "access",
     }
 
-    refresh_payload = {
+    refresh_payload: dict[str, Any] = {
         "sub": client_id,
         "aud": audience,
         "exp": refresh_expires_at,

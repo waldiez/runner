@@ -4,7 +4,7 @@
 """Task model."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 from sqlalchemy import JSON
 from sqlalchemy import Enum as SqlEnum
@@ -44,8 +44,8 @@ class Task(Base):
     results: Mapped[
         Optional[
             Union[
-                Dict[str, Any],
-                List[Dict[str, Any]],
+                dict[str, Any],
+                list[dict[str, Any]],
             ]
         ]
     ] = mapped_column(JSON, nullable=True)

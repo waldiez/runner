@@ -56,7 +56,7 @@ def toggle_env(mode: str) -> None:
         print(f"Setting {ENV_KEY}{key}={new_val}")
 
     # Merge existing unrelated lines
-    final_lines = []
+    final_lines: list[str] = []
     with open(DOT_ENV_PATH, "r", encoding="utf-8") as f:
         for line in f:
             if line.startswith(ENV_KEY):

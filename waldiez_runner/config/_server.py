@@ -30,7 +30,7 @@ Command line arguments (no prefix)
 
 import os
 import sys
-from typing import List, Optional
+from typing import Optional
 
 from typing_extensions import TypedDict
 
@@ -51,7 +51,7 @@ class ServerStatus(TypedDict):
     memory_percent: float
 
 
-def get_trusted_hosts(domain_name: str, host: str) -> List[str]:
+def get_trusted_hosts(domain_name: str, host: str) -> list[str]:
     """Get the trusted hosts.
 
     Parameters
@@ -64,7 +64,7 @@ def get_trusted_hosts(domain_name: str, host: str) -> List[str]:
 
     Returns
     -------
-    List[str]
+    list[str]
         The trusted hosts
     """
     from_env = os.environ.get(f"{ENV_PREFIX}TRUSTED_HOSTS", "")
@@ -96,7 +96,7 @@ def get_trusted_hosts(domain_name: str, host: str) -> List[str]:
 
 def get_trusted_origins(
     domain_name: str, port: int, force_ssl: bool, host: str
-) -> List[str]:
+) -> list[str]:
     """Get the trusted origins.
 
     Parameters
@@ -112,7 +112,7 @@ def get_trusted_origins(
 
     Returns
     -------
-    List[str]
+    list[str]
         The trusted origins
     """
     from_env = os.environ.get(f"{ENV_PREFIX}TRUSTED_ORIGINS", "")
@@ -122,6 +122,7 @@ def get_trusted_origins(
     if host != domain_name:  # pragma: no branch
         default_trusted_origins.append(f"https://{host}")
     if not force_ssl:
+        # noinspection HttpUrlsUsage
         default_trusted_origins.extend(
             [
                 f"http://{domain_name}",
@@ -157,8 +158,11 @@ def get_trusted_origin_regex() -> Optional[str]:
     Optional[str]
         The trusted origin regex
     """
-    value = get_value(
-        "--trusted-origin-regex", "TRUSTED_ORIGIN_REGEX", str, None
+    value: str | None = get_value(
+        "--trusted-origin-regex",
+        "TRUSTED_ORIGIN_REGEX",
+        str,
+        "",
     )
     if not value:
         os.environ[f"{ENV_PREFIX}TRUSTED_ORIGIN_REGEX"] = ""

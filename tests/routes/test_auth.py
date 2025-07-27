@@ -46,6 +46,7 @@ async def test_get_token_clients_api_aud(
     clients_api_client: ClientCreateResponse,
 ) -> None:
     """Test get token for clients API audience."""
+    # noinspection DuplicatedCode
     response = await client.post(
         "/auth/token/",
         data={
@@ -71,6 +72,7 @@ async def test_get_token_tasks_api_aud(
     tasks_api_client: ClientCreateResponse,
 ) -> None:
     """Test get token for tasks API audience."""
+    # noinspection DuplicatedCode
     response = await client.post(
         "/auth/token/",
         data={

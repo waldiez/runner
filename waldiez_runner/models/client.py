@@ -69,6 +69,7 @@ class Client(Base):
             True if the secret is verified.
         """
         # pylint: disable=broad-exception-caught
+        # noinspection PyBroadException
         try:
             return bcrypt.checkpw(secret.encode(), hashed_secret.encode())
         except BaseException:  # pragma: no cover

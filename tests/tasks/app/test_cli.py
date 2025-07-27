@@ -9,7 +9,6 @@ import argparse
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from typing import List
 
 import pytest
 
@@ -122,7 +121,7 @@ def test_from_args_applies_default_timeout(tmp_path: Path) -> None:
 )
 def test_parse_args_missing(
     monkeypatch: pytest.MonkeyPatch,
-    extra_args: List[str],
+    extra_args: list[str],
 ) -> None:
     """Test parse_args with missing positional arg."""
     monkeypatch.setattr(sys, "argv", ["prog"] + extra_args)

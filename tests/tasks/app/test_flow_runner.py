@@ -3,6 +3,7 @@
 
 # pylint: disable=missing-param-doc,missing-type-doc,missing-return-doc
 # pylint: disable=missing-yield-doc,unused-argument
+# pyright: reportUnknownArgumentType=false,reportUnknownLambdaType=false
 """Test waldiez_runner.tasks.app.flow_runner.*."""
 
 from typing import Any, Callable
@@ -26,7 +27,8 @@ async def test_run_async_flow_success(monkeypatch: pytest.MonkeyPatch) -> None:
         f"{MODULE_TO_PATCH}.WaldiezRunner", lambda _: runner_mock
     )
     monkeypatch.setattr(
-        f"{MODULE_TO_PATCH}.make_serializable_results", lambda x: x
+        f"{MODULE_TO_PATCH}.make_serializable_results",
+        lambda x: x,  # pyright: ignore[]
     )
 
     fr = FlowRunner("task1", "redis://...", waldiez, "out.py", 120)

@@ -1,8 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
+
+# pyright: reportReturnType=false
+
 """Base storage protocol."""
 
-from typing import List, Protocol, Tuple, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from fastapi import BackgroundTasks, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
@@ -16,7 +19,7 @@ class Storage(Protocol):
         self,
         parent_name: str,
         file: UploadFile,
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """Save an uploaded file to a temporary location and return its path.
 
         Parameters
@@ -28,7 +31,7 @@ class Storage(Protocol):
 
         Returns
         -------
-        Tuple[str, str]
+        tuple[str, str]
             The MD5 hash and the temporary file path.
 
         Raises
@@ -145,7 +148,7 @@ class Storage(Protocol):
             If an error occurs.
         """
 
-    async def list_files(self, folder_path: str) -> List[str]:
+    async def list_files(self, folder_path: str) -> list[str]:
         """List all files in a folder.
 
         Parameters
@@ -155,7 +158,7 @@ class Storage(Protocol):
 
         Returns
         -------
-        List[str]
+        list[str]
             List of file paths.
 
         Raises

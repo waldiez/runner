@@ -2,7 +2,7 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 """Request context dependencies."""
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from fastapi import Request
 
@@ -11,7 +11,7 @@ from fastapi import Request
 class RequestContext:
     """Request context for storing state during request processing."""
 
-    external_user_info: Optional[Dict[str, Any]]
+    external_user_info: Optional[dict[str, Any]]
     is_external_auth: bool
 
     def __init__(self) -> None:

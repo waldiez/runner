@@ -7,7 +7,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import List
+from typing import Any
 
 from alembic import command
 from alembic import config as alembic_config
@@ -137,10 +137,12 @@ def check_first_client() -> None:
         if client:
             LOG.info("Client %s already exists, skipping creation", client_id)
             # lat's also add it to the clients.json file
+            # noinspection PyTypeChecker
             update_clients_json(
                 [
                     ClientCreateResponse.from_client(
-                        client, client_secret.get_secret_value()
+                        client,
+                        client_secret.get_secret_value(),
                     )
                 ]
             )
@@ -171,7 +173,7 @@ def check_first_client() -> None:
         )
 
 
-def update_clients_json(new_clients: List[ClientCreateResponse]) -> None:
+def update_clients_json(new_clients: list[ClientCreateResponse]) -> None:
     """Update the clients.json file with new clients.
 
     Parameters
@@ -179,7 +181,7 @@ def update_clients_json(new_clients: List[ClientCreateResponse]) -> None:
     new_clients : list[ClientCreateResponse]
         The new clients to add to the JSON file.
     """
-    clients = []
+    clients: list[dict[str, Any]] = []
     if INITIAL_CLIENTS_JSON.exists():
         with INITIAL_CLIENTS_JSON.open("r", encoding="utf-8") as json_file:
             clients = json.load(json_file)

@@ -27,7 +27,7 @@ try:
         wait_for_services,
     )
 except ImportError:
-    HAD_TO_MODIFY_SYS_PATH = True
+    HAD_TO_MODIFY_SYS_PATH = True  # pyright: ignore[reportConstantRedefinition]
     sys.path.insert(0, str(HERE))
     from _lib import (  # type: ignore
         check_make_cmd,
@@ -128,7 +128,7 @@ def run_smoke_tests() -> None:
     # the db could be sqlite, but if in devcontainer, we can use postgres
     # one process (background) to start the services
     # and one to call "scripts/smoke.py" (but after the services are started)
-    if check_make_cmd() is False:
+    if not check_make_cmd():
         print("make is not available")
         return
     ensure_not_running("taskiq")

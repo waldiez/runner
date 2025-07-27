@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
+# noinspection PyProtectedMember
 from waldiez_runner._logging import LogLevel
 from waldiez_runner.start import (
     get_module_and_cwd,

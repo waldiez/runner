@@ -104,7 +104,9 @@ class ClientCreateResponse(ClientResponseBase):
 
     @classmethod
     def from_client(
-        cls, client: Client, plain_secret: str
+        cls,
+        client: Client,
+        plain_secret: str,
     ) -> "ClientCreateResponse":
         """Create a response model from a client.
 

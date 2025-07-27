@@ -4,7 +4,7 @@
 
 import logging
 import time
-from typing import Any, Dict
+from typing import Any
 
 from .manager import WsTaskManager
 
@@ -32,7 +32,7 @@ class WsTaskRegistry:
         """
         self.max_active_tasks = max_active_tasks
         self.max_clients_per_task = max_clients_per_task
-        self.tasks: Dict[str, WsTaskManager] = {}
+        self.tasks: dict[str, WsTaskManager] = {}
 
     def get_or_create_task_manager(self, task_id: str) -> WsTaskManager:
         """Get or create a task manager if within active task limits.
@@ -76,7 +76,7 @@ class WsTaskRegistry:
             del self.tasks[task_id]
 
     async def broadcast_to(
-        self, task_id: str, message: Dict[str, Any], skip_queue: bool = False
+        self, task_id: str, message: dict[str, Any], skip_queue: bool = False
     ) -> None:
         """Broadcast a message to all clients of a task.
 
@@ -84,7 +84,7 @@ class WsTaskRegistry:
         ----------
         task_id : str
             The task ID.
-        message : dict
+        message : dict[str, Any]
             The message to broadcast.
         skip_queue : bool, optional
             Whether to skip the queue, by default False.
@@ -93,12 +93,12 @@ class WsTaskRegistry:
         if manager:
             await manager.broadcast(message, skip_queue)
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         """Get task registry statistics.
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The task registry statistics.
         """
         return {
@@ -120,7 +120,7 @@ class WsTaskRegistry:
             Maximum idle time in seconds, by default 300.
         """
         now = time.monotonic()
-        expired_ids = []
+        expired_ids: list[str] = []
 
         for task_id, manager in self.tasks.items():
             if (

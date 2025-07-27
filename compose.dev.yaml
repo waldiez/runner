@@ -8,6 +8,7 @@ volumes:
 x-podman:
   in_pod: false
 
+# noinspection ComposeUnknownValues
 x-waldiez-volumes: &waldiez-runner-volumes-dev
   - .:/home/waldiez/app
   - runner-storage-data-dev:/home/waldiez/app/waldiez_runner/storage
@@ -67,6 +68,7 @@ services:
       - runner-redis-data-dev:/data
     healthcheck:
       <<: *common-healthcheck
+      # noinspection ComposeUnknownValues
       test:
         - CMD-SHELL
         - redis-cli -p 6379 -a redis_password ping
@@ -125,6 +127,7 @@ services:
         condition: service_healthy
     healthcheck:
       <<: *common-healthcheck
+      # noinspection ComposeUnknownValues
       test:
         - CMD
         - curl

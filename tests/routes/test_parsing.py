@@ -3,6 +3,7 @@
 
 # pylint: disable=missing-return-doc,unused-argument
 # pylint: disable=missing-param-doc,unused-argument,missing-yield-doc
+# pyright: reportPrivateUsage=false
 
 """Test waldiez_runner.routes._parsing.*."""
 
@@ -12,6 +13,7 @@ from typing import Any, Callable, Dict
 
 import pytest
 
+# noinspection PyProtectedMember
 from waldiez_runner.routes._parsing import (
     _decode_thing,
     _extract_message_data,
@@ -236,14 +238,14 @@ def test_get_data_from_raw_message_none() -> None:
 
 def test_extract_message_data_dict_format() -> None:
     """Test _extract_message_data with decoded data as dict."""
-    decoded = {"data": {"key": [b"one", b"two", "three", 4]}}
+    decoded: dict[str, Any] = {"data": {"key": [b"one", b"two", "three", 4]}}
     result = _extract_message_data(decoded, message_id="xyz")
     assert result == {"key": ["one", "two", "three", 4], "id": "xyz"}
 
 
 def test_extract_message_data_list_format() -> None:
     """Test _extract_message_data with decoded data as list."""
-    decoded = {"data": [b"one", b"two", "three", 4]}
+    decoded: dict[str, Any] = {"data": [b"one", b"two", "three", 4]}
     result = _extract_message_data(decoded, message_id="xyz")
     assert result == {"id": "xyz", "data": ["one", "two", "three", 4]}
 

@@ -185,6 +185,7 @@ class DatabaseManager:
                     await session.close()
 
 
+# noinspection PyUnusedLocal
 def _set_sqlite_pragma(
     dbapi_connection: DBAPIConnection,
     connection_record: ConnectionPoolEntry,  # pylint: disable=unused-argument

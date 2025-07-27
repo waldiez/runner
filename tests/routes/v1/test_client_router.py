@@ -20,6 +20,7 @@ from waldiez_runner.routes.v1.client_router import validate_clients_audience
 from waldiez_runner.schemas.client import ClientCreateResponse
 
 
+# noinspection DuplicatedCode
 @pytest.fixture(name="client")
 async def client_fixture(
     clients_api_client: ClientCreateResponse,
@@ -57,6 +58,7 @@ async def test_get_clients(client: AsyncClient) -> None:
     assert len(response_data["items"]) > 0
 
 
+# noinspection DuplicatedCode
 @pytest.mark.anyio
 async def test_get_clients_search_name(
     client: AsyncClient,
@@ -109,6 +111,7 @@ async def test_get_clients_search_name_not_found(
     await async_session.commit()
 
 
+# noinspection DuplicatedCode
 @pytest.mark.anyio
 async def test_get_clients_search_description(
     client: AsyncClient,

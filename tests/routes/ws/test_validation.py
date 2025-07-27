@@ -3,6 +3,7 @@
 
 # pylint: disable=missing-return-doc,missing-param-doc,missing-yield-doc
 # pylint: disable=unused-argument,protected-access,no-member
+# pyright: reportPrivateUsage=false
 """Test waldiez_runner.routes.ws.validation*."""
 
 from unittest.mock import AsyncMock, MagicMock

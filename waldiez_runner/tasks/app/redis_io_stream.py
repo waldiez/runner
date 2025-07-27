@@ -75,10 +75,8 @@ from typing import (
     Any,
     Awaitable,
     Callable,
-    Dict,
     Literal,
     Optional,
-    Tuple,
     Type,
 )
 
@@ -126,7 +124,7 @@ class RedisIOStream(IOStream):
         max_stream_size: int = 1000,
         on_input_request: Optional[Callable[[str, str, str], None]] = None,
         on_input_response: Optional[Callable[[str, str], None]] = None,
-        redis_connection_kwargs: Dict[str, Any] | None = None,
+        redis_connection_kwargs: dict[str, Any] | None = None,
     ) -> None:
         """Initialize the Redis I/O stream.
 
@@ -145,7 +143,7 @@ class RedisIOStream(IOStream):
         on_input_response : Optional[Callable[[str, str], None]], optional
             Callback for input response, by default None.
             parameters: user_input, task_id
-        redis_connection_kwargs : Dict[str, Any] | None, optional
+        redis_connection_kwargs : dict[str, Any] | None, optional
             Additional Redis connection kwargs, to be used with `redis.Redis.from_url`,
             by default None.
             See: https://redis-py.readthedocs.io/en/stable/connections.html#redis.Redis.from_url
@@ -195,7 +193,7 @@ class RedisIOStream(IOStream):
         """Close the Redis client."""
         RedisIOStream.try_do(self.redis.close)
 
-    def _print_to_task_output(self, payload: Dict[str, Any]) -> None:
+    def _print_to_task_output(self, payload: dict[str, Any]) -> None:
         """Print message to the task output stream.
 
         Parameters
@@ -214,7 +212,7 @@ class RedisIOStream(IOStream):
             approximate=True,
         )
 
-    def _print_to_common_output(self, payload: Dict[str, Any]) -> None:
+    def _print_to_common_output(self, payload: dict[str, Any]) -> None:
         """Print message to the common output stream.
 
         Parameters
@@ -233,12 +231,12 @@ class RedisIOStream(IOStream):
             approximate=True,
         )
 
-    def _print(self, payload: Dict[str, Any]) -> None:
+    def _print(self, payload: dict[str, Any]) -> None:
         """Print message to Redis streams.
 
         Parameters
         ----------
-        payload : Dict[str, Any]
+        payload : dict[str, Any]
             The message to print.
         """
         payload["task_id"] = self.task_id
@@ -336,6 +334,7 @@ class RedisIOStream(IOStream):
         self._print(payload)
         return user_input
 
+    # noinspection PyBroadException
     def _wait_for_input(self, input_request_id: str) -> str:
         """Wait for user input.
 
@@ -419,17 +418,17 @@ class RedisIOStream(IOStream):
 
     @staticmethod
     def parse_pubsub_input(
-        message: Dict[str, Any],
-    ) -> Tuple[Optional[str], Optional[str]]:
+        message: dict[str, Any],
+    ) -> tuple[Optional[str], Optional[str]]:
         """Extract request ID and user input from a message.
 
         Parameters
         ----------
-        message : Dict[str, Any]
+        message : dict[str, Any]
             The message to parse.
         Returns
         -------
-        Tuple[Optional[str], Optional[str]]
+        tuple[Optional[str], Optional[str]]
             The request ID and user's input.
         """
         message_data = message.get("data", "{}")

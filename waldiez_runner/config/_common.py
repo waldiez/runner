@@ -31,6 +31,7 @@ def in_container() -> bool:  # pragma: no cover
         Whether the app is running in a container
     """
     # pylint: disable=broad-exception-caught
+    # noinspection PyBroadException
     try:
         return os.path.isfile("/.dockerenv") or os.path.isfile(
             "/run/.containerenv"

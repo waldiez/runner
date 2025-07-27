@@ -7,11 +7,11 @@
 
 import subprocess  # nosemgrep # nosec
 import sys
-from typing import List
 from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
+# noinspection PyProtectedMember
 from waldiez_runner._version import __version__
 from waldiez_runner.cli import app
 
@@ -20,7 +20,7 @@ MODULE_TO_PATCH = "waldiez_runner.cli"
 runner = CliRunner()
 
 
-def get_valid_args() -> List[str]:
+def get_valid_args() -> list[str]:
     """Get valid arguments.
 
     Returns
@@ -73,6 +73,7 @@ def test_invalid_log_level() -> None:
     assert result.exit_code != 0
 
 
+# noinspection PyUnusedLocal
 @patch(f"{MODULE_TO_PATCH}.start_uvicorn")
 def test_trusted_hosts(mock_start_uvicorn: MagicMock) -> None:
     """Test trusted hosts."""
@@ -82,6 +83,7 @@ def test_trusted_hosts(mock_start_uvicorn: MagicMock) -> None:
     assert result.exit_code == 0
 
 
+# noinspection PyUnusedLocal
 @patch(f"{MODULE_TO_PATCH}.start_uvicorn")
 def test_trusted_hosts_empty(mock_start_uvicorn: MagicMock) -> None:
     """Test trusted hosts."""
@@ -89,6 +91,7 @@ def test_trusted_hosts_empty(mock_start_uvicorn: MagicMock) -> None:
     assert result.exit_code == 0
 
 
+# noinspection PyUnusedLocal
 @patch(f"{MODULE_TO_PATCH}.start_all")
 def test_dev_mode(mock_start_all: MagicMock) -> None:
     """Test dev mode."""
@@ -96,6 +99,7 @@ def test_dev_mode(mock_start_all: MagicMock) -> None:
     assert result.exit_code == 0
 
 
+# noinspection PyUnusedLocal
 @patch(f"{MODULE_TO_PATCH}.start_broker_and_scheduler")
 def test_worker_mode(mock_start_broker_and_scheduler: MagicMock) -> None:
     """Test worker mode."""
@@ -103,6 +107,7 @@ def test_worker_mode(mock_start_broker_and_scheduler: MagicMock) -> None:
     assert result.exit_code == 0
 
 
+# noinspection PyUnusedLocal
 @patch(f"{MODULE_TO_PATCH}.start_broker")
 def test_broker_mode(mock_start_broker: MagicMock) -> None:
     """Test broker mode."""
@@ -110,6 +115,7 @@ def test_broker_mode(mock_start_broker: MagicMock) -> None:
     assert result.exit_code == 0
 
 
+# noinspection PyUnusedLocal
 @patch(f"{MODULE_TO_PATCH}.start_scheduler")
 def test_scheduler_mode(mock_start_scheduler: MagicMock) -> None:
     """Test scheduler mode."""
@@ -117,6 +123,7 @@ def test_scheduler_mode(mock_start_scheduler: MagicMock) -> None:
     assert result.exit_code == 0
 
 
+# noinspection PyUnusedLocal
 @patch(f"{MODULE_TO_PATCH}.start_broker_and_scheduler")
 def test_broker_and_scheduler(
     mock_start_broker_and_scheduler: MagicMock,
@@ -126,6 +133,7 @@ def test_broker_and_scheduler(
     assert result.exit_code == 0
 
 
+# noinspection PyUnusedLocal
 @patch(f"{MODULE_TO_PATCH}.start_uvicorn")
 def test_default_run(mock_start_uvicorn: MagicMock) -> None:
     """Test default run."""
@@ -136,6 +144,7 @@ def test_default_run(mock_start_uvicorn: MagicMock) -> None:
     assert result.exit_code == 0
 
 
+# noinspection PyUnusedLocal
 @patch(f"{MODULE_TO_PATCH}.start_uvicorn")
 def test_trusted_origins(mock_start_uvicorn: MagicMock) -> None:
     """Test trusted origins."""
@@ -145,6 +154,7 @@ def test_trusted_origins(mock_start_uvicorn: MagicMock) -> None:
     assert result.exit_code == 0
 
 
+# noinspection PyUnusedLocal
 @patch(f"{MODULE_TO_PATCH}.start_uvicorn")
 def test_trusted_origins_empty(mock_start_uvicorn: MagicMock) -> None:
     """Test trusted origins."""

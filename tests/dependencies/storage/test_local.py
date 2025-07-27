@@ -183,10 +183,11 @@ async def test_save_file_too_large(storage: LocalStorage) -> None:
     repeat_part = b'{"k": "v"},' * 10_000_000
     last_part = b"{}]}"
     large_json_like_content = first_part + repeat_part + last_part
+    # noinspection PyTypeChecker
     upload_file = UploadFile(
         file=BytesIO(large_json_like_content),
         filename="large_file.json",
-        headers={"content-type": "application/json"},
+        headers={"content-type": "application/json"},  # pyright: ignore
     )
 
     with patch("puremagic.from_string", return_value="application/json"):

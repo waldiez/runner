@@ -9,7 +9,7 @@ import asyncio
 import logging
 import time
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect, WebSocketException
 from starlette import status
@@ -195,7 +195,7 @@ class TaskWebSocketHandler:
         ws_task_registry.remove_task_if_empty(self.task_id)
 
 
-def build_status_payload(task: Task) -> Dict[str, Any]:
+def build_status_payload(task: Task) -> dict[str, Any]:
     """Build the status payload for the WebSocket.
 
     Parameters
@@ -204,7 +204,7 @@ def build_status_payload(task: Task) -> Dict[str, Any]:
         The task object.
     Returns
     -------
-    Dict[str, Any]
+    dict[str, Any]
         The status payload.
     """
 

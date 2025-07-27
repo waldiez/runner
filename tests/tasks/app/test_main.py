@@ -65,6 +65,7 @@ async def test_run_success(
     )
 
 
+# noinspection PyUnusedLocal
 @pytest.mark.asyncio
 @patch(f"{MODULE_TO_PATCH}.FlowRunner")
 @patch(f"{MODULE_TO_PATCH}.RedisBroker")

@@ -38,13 +38,13 @@ graph LR
 
 ### 📌 Endpoints (Push Mode)
 
-| Method | Endpoint | Description |
-|--------|----------|------------|
-| `POST` | `/api/v1/tasks` | Submit a task (only allowed for push-mode workers). |
-| `GET` | `/api/v1/tasks/{task_id}` | Retrieve task details. |
-| `GET` | `/api/v1/tasks/{task_id}/download` | Fetch generated task output. |
-| `POST` | `/api/v1/tasks/{task_id}/cancel` | Cancel a running task. |
-| `DELETE` | `/api/v1/tasks/{task_id}` | Delete a task (`?force=true` also deletes active ones). |
+| Method   | Endpoint                           | Description                                             |
+|----------|------------------------------------|---------------------------------------------------------|
+| `POST`   | `/api/v1/tasks`                    | Submit a task (only allowed for push-mode workers).     |
+| `GET`    | `/api/v1/tasks/{task_id}`          | Retrieve task details.                                  |
+| `GET`    | `/api/v1/tasks/{task_id}/download` | Fetch generated task output.                            |
+| `POST`   | `/api/v1/tasks/{task_id}/cancel`   | Cancel a running task.                                  |
+| `DELETE` | `/api/v1/tasks/{task_id}`          | Delete a task (`?force=true` also deletes active ones). |
 
 📌 **Push-mode workers execute tasks immediately upon submission.**
 
@@ -82,24 +82,24 @@ sequenceDiagram
 
 ### 📌 Polling Mode Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|------------|
-| `GET`  | `/api/v1/polling/config` | Retrieve polling worker configuration. |
-| `GET`  | `/api/v1/polling/config/statuses` | Retrieve valid job statuses. |
-| `POST` | `/api/v1/polling/register` | Register a new polling worker. |
-| `POST` | `/api/v1/polling/update` | Worker updates job status. |
-| `POST` | `/api/v1/polling/revoke` | Admin revokes a polling worker. |
-|   | `/api/v1/polling/ws` | WebSocket for real-time job assignments. |
+| Method | Endpoint                          | Description                              |
+|--------|-----------------------------------|------------------------------------------|
+| `GET`  | `/api/v1/polling/config`          | Retrieve polling worker configuration.   |
+| `GET`  | `/api/v1/polling/config/statuses` | Retrieve valid job statuses.             |
+| `POST` | `/api/v1/polling/register`        | Register a new polling worker.           |
+| `POST` | `/api/v1/polling/update`          | Worker updates job status.               |
+| `POST` | `/api/v1/polling/revoke`          | Admin revokes a polling worker.          |
+|        | `/api/v1/polling/ws`              | WebSocket for real-time job assignments. |
 
 ---
 
 ## 🎛 Task Assignment Modes
 
-| Mode | Description |
-|------|------------|
-| **Push Mode** | Tasks are submitted to FastAPI (`POST /api/v1/tasks`) and executed via TaskIQ. |
-| **Polling Mode** | Workers poll an external service for tasks and execute them independently. |
-| **Hybrid Mode** | Both modes are enabled, allowing task submission via API or polling. |
+| Mode             | Description                                                                    |
+|------------------|--------------------------------------------------------------------------------|
+| **Push Mode**    | Tasks are submitted to FastAPI (`POST /api/v1/tasks`) and executed via TaskIQ. |
+| **Polling Mode** | Workers poll an external service for tasks and execute them independently.     |
+| **Hybrid Mode**  | Both modes are enabled, allowing task submission via API or polling.           |
 
 ### 🔧 Configuration
 

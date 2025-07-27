@@ -1,14 +1,14 @@
 
 Waldiez Runner uses a modular, event-driven orchestration architecture to execute multi-agent ([Waldiez](https://github.com/waldiez/waldiez)) flows in isolated environments (e.g. virtualenvs) with real-time input/output via Redis and WebSocket. It is composed of several components that work together to manage task execution, input/output handling, and result storage:
 
-| Component     | Description |
-|---------------|-------------|
-| **FastAPI**   | HTTP API for tasks, inputs, clients, and authentication |
-| **Taskiq**    | Asynchronous job runner (background task execution) |
-| **FastStream** | Executes uploaded app in a new virtualenv |
-| **Redis**     | Handles message passing (logs, prompts, responses) |
-| **PostgreSQL**| Persists task and client state |
-| **WebSocket** | Real-time input/output interface for tasks |
+| Component      | Description                                             |
+|----------------|---------------------------------------------------------|
+| **FastAPI**    | HTTP API for tasks, inputs, clients, and authentication |
+| **Taskiq**     | Asynchronous job runner (background task execution)     |
+| **FastStream** | Executes uploaded app in a new virtualenv               |
+| **Redis**      | Handles message passing (logs, prompts, responses)      |
+| **PostgreSQL** | Persists task and client state                          |
+| **WebSocket**  | Real-time input/output interface for tasks              |
 
 ## System Overview
 

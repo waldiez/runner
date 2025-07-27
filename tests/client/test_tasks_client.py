@@ -3,9 +3,11 @@
 
 # pylint: disable=missing-param-doc,missing-return-doc
 # pylint: disable=protected-access,unused-argument
+# pyright: reportPrivateUsage=false
 """Test waldiez_runner.client._tasks_client.*."""
 
 import asyncio
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -47,7 +49,13 @@ def test_ensure_configured_raises() -> None:
 
 def test_list_tasks(httpx_mock: HTTPXMock, tasks_client: TasksClient) -> None:
     """Test listing tasks."""
-    response_dict = {"items": [], "total": 0, "page": 1, "size": 50, "pages": 1}
+    response_dict: dict[str, Any] = {
+        "items": [],
+        "total": 0,
+        "page": 1,
+        "size": 50,
+        "pages": 1,
+    }
     httpx_mock.add_response(
         method="GET",
         url=f"{tasks_client.base_url}/api/v1/tasks",
@@ -470,7 +478,7 @@ async def test_a_list_tasks(
     auth: Auth,
 ) -> None:
     """Test listing tasks asynchronously."""
-    response_dict = {
+    response_dict: dict[str, Any] = {
         "items": [],
         "total": 0,
         "page": 1,

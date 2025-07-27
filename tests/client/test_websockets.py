@@ -9,12 +9,13 @@
 import asyncio
 import threading
 import time
-from typing import Any, List
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from websockets import ConnectionClosed, InvalidStatus
 
+# noinspection PyProtectedMember
 from waldiez_runner.client._websockets import (
     AsyncWebSocketClient,
     SyncWebSocketClient,
@@ -48,7 +49,7 @@ def test_sync_listen_message(mock_connect: MagicMock, auth: MagicMock) -> None:
     ws_mock.recv.side_effect = ["test message", Exception("done")]
     mock_connect.return_value.__enter__.return_value = ws_mock
 
-    received = []
+    received: list[str] = []
 
     def on_msg(msg: Any) -> None:
         """Handle incoming messages."""
@@ -68,6 +69,7 @@ def test_sync_listen_message(mock_connect: MagicMock, auth: MagicMock) -> None:
     assert not client.is_listening()
 
 
+# noinspection PyUnusedLocal
 @patch("websockets.sync.client.connect")
 @patch("time.sleep", return_value=None)
 def test_sync_listen_retries(
@@ -79,7 +81,8 @@ def test_sync_listen_retries(
     mock_connect.side_effect = Exception("fail")
 
     client = SyncWebSocketClient(auth=auth, reconnect=True, max_retries=2)
-    errors: List[str] = []
+    # noinspection DuplicatedCode
+    errors: list[str] = []
 
     def on_error(err: str) -> None:
         """Handle errors."""
@@ -124,6 +127,7 @@ def test_sync_stop(mock_connect: MagicMock, auth: Auth) -> None:
     assert not client.is_listening()
 
 
+# noinspection DuplicatedCode
 @patch("websockets.sync.client.connect")
 def test_sync_listen_1006_handled(mock_connect: MagicMock, auth: Auth) -> None:
     """Test 404 error is handled and stops the listener."""
@@ -144,7 +148,7 @@ def test_sync_listen_1006_handled(mock_connect: MagicMock, auth: Auth) -> None:
     mock_connect.side_effect = FakeInvalidStatus()
 
     client = SyncWebSocketClient(auth=auth)
-    errors: List[str] = []
+    errors: list[str] = []
 
     def on_error(err: str) -> None:
         """Handle errors."""
@@ -181,6 +185,7 @@ def test_sync_listen_1008_retry(mock_connect: MagicMock, auth: Auth) -> None:
             super().__init__(None)  # type: ignore
             self.code = 1008
 
+    # noinspection PyUnusedLocal
     def side_effect(*args: Any, **kwargs: Any) -> None:
         """Fake side effect for the mock."""
         nonlocal call_count
@@ -193,7 +198,7 @@ def test_sync_listen_1008_retry(mock_connect: MagicMock, auth: Auth) -> None:
     mock_connect.side_effect = side_effect
 
     client = SyncWebSocketClient(auth=auth, max_retries=2)
-    errors: List[str] = []
+    errors: list[str] = []
 
     def run() -> None:
         """Run the client listen method."""
@@ -245,6 +250,7 @@ async def test_async_send_message(
     ws_mock.send.assert_awaited_once_with("hello")
 
 
+# noinspection DuplicatedCode
 @pytest.mark.asyncio
 @patch("websockets.asyncio.client.connect")
 async def test_async_listen_in_task_true(
@@ -256,7 +262,7 @@ async def test_async_listen_in_task_true(
     ws_mock.recv = AsyncMock(side_effect=["message", Exception("done")])
     mock_connect.return_value.__aenter__.return_value = ws_mock
 
-    received: List[str] = []
+    received: list[str] = []
 
     async def on_msg(msg: str) -> None:
         """Handle incoming messages."""
@@ -272,6 +278,7 @@ async def test_async_listen_in_task_true(
     assert not client.is_listening()
 
 
+# noinspection DuplicatedCode
 @pytest.mark.asyncio
 @patch("websockets.asyncio.client.connect")
 async def test_async_listen_in_task_false(
@@ -283,7 +290,7 @@ async def test_async_listen_in_task_false(
     ws_mock.recv = AsyncMock(side_effect=["message", Exception("done")])
     mock_connect.return_value.__aenter__.return_value = ws_mock
 
-    received: List[str] = []
+    received: list[str] = []
 
     async def on_msg(msg: str) -> None:
         """Handle incoming messages."""
@@ -306,6 +313,7 @@ async def test_async_listen_in_task_false(
     assert received == ["message"]
 
 
+# noinspection PyUnusedLocal
 @pytest.mark.asyncio
 @patch("asyncio.sleep", new_callable=AsyncMock)
 @patch("websockets.asyncio.client.connect")
@@ -318,7 +326,7 @@ async def test_async_listen_retries(
     mock_connect.side_effect = Exception("fail")
 
     client = AsyncWebSocketClient(auth=auth, reconnect=True, max_retries=2)
-    errors: List[str] = []
+    errors: list[str] = []
 
     async def on_error(err: str) -> None:
         """Handle errors."""
@@ -356,6 +364,7 @@ async def test_async_stop(
     assert not client.is_listening()
 
 
+# noinspection PyUnusedLocal
 @pytest.mark.asyncio
 @patch("asyncio.sleep", new_callable=AsyncMock)
 @patch("websockets.asyncio.client.connect")
@@ -382,7 +391,7 @@ async def test_async_listen_1008_retry(
     ]
 
     client = AsyncWebSocketClient(auth=auth, reconnect=True, max_retries=2)
-    errors: List[str] = []
+    errors: list[str] = []
 
     async def on_error(err: str) -> None:
         """Handle errors."""
@@ -419,7 +428,7 @@ async def test_async_listen_status_error(
     mock_connect.side_effect = FakeInvalidStatus()
 
     client = AsyncWebSocketClient(auth=auth)
-    errors: List[str] = []
+    errors: list[str] = []
 
     async def on_error(err: str) -> None:
         """Handle errors."""

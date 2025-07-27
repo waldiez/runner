@@ -3,6 +3,7 @@
 
 # pylint: disable=missing-return-doc,missing-yield-doc,missing-param-doc
 # pylint: disable=unused-argument
+# pyright: reportUnusedFunction=false
 
 """Test the conditional gzip middleware."""
 
@@ -40,6 +41,7 @@ async def client_conditional_fixture() -> AsyncGenerator[AsyncClient, None]:
     """App with gzip conditionally enabled based on pattern."""
     app = FastAPI()
 
+    # noinspection PyUnusedLocal
     @app.get("/api/v1/tasks/{task_id}/download")
     async def excluded_route(task_id: str) -> JSONResponse:
         """Route that should not be compressed."""

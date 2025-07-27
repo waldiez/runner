@@ -17,12 +17,12 @@ Waldiez Runner supports live task interaction via WebSocket — enabling real-ti
 
 You can authenticate your WebSocket connection in any of the following ways:
 
-| Method        | Example                                   | Recommended for     |
-|---------------|-------------------------------------------|----------------------|
-| **Header**    | `Authorization: Bearer <token>`           | Python clients       |
-| **Subprotocol** | `task-api,<token>`                     | JavaScript clients   |
-| **Cookie**    | `access_token=<token>`                    | Browser UIs          |
-| **Query Param** | `/ws/{task_id}?access_token=...`       | Fallback only        |
+| Method          | Example                          | Recommended for    |
+|-----------------|----------------------------------|--------------------|
+| **Header**      | `Authorization: Bearer <token>`  | Python clients     |
+| **Subprotocol** | `task-api,<token>`               | JavaScript clients |
+| **Cookie**      | `access_token=<token>`           | Browser UIs        |
+| **Query Param** | `/ws/{task_id}?access_token=...` | Fallback only      |
 
 > 🔐 For info on getting tokens: see [Clients & Authentication](clients.md)
 

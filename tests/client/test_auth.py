@@ -4,6 +4,8 @@
 # flake8: noqa: E501
 # pylint: disable=line-too-long, missing-function-docstring
 # pylint: disable=missing-param-doc,missing-return-doc,protected-access
+# pyright: reportPrivateUsage=false
+
 """Test waldiez_runner.client._auth.*."""
 
 import asyncio
@@ -319,7 +321,7 @@ def test_is_expired_invalid_datetime(auth: Auth) -> None:
 
 def test_handle_token_sync(auth: Auth) -> None:
     """Test _handle_token with sync callback."""
-    called = []
+    called: list[str] = []
 
     def token_callback(t: str) -> None:
         called.append(t)

@@ -5,7 +5,7 @@
 
 import os
 from pathlib import Path
-from typing import Any, Tuple
+from typing import Any
 
 from taskiq import (
     AsyncBroker,
@@ -28,12 +28,12 @@ HERE = Path(__file__).parent
 APP_DIR = HERE / "app"
 
 
-def get_redis_url() -> Tuple[str, bool]:
+def get_redis_url() -> tuple[str, bool]:
     """Get the Redis URL and smoke testing status.
 
     Returns
     -------
-    Tuple[str, bool]
+    tuple[str, bool]
         Redis URL and smoke testing status.
     """
     using_fake_redis = skip_redis()

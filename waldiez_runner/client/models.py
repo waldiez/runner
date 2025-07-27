@@ -7,7 +7,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Generic, List, Optional, TypeVar, Union
+from typing import Any, Generic, Optional, TypeVar, Union
 
 try:
     from typing import Annotated, Literal
@@ -121,13 +121,14 @@ class RefreshTokenRequest(ModelBase):
 class PaginatedResponse(ModelBase, Generic[Items]):
     """Paginated response structure used in Waldiez Runner."""
 
-    items: List[Items] = Field(..., description="List of returned items")
+    items: list[Items] = Field(..., description="List of returned items")
     total: int = Field(..., description="Total number of items")
     page: int = Field(..., description="Current page number")
     size: int = Field(..., description="Page size")
     pages: int = Field(..., description="Total number of pages")
 
 
+# noinspection Pydantic
 class PaginatedRequest(ModelBase):
     """Generic pagination request model."""
 
@@ -137,6 +138,7 @@ class PaginatedRequest(ModelBase):
     size: Annotated[int, Field(50, ge=1, le=100, description="Page size")] = 50
 
 
+# noinspection Pydantic
 class OrderSearchRequest(ModelBase):
     """Generic order and search request model."""
 
@@ -168,6 +170,7 @@ class TaskStatus(str, Enum):
     WAITING_FOR_INPUT = "WAITING_FOR_INPUT"
 
 
+# noinspection Pydantic
 class TaskScheduleBase(ModelBase):
     """Common schedule-related fields (mirrors TaskBase on server)."""
 
@@ -196,6 +199,7 @@ class TaskScheduleBase(ModelBase):
     ] = None
 
 
+# noinspection Pydantic
 class TaskCreateRequest(TaskScheduleBase):
     """Request model for creating a new task."""
 
@@ -217,6 +221,7 @@ class TaskCreateRequest(TaskScheduleBase):
     ] = 180
 
 
+# noinspection Pydantic
 class TaskUpdateRequest(TaskScheduleBase):
     """Request model for updating a task."""
 
@@ -230,6 +235,7 @@ class TaskUpdateRequest(TaskScheduleBase):
     ] = None
 
 
+# noinspection Pydantic
 class TaskResponse(TaskScheduleBase):
     """Response returned when interacting with tasks."""
 
@@ -286,6 +292,7 @@ class UserInputRequest(ModelBase):
 
 
 # -- Client Models --
+# noinspection Pydantic
 class ClientCreateRequest(ModelBase):
     """Request model for creating a new client."""
 
@@ -316,6 +323,7 @@ class ClientCreateRequest(ModelBase):
     ] = None
 
 
+# noinspection Pydantic
 class ClientResponse(ModelBase):
     """Base response model for a client."""
 

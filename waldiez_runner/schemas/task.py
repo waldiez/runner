@@ -3,7 +3,7 @@
 """Schemas for Waldiez Runner."""
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, field_serializer, model_validator
 from typing_extensions import Literal, Self
@@ -83,7 +83,7 @@ class TaskUpdate(TaskBase):
     """Task update model."""
 
     status: TaskStatus | None = None
-    results: Dict[str, Any] | List[Dict[str, Any]] | None = None
+    results: dict[str, Any] | list[dict[str, Any]] | None = None
 
 
 class TaskResponse(TaskBase):
@@ -98,7 +98,7 @@ class TaskResponse(TaskBase):
     status: TaskStatus
     input_timeout: int
     input_request_id: str | None
-    results: Dict[str, Any] | List[Dict[str, Any]] | None
+    results: dict[str, Any] | list[dict[str, Any]] | None
     triggered_at: datetime | None
 
     model_config = ConfigDict(

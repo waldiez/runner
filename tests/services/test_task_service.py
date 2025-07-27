@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from tests.types import CreateTaskCallable
 from waldiez_runner.models.task_status import TaskStatus
 from waldiez_runner.schemas.task import TaskCreate
-from waldiez_runner.services import _task_service as TaskService
+from waldiez_runner.services import TaskService
 
 
 @pytest.fixture(scope="function", name="pagination_params")
@@ -242,6 +242,7 @@ async def test_get_client_tasks_with_pagination(
 ) -> None:
     """Test getting client tasks with pagination."""
     client_id = "test_get_client_tasks_with_pagination"
+    # noinspection DuplicatedCode
     task1, _ = await create_task(
         async_session,
         client_id=client_id,
@@ -355,6 +356,7 @@ async def test_get_client_tasks_with_search_no_results(
     assert task3.id not in all_ids
 
 
+# noinspection DuplicatedCode
 @pytest.mark.anyio
 async def test_get_client_tasks_with_order(
     async_session: AsyncSession,
@@ -520,6 +522,7 @@ async def test_get_pending_tasks(
 ) -> None:
     """Test getting pending tasks."""
     client_id = "test_get_pending_tasks"
+    # noinspection DuplicatedCode
     task1, _ = await create_task(
         async_session,
         client_id=client_id,
@@ -563,6 +566,7 @@ async def test_update_waiting_for_input_tasks(
 ) -> None:
     """Test updating waiting for input tasks."""
     client_id = "test_update_waiting_for_input_tasks"
+    # noinspection DuplicatedCode
     task1, _ = await create_task(
         async_session,
         client_id=client_id,
@@ -660,6 +664,7 @@ async def test_get_active_tasks(
 ) -> None:
     """Test getting active tasks."""
     client_id = "test_get_active_tasks"
+    # noinspection DuplicatedCode
     task1, _ = await create_task(
         async_session,
         client_id=client_id,
@@ -715,6 +720,7 @@ async def test_delete_client_tasks(
     )
     await TaskService.delete_client_tasks(async_session, client_id=client_id)
 
+    # noinspection DuplicatedCode
     deleted_task1 = await TaskService.get_task(async_session, task1.id)
     deleted_task2 = await TaskService.get_task(async_session, task2.id)
     task3_in_db = await TaskService.get_task(async_session, task3.id)
@@ -755,6 +761,7 @@ async def test_soft_delete_client_tasks(
         async_session, client_id=client_id, inactive_only=True
     )
 
+    # noinspection DuplicatedCode
     for task in (task1, task2, task3):
         await async_session.refresh(task)
     deleted_task1 = await TaskService.get_task(async_session, task1.id)
@@ -800,6 +807,7 @@ async def test_soft_delete_client_tasks_not_inactive_only(
         async_session, client_id=client_id, inactive_only=False
     )
 
+    # noinspection DuplicatedCode
     deleted_task1 = await TaskService.get_task(async_session, task1.id)
     deleted_task2 = await TaskService.get_task(async_session, task2.id)
     task3_in_db = await TaskService.get_task(async_session, task3.id)
@@ -838,6 +846,7 @@ async def test_ensure_deleting_owned_only_tasks(
         inactive_only=False,
     )
 
+    # noinspection DuplicatedCode
     for task in (task1, task2, task3):
         await async_session.refresh(task)
     deleted_task1 = await TaskService.get_task(async_session, task1.id)
@@ -882,6 +891,7 @@ async def test_delete_client_tasks_with_ids(
         inactive_only=False,
     )
 
+    # noinspection DuplicatedCode
     for task in (task1, task2, task3):
         await async_session.refresh(task)
     deleted_task1 = await TaskService.get_task(async_session, task1.id)

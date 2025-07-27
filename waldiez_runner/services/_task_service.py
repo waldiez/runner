@@ -5,7 +5,7 @@
 """Task management service."""
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Sequence
+from typing import Any, Sequence
 
 import sqlalchemy.sql.functions
 from fastapi_pagination import Page, Params
@@ -326,9 +326,9 @@ async def get_active_tasks(session: AsyncSession, params: Params) -> Page[Task]:
 async def soft_delete_client_tasks(
     session: AsyncSession,
     client_id: str,
-    ids: List[str] | None = None,
+    ids: list[str] | None = None,
     inactive_only: bool = True,
-) -> List[str]:
+) -> list[str]:
     """Soft delete tasks for a client.
 
     Parameters
@@ -337,14 +337,14 @@ async def soft_delete_client_tasks(
         SQLAlchemy async session.
     client_id : str
         Client ID.
-    ids : List[str] | None
+    ids : list[str] | None
         Optional list of task IDs to delete.
     inactive_only : bool
         Delete only inactive tasks. Default is True.
 
     Returns
     -------
-    List[str]
+    list[str]
         List of task IDs that were soft-deleted.
     """
     filters: list[Any] = [
@@ -383,7 +383,7 @@ async def update_task_status(
     status: TaskStatus,
     input_request_id: str | None = None,
     skip_results: bool = False,
-    results: Dict[str, Any] | List[Dict[str, Any]] | None = None,
+    results: dict[str, Any] | list[dict[str, Any]] | None = None,
 ) -> None:
     """Update the status of a task.
 
@@ -400,7 +400,7 @@ async def update_task_status(
     skip_results : bool
         Skip updating the task's results.
         Default is False.
-    results : Dict[str, Any] | List[Dict[str, Any]] | None
+    results : dict[str, Any] | list[dict[str, Any]] | None
         The task's results.
         Default is None.
     """
@@ -408,7 +408,7 @@ async def update_task_status(
     if task is None:
         return
     task.status = status
-    if skip_results is False:
+    if not skip_results:
         task.results = results
     if status == TaskStatus.WAITING_FOR_INPUT:
         task.input_request_id = input_request_id

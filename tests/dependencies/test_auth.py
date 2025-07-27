@@ -8,7 +8,6 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import jwt
-import jwt.algorithms
 import pytest
 from fastapi import HTTPException
 
@@ -219,7 +218,7 @@ async def test_verify_external_auth_token_success(
 
     assert exception is None
     assert response is token_response
-    assert response.user_info["id"] == "user123"
+    assert response.user_info["id"] == "user123"  # pyright: ignore
     mock_verify.assert_awaited_once_with(
         "test-token", "https://example.com/verify", "test-secret"
     )

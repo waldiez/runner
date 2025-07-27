@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
-
+# pyright: reportConstantRedefinition=false
 """Build container image."""
 
 import argparse
@@ -10,7 +10,6 @@ import shutil
 import subprocess  # nosemgrep # nosec
 import sys
 from pathlib import Path
-from typing import List
 
 try:
     from dotenv import load_dotenv
@@ -115,12 +114,12 @@ def get_container_cmd() -> str:
     return "docker"
 
 
-def run_command(command: List[str], dry_run: bool = False) -> None:
+def run_command(command: list[str], dry_run: bool = False) -> None:
     """Run a command.
 
     Parameters
     ----------
-    command : List[str]
+    command : list[str]
         The command to run.
 
     dry_run : bool
@@ -154,7 +153,7 @@ def build_image(
     image_platform: str,
     container_command: str,
     no_cache: bool,
-    build_args: List[str],
+    build_args: list[str],
 ) -> None:
     """Build the container image.
 
@@ -172,7 +171,7 @@ def build_image(
         The container command to use.
     no_cache : bool
         Do not use cache when building the image.
-    build_args : List[str]
+    build_args : list[str]
         Build arguments.
 
     Raises
@@ -267,6 +266,8 @@ def check_other_platform(container_command: str, platform_arg: str) -> bool:
     # with rootless podman, multi-platform builds might not work
     # sudo podman build --arch=... might do, but let's not
     if is_other_platform:
+        # pylint: disable=broad-exception-caught
+        # noinspection PyBroadException
         try:
             run_command(
                 [
@@ -280,7 +281,7 @@ def check_other_platform(container_command: str, platform_arg: str) -> bool:
                     "yes",
                 ]
             )
-        except BaseException:  # pylint: disable=broad-except
+        except BaseException:
             pass
     return is_other_platform
 
@@ -298,7 +299,7 @@ def main() -> None:
         If an error occurs.
     """
     args, _ = cli().parse_known_args()
-    build_args = args.build_args or []
+    build_args: list[str] = args.build_args or []
     container_file = "Containerfile.dev" if args.dev else "Containerfile"
     if not os.path.exists(container_file):
         container_file = "Dockerfile"

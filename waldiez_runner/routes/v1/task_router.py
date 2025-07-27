@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
+
+# pyright: reportPossiblyUnboundVariable=false
+
 """Task routes."""
 
 import asyncio
@@ -7,7 +10,7 @@ import json
 import logging
 import os
 from datetime import datetime
-from typing import Annotated, List, Optional
+from typing import Annotated, Optional
 
 from fastapi import (
     APIRouter,
@@ -318,7 +321,7 @@ async def update_task(
     if task.is_inactive():
         raise HTTPException(
             status_code=400,
-            detail=(f"Cannot update task with status {task.get_status()}"),
+            detail=f"Cannot update task with status {task.get_status()}",
         )
     updated = await TaskService.update_task(
         session, task_id=task_id, task_update=task_update
@@ -499,7 +502,7 @@ async def cancel_task(
     if task.is_inactive():
         raise HTTPException(
             status_code=400,
-            detail=(f"Cannot cancel task with status {task.get_status()}"),
+            detail=f"Cannot cancel task with status {task.get_status()}",
         )
     task.status = TaskStatus.CANCELLED
     await TaskService.update_task_status(
@@ -564,7 +567,7 @@ async def delete_task(
     if task.is_active() and force is not True:
         raise HTTPException(
             status_code=400,
-            detail=(f"Cannot delete task with status {task.get_status()}"),
+            detail=f"Cannot delete task with status {task.get_status()}",
         )
     task.mark_deleted()
     await session.commit()
@@ -592,7 +595,7 @@ async def delete_task(
 async def delete_tasks(
     client_id: Annotated[str, Depends(validate_tasks_audience)],
     session: Annotated[AsyncSession, Depends(get_db)],
-    ids: Annotated[List[str] | None, Query()] = None,
+    ids: Annotated[list[str] | None, Query()] = None,
     force: Annotated[bool | None, False] = False,
 ) -> Response:
     """Delete all tasks for a client.
@@ -603,7 +606,7 @@ async def delete_tasks(
         The client ID.
     session : AsyncSession
         The database session dependency.
-    ids : List[str] | None, optional
+    ids : list[str] | None, optional
         The list of task IDs to delete, by default None
         (delete all tasks if None).
     force : bool, optional
@@ -822,13 +825,14 @@ async def validate_task_input(
         If the file is invalid or
         if the maximum number of tasks per client is reached.
     """
-    if schedule_type is None:
-        active_tasks = await TaskService.get_active_client_tasks(
-            session,
-            client_id=client_id,
-        )
-        if len(active_tasks.items) >= MAX_TASKS_PER_CLIENT:
-            raise HTTPException(status_code=400, detail=MAX_TASKS_ERROR)
+    if schedule_type is not None:
+        raise HTTPException(500, detail="Scheduling not supported yet")
+    active_tasks = await TaskService.get_active_client_tasks(
+        session,
+        client_id=client_id,
+    )
+    if len(active_tasks.items) >= MAX_TASKS_PER_CLIENT:
+        raise HTTPException(status_code=400, detail=MAX_TASKS_ERROR)
     filename = _validate_uploaded_file(file)
     file_hash, saved_path = await storage.save_file(client_id, file)
     active_task = next(

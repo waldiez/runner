@@ -6,7 +6,7 @@
 import asyncio
 import json
 from io import BytesIO
-from typing import Any, Callable, Coroutine, Dict, List
+from typing import Any, Callable, Coroutine
 
 from ._tasks_api import TasksAPIClient
 from ._websockets import AsyncWebSocketClient, SyncWebSocketClient
@@ -22,6 +22,7 @@ from .models import (
 
 
 # pylint: disable=too-many-public-methods
+# noinspection DuplicatedCode
 class TasksClient(BaseClient):
     """Tasks client implementation."""
 
@@ -154,13 +155,13 @@ class TasksClient(BaseClient):
 
     def list_tasks(
         self,
-        params: TaskItemsRequest | Dict[str, Any] | None = None,
+        params: TaskItemsRequest | dict[str, Any] | None = None,
     ) -> TaskItemsResponse:
-        """List tasks synchronously.
+        """list tasks synchronously.
 
         Parameters
         ----------
-        params : TaskItemsRequest | Dict[str, Any] | None, optional
+        params : TaskItemsRequest | dict[str, Any] | None, optional
             The query parameters for pagination, by default None
             (see TaskItemsRequest for details)
 
@@ -176,7 +177,7 @@ class TasksClient(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        params_dict: Dict[str, Any] | None
+        params_dict: dict[str, Any] | None
         if params is None:
             params_dict = None
         elif isinstance(params, dict):
@@ -190,13 +191,13 @@ class TasksClient(BaseClient):
 
     def create_task(
         self,
-        task_data: TaskCreateRequest | Dict[str, Any],
+        task_data: TaskCreateRequest | dict[str, Any],
     ) -> TaskResponse:
         """Trigger a new task synchronously.
 
         Parameters
         ----------
-        task_data : TaskCreateRequest | Dict[str, Any]
+        task_data : TaskCreateRequest | dict[str, Any]
             The task data
 
         Returns
@@ -229,7 +230,7 @@ class TasksClient(BaseClient):
     def update_task(
         self,
         task_id: str,
-        task_data: TaskUpdateRequest | Dict[str, Any],
+        task_data: TaskUpdateRequest | dict[str, Any],
     ) -> TaskResponse:
         """Update a task synchronously.
 
@@ -237,7 +238,7 @@ class TasksClient(BaseClient):
         ----------
         task_id : str
             The task ID
-        task_data : TaskUpdateRequest | Dict[str, Any]
+        task_data : TaskUpdateRequest | dict[str, Any]
             The task data
 
         Returns
@@ -267,7 +268,7 @@ class TasksClient(BaseClient):
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The response JSON
 
         Raises
@@ -281,14 +282,14 @@ class TasksClient(BaseClient):
 
     def send_user_input(
         self,
-        request_data: UserInputRequest | Dict[str, Any],
+        request_data: UserInputRequest | dict[str, Any],
         use_rest: bool = False,
     ) -> None:
         """Send user input to a task synchronously.
 
         Parameters
         ----------
-        request_data : UserInputRequest | Dict[str, Any]
+        request_data : UserInputRequest | dict[str, Any]
             The user input request data
         use_rest : bool, optional
             Whether to use REST API instead of first trying WebSocket,
@@ -306,7 +307,7 @@ class TasksClient(BaseClient):
         user_input = request_data.data
         request_id = request_data.request_id
         sent = False
-        if use_rest is False:  # pragma: no branch
+        if not use_rest:  # pragma: no branch
             # first check/try using websockets
             if self.ws_sync and self.ws_sync.is_listening():
                 message = {
@@ -391,14 +392,14 @@ class TasksClient(BaseClient):
 
     def delete_tasks(
         self,
-        ids: List[str] | None = None,
+        ids: list[str] | None = None,
         force: bool = False,
     ) -> None:
         """Delete multiple tasks synchronously.
 
         Parameters
         ----------
-        ids : List[str] | None, optional
+        ids : list[str] | None, optional
             The list of task IDs to delete, by default None
         force : bool, optional
             Whether to force delete the tasks (even if active), by default False
@@ -469,13 +470,13 @@ class TasksClient(BaseClient):
 
     async def a_list_tasks(
         self,
-        params: TaskItemsRequest | Dict[str, Any] | None = None,
+        params: TaskItemsRequest | dict[str, Any] | None = None,
     ) -> TaskItemsResponse:
-        """List tasks asynchronously.
+        """list tasks asynchronously.
 
         Parameters
         ----------
-        params : TaskItemsRequest | Dict[str, Any] | None, optional
+        params : TaskItemsRequest | dict[str, Any] | None, optional
             The query parameters for pagination, by default None
             (see TaskItemsRequest for details)
         Returns
@@ -489,7 +490,7 @@ class TasksClient(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        params_dict: Dict[str, Any] | None
+        params_dict: dict[str, Any] | None
         if params is None:
             params_dict = None
         elif isinstance(params, dict):
@@ -503,13 +504,13 @@ class TasksClient(BaseClient):
 
     async def a_create_task(
         self,
-        task_data: TaskCreateRequest | Dict[str, Any],
+        task_data: TaskCreateRequest | dict[str, Any],
     ) -> TaskResponse:
         """Trigger a new task asynchronously.
 
         Parameters
         ----------
-        task_data : TaskCreateRequest | Dict[str, Any]
+        task_data : TaskCreateRequest | dict[str, Any]
             The task data
             (see TaskCreateRequest for details)
 
@@ -563,7 +564,7 @@ class TasksClient(BaseClient):
     async def a_update_task(
         self,
         task_id: str,
-        task_data: TaskUpdateRequest | Dict[str, Any],
+        task_data: TaskUpdateRequest | dict[str, Any],
     ) -> TaskResponse:
         """Update a task asynchronously.
 
@@ -571,7 +572,7 @@ class TasksClient(BaseClient):
         ----------
         task_id : str
             The task ID
-        task_data : TaskUpdateRequest | Dict[str, Any]
+        task_data : TaskUpdateRequest | dict[str, Any]
             The task data
 
         Returns
@@ -596,14 +597,14 @@ class TasksClient(BaseClient):
 
     async def a_send_user_input(
         self,
-        request_data: UserInputRequest | Dict[str, Any],
+        request_data: UserInputRequest | dict[str, Any],
         use_rest: bool = False,
     ) -> None:
         """Send user input to a task asynchronously.
 
         Parameters
         ----------
-        request_data : UserInputRequest | Dict[str, Any]
+        request_data : UserInputRequest | dict[str, Any]
             The user input request data
         use_rest : bool, optional
             Whether to use REST API instead of first trying WebSocket,
@@ -621,7 +622,7 @@ class TasksClient(BaseClient):
         user_input = request_data.data
         request_id = request_data.request_id
         sent = False
-        if use_rest is False:  # pragma: no branch
+        if not use_rest:  # pragma: no branch
             # first check/try using websockets
             if self.ws_async and self.ws_async.is_listening():
                 # pylint: disable=broad-exception-caught
@@ -707,14 +708,14 @@ class TasksClient(BaseClient):
 
     async def a_delete_tasks(
         self,
-        ids: List[str] | None = None,
+        ids: list[str] | None = None,
         force: bool = False,
     ) -> None:
         """Delete all tasks asynchronously.
 
         Parameters
         ----------
-        ids : List[str] | None, optional
+        ids : list[str] | None, optional
             The list of task IDs to delete, by default None
             If None, all tasks will be deleted.
         force : bool, optional

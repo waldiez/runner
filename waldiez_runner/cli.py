@@ -57,6 +57,7 @@ app = typer.Typer(
 )
 
 
+# noinspection PyShadowingBuiltins
 @app.command()
 def run(
     host: str = typer.Option(
@@ -255,6 +256,7 @@ def run(
         raise typer.Exit()
     if "--no-debug" in sys.argv:  # pragma: no cover
         log_level = LogLevel.INFO
+    # noinspection PyTypeChecker
     logging_config = get_logging_config(log_level.value)
     logging.config.dictConfig(logging_config)
     logger = logging.getLogger(__name__)

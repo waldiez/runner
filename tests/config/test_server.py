@@ -11,7 +11,10 @@ from typing import Generator
 
 import pytest
 
+# noinspection PyProtectedMember
 from waldiez_runner.config._common import ENV_PREFIX
+
+# noinspection PyProtectedMember
 from waldiez_runner.config._server import (
     get_default_domain_name,
     get_default_host,
@@ -23,6 +26,7 @@ from waldiez_runner.config._server import (
     get_trusted_origins,
 )
 
+# noinspection DuplicatedCode
 THIS_FILE = Path(__file__).resolve()
 
 
@@ -78,6 +82,7 @@ def test_get_trusted_origins_no_env() -> None:
     port = 8000
     force_ssl = False
     host = "localhost"
+    # noinspection HttpUrlsUsage
     expected = [
         "https://example.com",
         "https://localhost",
@@ -136,6 +141,7 @@ def test_get_trusted_origins_with_cmd_args() -> None:
     port = 8000
     force_ssl = False
     host = "localhost"
+    # noinspection HttpUrlsUsage
     expected = [
         "https://example.com",
         "https://localhost",

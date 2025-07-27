@@ -3,6 +3,8 @@
 """Middleware for rate limiting."""
 
 from fastapi import FastAPI, Request
+
+# noinspection PyProtectedMember
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIASGIMiddleware

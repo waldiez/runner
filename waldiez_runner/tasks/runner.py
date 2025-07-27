@@ -13,7 +13,7 @@ import signal
 import sys
 import venv
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from aiofiles.os import wrap
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,7 +37,7 @@ async def execute_task(
     redis_sub: AsyncRedis,
     db_session: AsyncSession,
     debug: bool,
-) -> Tuple[TaskStatus, Dict[str, Any] | List[Dict[str, Any]] | None]:
+) -> tuple[TaskStatus, dict[str, Any] | list[dict[str, Any]] | None]:
     """Execute the task in a virtual environment.
 
     Parameters
@@ -61,7 +61,7 @@ async def execute_task(
 
     Returns
     -------
-    Tuple[TaskStatus, dict | list[dict] | None]
+    tuple[TaskStatus, dict | list[dict] | None]
         The derived task status and optional results.
     """
     # pylint: disable=broad-exception-caught
@@ -146,6 +146,7 @@ async def prepare_app_env(
     # Copy app
     if app_dir.exists():
         rmtree = wrap(shutil.rmtree)
+        # noinspection PyBroadException
         try:
             await rmtree(str(app_dir), ignore_errors=True)
         except BaseException:
@@ -165,7 +166,7 @@ async def prepare_app_env(
     return venv_dir
 
 
-async def run_pip(python_exec: Path, cwd: Path, args: List[str]) -> None:
+async def run_pip(python_exec: Path, cwd: Path, args: list[str]) -> None:
     """Run pip in the venv.
 
     Parameters
@@ -174,7 +175,7 @@ async def run_pip(python_exec: Path, cwd: Path, args: List[str]) -> None:
         Python executable in the venv.
     cwd : Path
         Current working directory.
-    args : List[str]
+    args : list[str]
         Arguments to pass to pip.
 
     Raises
@@ -291,7 +292,7 @@ async def run_app_in_venv(
 
 def interpret_exit_code(
     exit_code: int,
-) -> Tuple[TaskStatus, Dict[str, Any] | None]:
+) -> tuple[TaskStatus, dict[str, Any] | None]:
     """Interpret subprocess exit code in a cross-platform way.
 
     Parameters
@@ -301,7 +302,7 @@ def interpret_exit_code(
 
     Returns
     -------
-    Tuple[TaskStatus, dict | None]
+    tuple[TaskStatus, dict | None]
         The derived task status and optional results.
     """
     if exit_code == 0:

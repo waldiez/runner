@@ -7,7 +7,6 @@
 import logging
 import os
 from datetime import datetime, timedelta, timezone
-from typing import List
 
 from fastapi_pagination import Page, Params
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -77,7 +76,7 @@ async def cleanup_old_tasks(
         Database session.
     """
     page = 1
-    old_tasks: List[Task] = []
+    old_tasks: list[Task] = []
     while page < 100:
         params = Params(page=page, size=100)
         tasks: Page[Task] = await TaskService.get_tasks_to_delete(
@@ -110,7 +109,7 @@ async def check_stuck_tasks(
     storage : Storage
         Storage implementation dependency.
     """
-    stuck_tasks: List[Task] = []
+    stuck_tasks: list[Task] = []
     page = 1
     while page < 50:
         params = Params(page=page, size=100)

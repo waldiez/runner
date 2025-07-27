@@ -31,7 +31,7 @@ import os
 import secrets
 import sys
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any
 
 import httpx
 from dotenv import load_dotenv
@@ -112,7 +112,7 @@ async def get_access_token(client_id: str, client_secret: str) -> str:
     return response.json()["access_token"]
 
 
-async def list_clients(access_token: str) -> Dict[str, Any]:
+async def list_clients(access_token: str) -> dict[str, Any]:
     """List clients.
 
     Parameters
@@ -122,7 +122,7 @@ async def list_clients(access_token: str) -> Dict[str, Any]:
 
     Returns
     -------
-    Dict[str, Any]
+    dict[str, Any]
         The response.
     """
     response = await HTTPX_CLIENT.get(
@@ -133,7 +133,7 @@ async def list_clients(access_token: str) -> Dict[str, Any]:
     return response.json()
 
 
-async def create_client(access_token: str, audience: str) -> Dict[str, Any]:
+async def create_client(access_token: str, audience: str) -> dict[str, Any]:
     """Create a client.
 
     Parameters
@@ -144,7 +144,7 @@ async def create_client(access_token: str, audience: str) -> Dict[str, Any]:
         The audience.
     Returns
     -------
-    Dict[str, Any]
+    dict[str, Any]
         The response.
     """
     api_type = audience.split("-")[0].capitalize()
@@ -161,7 +161,7 @@ async def create_client(access_token: str, audience: str) -> Dict[str, Any]:
     return response.json()
 
 
-async def list_tasks(access_token: str) -> Dict[str, Any]:
+async def list_tasks(access_token: str) -> dict[str, Any]:
     """List tasks.
 
     Parameters
@@ -171,7 +171,7 @@ async def list_tasks(access_token: str) -> Dict[str, Any]:
 
     Returns
     -------
-    Dict[str, Any]
+    dict[str, Any]
         The response.
     """
     response = await HTTPX_CLIENT.get(
@@ -186,7 +186,7 @@ async def create_task(
     access_token: str,
     example_flow_path: Path,
     input_timeout: int,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create a task.
 
     Parameters
@@ -200,7 +200,7 @@ async def create_task(
 
     Returns
     -------
-    Dict[str, Any]
+    dict[str, Any]
         The response.
     """
     response = await HTTPX_CLIENT.post(
@@ -267,12 +267,12 @@ async def delete_task(task_id: str, access_token: str) -> None:
     return
 
 
-async def clients_check() -> Tuple[Dict[str, Any], str]:
+async def clients_check() -> tuple[dict[str, Any], str]:
     """Check the clients API.
 
     Returns
     -------
-    Tuple[Dict[str, Any], str]
+    tuple[dict[str, Any], str]
         The new client and the first client's access token.
 
     Raises
@@ -336,23 +336,23 @@ async def cancel_task(
     response.raise_for_status()
     if response.status_code != 204:
         print(response.json())
-        if might_not_be_active is False:
+        if not might_not_be_active:
             raise AssertionError("The task should be cancelled.")
         print("It's probably ok, using fake redis")
     return
 
 
-async def tasks_check(client: Dict[str, Any]) -> Tuple[Dict[str, Any], str]:
+async def tasks_check(client: dict[str, Any]) -> tuple[dict[str, Any], str]:
     """Check the tasks API.
 
     Parameters
     ----------
-    client : Dict[str, Any]
+    client : dict[str, Any]
         The client.
 
     Returns
     -------
-    Tuple[Dict[str, Any], str]
+    tuple[dict[str, Any], str]
         The task and the tasks access token.
 
     Raises
@@ -440,13 +440,13 @@ async def send_user_input(
 
 # pylint: disable=too-complex
 async def task_status_check(  # noqa
-    task: Dict[str, Any], tasks_access_token: str
+    task: dict[str, Any], tasks_access_token: str
 ) -> None:
     """Check the task status.
 
     Parameters
     ----------
-    task : Dict[str, Any]
+    task : dict[str, Any]
         The task (initially pending).
     tasks_access_token : str
         The tasks access token.
@@ -572,7 +572,7 @@ async def handle_one_task(
     tasks_access_token: str,
     example_flow_path: Path,
     input_timeout: int,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Handle one task.
     Parameters
     ----------
@@ -585,7 +585,7 @@ async def handle_one_task(
 
     Returns
     -------
-    Dict[str, Any]
+    dict[str, Any]
         The task.
 
     Raises

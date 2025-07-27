@@ -3,6 +3,8 @@
 
 # pylint: disable=missing-param-doc,missing-return-doc,missing-yield-doc
 # pylint: disable=too-few-public-methods,protected-access
+# pyright: reportPrivateUsage=false
+
 """Test waldiez_runner.dependencies.auth.jwks*."""
 
 import asyncio

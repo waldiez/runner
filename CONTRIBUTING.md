@@ -36,7 +36,7 @@ We currently support three development modes:
   ```
 
 - `.devcontainer/` (VS Code)
-  Runs Redis, PostgreSQL, and the API server in containers via [compose.yaml](./devcontainer/compose.yaml).
+  Runs Redis, PostgreSQL, and the API server in containers via [compose.yaml](./.devcontainer/compose.yaml).
 
 > [!TIP]
 > If switching between a containerized environment and a local one, we should make sure the automatically generated (.gitignored) .env file has the correct hosts for the redis and db hosts and the boolean flags for enabling or not redis and postgresql. We can call `python3 scripts/toggle.py` (or `make toggle`) to toggle between the two environments. This will also update the .env file with the correct values.

@@ -4,7 +4,7 @@
 
 import asyncio
 import time
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
@@ -26,7 +26,7 @@ class JWKSCache:
         """
         self.settings = settings
         self.cache_ttl = settings.oidc_jwks_cache_ttl
-        self._cache: Dict[str, Any] | None = None
+        self._cache: dict[str, Any] | None = None
         self._cache_expiry = 0.0
         self._lock = asyncio.Lock()
         if settings.use_oidc_auth and not settings.oidc_jwks_url:
@@ -37,12 +37,12 @@ class JWKSCache:
             limits=httpx.Limits(max_keepalive_connections=5),
         )
 
-    async def get_keys(self) -> Dict[str, Any]:
+    async def get_keys(self) -> dict[str, Any]:
         """Get JWKS keys, refresh cache if expired (async-safe).
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The JWKS keys.
         """
         # Fast path: use cache if still valid

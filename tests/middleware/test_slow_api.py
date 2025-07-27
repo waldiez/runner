@@ -2,10 +2,10 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
 # pylint: disable=missing-return-doc,missing-return-type-doc,missing-param-doc
+# pyright: reportUnusedFunction=false,reportUnknownMemberType=false
+# pyright: reportUntypedFunctionDecorator=false
 
 """Tests for the rate limiter middleware."""
-
-from typing import Dict
 
 import pytest
 from fastapi import FastAPI, Request
@@ -26,14 +26,16 @@ def app_fixture() -> FastAPI:
     add_rate_limiter(app)
 
     # pylint: disable=unused-argument
+    # noinspection PyUnusedLocal
     @app.get("/limited")
     @limiter.limit("3/minute")
-    async def limited_endpoint(request: Request) -> Dict[str, str]:
+    async def limited_endpoint(request: Request) -> dict[str, str]:
         """Limited endpoint."""
         return {"message": "Success"}
 
+    # noinspection PyUnusedLocal
     @app.get("/unlimited")
-    async def unlimited_endpoint(request: Request) -> Dict[str, str]:
+    async def unlimited_endpoint(request: Request) -> dict[str, str]:
         """Unlimited endpoint."""
         return {"message": "No limit"}
 
@@ -55,20 +57,20 @@ def test_get_real_ip() -> None:
 
         def __init__(
             self,
-            headers: Dict[str, str] | None = None,
+            headers: dict[str, str] | None = None,
             client_host: str | None = None,
         ) -> None:
             """Initialize the mock request."""
             self.headers = headers or {}
             self.client = type("Client", (), {"host": client_host})
 
-    headers = {
+    request_headers = {
         "X-Forwarded-For": "192.168.1.1, 10.0.0.1",
         "X-Real-IP": "10.0.0.2",
     }
 
     request = MockRequest(
-        headers=headers,
+        headers=request_headers,
         client_host="127.0.0.1",
     )
     assert get_real_ip(request) == "192.168.1.1"  # type: ignore

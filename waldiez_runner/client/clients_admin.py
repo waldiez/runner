@@ -2,7 +2,7 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 """Waldiez serve client admin."""
 
-from typing import Any, Callable, Coroutine, Dict, List
+from typing import Any, Callable, Coroutine
 
 from ._clients_api import ClientsAPIClient
 from .client_base import BaseClient
@@ -16,6 +16,7 @@ from .models import (
 )
 
 
+# noinspection DuplicatedCode
 class ClientsAdmin(BaseClient):
     """Client admin class.
     For interacting with /clients endpoints.
@@ -121,13 +122,13 @@ class ClientsAdmin(BaseClient):
 
     def list_clients(
         self,
-        params: ClientItemsRequest | Dict[str, Any] | None = None,
+        params: ClientItemsRequest | dict[str, Any] | None = None,
     ) -> ClientItemsResponse:
         """Retrieve the list of clients synchronously.
 
         Parameters
         ----------
-        params : ClientItemsRequest | Dict[str, Any] | None, optional
+        params : ClientItemsRequest | dict[str, Any] | None, optional
             The request (pagination) parameters, by default None
             If None, defaults to ClientItemsRequest with default values
 
@@ -141,7 +142,7 @@ class ClientsAdmin(BaseClient):
             If the client is not configured
         """
         self._ensure_configured()
-        params_dict: Dict[str, Any] | None
+        params_dict: dict[str, Any] | None
         if params is None:
             params_dict = None
         elif isinstance(params, dict):
@@ -177,13 +178,13 @@ class ClientsAdmin(BaseClient):
 
     def create_client(
         self,
-        client_data: ClientCreateRequest | Dict[str, Any],
+        client_data: ClientCreateRequest | dict[str, Any],
     ) -> ClientCreateResponse:
         """Create a new client synchronously.
 
         Parameters
         ----------
-        client_data : ClientCreateRequest | Dict[str, Any]
+        client_data : ClientCreateRequest | dict[str, Any]
             The client data
 
         Returns
@@ -264,18 +265,18 @@ class ClientsAdmin(BaseClient):
 
     def delete_clients(
         self,
-        ids: List[str] | None = None,
-        audiences: List[ClientAudience] | None = None,
+        ids: list[str] | None = None,
+        audiences: list[ClientAudience] | None = None,
     ) -> None:
         """Delete multiple clients synchronously.
 
         Parameters
         ----------
-        ids : List[str] | None, optional
+        ids : list[str] | None, optional
             The client IDs to filter for deletion.
             If None, all clients will be deleted.
             (not the one used for this request)
-        audiences : List[ClientAudience] | None, optional
+        audiences : list[ClientAudience] | None, optional
             The audiences to filter for deletion.
             If None, all clients will be deleted.
             (not the one used for this request) )
@@ -329,13 +330,13 @@ class ClientsAdmin(BaseClient):
 
     async def a_create_client(
         self,
-        client_data: ClientCreateRequest | Dict[str, Any],
+        client_data: ClientCreateRequest | dict[str, Any],
     ) -> ClientCreateResponse:
         """Create a new client asynchronously.
 
         Parameters
         ----------
-        client_data : Dict[str, Any]
+        client_data : dict[str, Any]
             The client data
 
         Returns
@@ -411,18 +412,18 @@ class ClientsAdmin(BaseClient):
 
     async def a_delete_clients(
         self,
-        ids: List[str] | None = None,
-        audiences: List[str] | None = None,
+        ids: list[str] | None = None,
+        audiences: list[str] | None = None,
     ) -> None:
         """Delete multiple clients asynchronously.
 
         Parameters
         ----------
-        ids : List[str] | None, optional
+        ids : list[str] | None, optional
             The client IDs to filter for deletion.
             If None, all clients will be deleted.
             (not the one used for this request)
-        audiences : List[str] | None, optional
+        audiences : list[str] | None, optional
             The audiences to filter.
 
         Raises

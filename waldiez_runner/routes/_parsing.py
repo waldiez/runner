@@ -1,10 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
+# pyright: reportUnknownVariableType=false,reportUnknownArgumentType=false
+# pyright: reportUnknownMemberType=false
+
 """Message parsing utilities for Faststream Redis integration."""
 
 import json
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from faststream.redis.fastapi import RedisMessage
 
@@ -14,7 +17,7 @@ LOG = logging.getLogger(__name__)
 def parse_message(
     message: RedisMessage,
     skip_message_id: bool,
-) -> Dict[str, Any] | List[Dict[str, Any]] | None:
+) -> dict[str, Any] | list[dict[str, Any]] | None:
     """Parse a Redis message into a serializable format.
 
     Parameters
@@ -25,7 +28,7 @@ def parse_message(
         Whether to skip the message ID.
     Returns
     -------
-    Dict[str, Any] | List[Dict[str, Any]] | None
+    dict[str, Any] | list[dict[str, Any]] | None
         The parsed message, or None if parsing failed.
     """
     decoded = _get_data_from_raw_message(message)
@@ -43,7 +46,7 @@ def parse_message(
 
 def parse_task_results(
     message: RedisMessage,
-) -> Tuple[Dict[str, Any] | List[Dict[str, Any]] | None, bool]:
+) -> tuple[dict[str, Any] | list[dict[str, Any]] | None, bool]:
     """Parse task results from a Redis message.
 
     Parameters
@@ -52,7 +55,7 @@ def parse_task_results(
         The Redis message.
     Returns
     -------
-    Tuple[Dict[str, Any] | List[Dict[str, Any]] | None, bool]
+    tuple[dict[str, Any] | list[dict[str, Any]] | None, bool]
         The parsed task results and a flag indicating if the message was
         malformed.
     """
@@ -93,7 +96,7 @@ def is_valid_user_input(payload: Any) -> bool:
     )
 
 
-def _get_data_from_raw_message(message: RedisMessage) -> Dict[str, Any] | None:
+def _get_data_from_raw_message(message: RedisMessage) -> dict[str, Any] | None:
     """Get the data from a raw Redis message."""
     raw = getattr(message, "raw_message", None)
     if raw is None:
@@ -111,7 +114,7 @@ def _get_data_from_raw_message(message: RedisMessage) -> Dict[str, Any] | None:
     return _decode_thing(raw)
 
 
-def _extract_message_id(decoded: Dict[str, Any]) -> str | None:
+def _extract_message_id(decoded: dict[str, Any]) -> str | None:
     """Extract message_id from decoded message."""
     message_id = decoded.get("message_id")
     if isinstance(message_id, bytes):
@@ -121,7 +124,7 @@ def _extract_message_id(decoded: Dict[str, Any]) -> str | None:
 
     message_ids = decoded.get("message_ids")
     if isinstance(message_ids, list) and message_ids:
-        item = message_ids[0]
+        item = message_ids[0]  # pyright: ignore
         if isinstance(item, bytes):
             return item.decode("utf-8")
         if isinstance(item, str):
@@ -130,9 +133,9 @@ def _extract_message_id(decoded: Dict[str, Any]) -> str | None:
 
 
 def _extract_message_data(
-    decoded: Dict[str, Any],
+    decoded: dict[str, Any],
     message_id: str | None,
-) -> Dict[str, Any] | List[Dict[str, Any]] | None:
+) -> dict[str, Any] | list[dict[str, Any]] | None:
     """Extract and decode the message data."""
     message_data = decoded.get("data")
     if not isinstance(message_data, (dict, list)):

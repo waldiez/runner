@@ -115,7 +115,7 @@ def run_process(
     subprocess.Popen
         The process.
     """
-    if skip_redis is True:
+    if skip_redis:
         os.environ[f"{ENV_PREFIX}NO_REDIS"] = "true"
         os.environ[f"{ENV_PREFIX}REDIS"] = "false"
     return subprocess.Popen(
@@ -442,15 +442,16 @@ def start_all(
     ]
 
     # pylint: disable=unused-argument
+    # noinspection PyUnusedLocal
     def shutdown_all(signum: int, frame: FrameType | None) -> None:
         print("\n[DEV] Shutting down all subprocesses...")
-        for proc in processes:
-            if proc.poll() is None:
-                proc.terminate()
+        for process in processes:
+            if process.poll() is None:
+                process.terminate()
                 try:
-                    proc.wait(timeout=2)
+                    process.wait(timeout=2)
                 except subprocess.TimeoutExpired:
-                    proc.kill()
+                    process.kill()
         sys.exit(0)
 
     # Register shutdown

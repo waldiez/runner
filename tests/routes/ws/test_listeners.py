@@ -7,7 +7,7 @@
 
 import asyncio
 import json
-from typing import Any, Coroutine, Dict, List
+from typing import Any, Coroutine
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -111,16 +111,16 @@ async def test_stream_history_and_live(monkeypatch: pytest.MonkeyPatch) -> None:
     redis = AsyncMock()
     manager = MagicMock()
 
-    calls: List[Dict[str, Any]] = []
+    calls: list[dict[str, Any]] = []
 
     async def fake_broadcast(
-        msg: Dict[str, Any], skip_queue: bool = False
+        msg: dict[str, Any], skip_queue: bool = False
     ) -> None:
         calls.append(msg)
 
     manager.broadcast = fake_broadcast
 
-    scheduled_tasks: List[Coroutine[None, None, None]] = []
+    scheduled_tasks: list[Coroutine[None, None, None]] = []
 
     # Instead of returning the coroutine, we store it to run it ourselves
     def fake_create_task(

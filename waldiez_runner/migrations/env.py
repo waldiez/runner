@@ -11,6 +11,7 @@ from alembic import context
 from alembic.config import Config
 from sqlalchemy import engine_from_config, pool
 
+# pylint: disable=import-error
 from waldiez_runner.config.settings_manager import SettingsManager
 from waldiez_runner.models import *  # noqa
 from waldiez_runner.models.common import Base

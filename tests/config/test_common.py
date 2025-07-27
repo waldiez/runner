@@ -11,8 +11,10 @@ from typing import Generator
 
 import pytest
 
+# noinspection PyProtectedMember
 from waldiez_runner.config._common import ENV_PREFIX, get_value
 
+# noinspection DuplicatedCode
 THIS_FILE = Path(__file__).resolve()
 
 

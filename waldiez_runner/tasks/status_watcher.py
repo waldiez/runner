@@ -17,8 +17,10 @@ import json
 import logging
 import os
 import signal
+
+# noinspection PyProtectedMember
 from asyncio.subprocess import Process
-from typing import Any, Dict, List, TypedDict
+from typing import Any, TypedDict
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,11 +48,12 @@ class ParsedStatus(TypedDict, total=False):
 
     status: TaskStatus
     input_request_id: str | None
-    results: Dict[str, Any] | List[Dict[str, Any]] | None
+    results: dict[str, Any] | list[dict[str, Any]] | None
     should_terminate: bool
 
 
-def load_redis_message_dict(raw_data: str | bytes) -> Dict[str, Any] | None:
+# noinspection PyBroadException
+def load_redis_message_dict(raw_data: str | bytes) -> dict[str, Any] | None:
     """Load the message we received from redis.
 
     Parameters
@@ -60,7 +63,7 @@ def load_redis_message_dict(raw_data: str | bytes) -> Dict[str, Any] | None:
 
     Returns
     -------
-    Dict[str, Any] | None
+    dict[str, Any] | None
         The loaded message.
     """
     try:
@@ -182,6 +185,7 @@ async def watch_status_and_cancel_if_needed(
             except Exception as e:
                 LOG.warning("Failed to update task %s in DB: %s", task_id, e)
 
+            # noinspection PySimplifyBooleanCheck
             if parsed.get("should_terminate") is True:
                 await terminate_process(process)
                 return signal.SIGTERM
@@ -196,8 +200,6 @@ async def watch_status_and_cancel_if_needed(
     finally:
         await pubsub.unsubscribe(channel)
         await pubsub.close()
-
-    return 0
 
 
 async def terminate_process(process: Process) -> None:

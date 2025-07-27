@@ -11,7 +11,7 @@ import sys
 import traceback
 from pathlib import Path
 from types import FrameType
-from typing import Any, Dict, List
+from typing import Any
 
 from faststream import FastStream
 from faststream.redis import RedisBroker
@@ -28,6 +28,7 @@ LOG = logging.getLogger(__name__)
 
 
 # pylint: disable=unused-argument
+# noinspection PyUnusedLocal
 def shutdown(signum: int, frame: FrameType | None) -> None:
     """Handle shutdown signals.
 
@@ -55,12 +56,12 @@ async def run(params: TaskParams) -> None:
     status_channel = f"task:{params.task_id}:status"
 
     @broker.subscriber(channel=status_channel)
-    async def status_handler(message: Dict[str, Any]) -> None:
+    async def status_handler(message: dict[str, Any]) -> None:
         """Handle status messages.
 
         Parameters
         ----------
-        message : str
+        message : dict[str, Any]
             The message received.
         """
         LOG.info("Received status message: %s", message)
@@ -76,7 +77,7 @@ async def run(params: TaskParams) -> None:
         },
         status_channel,
     )
-    task_status: Dict[str, Any] = {
+    task_status: dict[str, Any] = {
         "task_id": params.task_id,
     }
     # pylint: disable=too-many-try-statements
@@ -123,18 +124,18 @@ async def run(params: TaskParams) -> None:
 
 
 def check_results(
-    results: Dict[str, Any] | List[Dict[str, Any]],
-) -> Dict[str, Any]:
+    results: dict[str, Any] | list[dict[str, Any]],
+) -> dict[str, Any]:
     """Check the results of the flow execution.
 
     Parameters
     ----------
-    results : Dict[str, Any]
+    results : dict[str, Any] | list[dict[str, Any]]
         The results of the flow execution.
 
     Returns
     -------
-    Dict[str, Any]
+    dict[str, Any]
         The checked results.
     """
     if isinstance(results, dict) and "error" in results:

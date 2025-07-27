@@ -4,7 +4,7 @@
 
 import json
 import logging
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 
 import httpx
 from fastapi import HTTPException
@@ -17,12 +17,12 @@ class ExternalTokenResponse(BaseModel):
     """Response from external token verification."""
 
     valid: bool
-    user_info: Dict[str, Any] = {}
+    user_info: dict[str, Any] = {}
 
 
 async def verify_external_token(
     token: str, verify_url: str, secret: str = ""
-) -> Tuple[Optional[ExternalTokenResponse], Optional[BaseException]]:
+) -> tuple[Optional[ExternalTokenResponse], Optional[BaseException]]:
     """Verify an external token by sending it to a verification endpoint.
 
     Parameters
@@ -36,7 +36,7 @@ async def verify_external_token(
 
     Returns
     -------
-    Tuple[Optional[ExternalTokenResponse], Optional[BaseException]]
+    tuple[Optional[ExternalTokenResponse], Optional[BaseException]]
         A tuple containing the verification response (if successful) and an
         exception (if verification failed)
     """

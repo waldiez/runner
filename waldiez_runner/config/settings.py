@@ -5,7 +5,7 @@
 
 import logging
 import os
-from typing import Any, List, Optional, Tuple
+from typing import Any, Optional
 
 from dotenv import load_dotenv
 from pydantic import (
@@ -103,10 +103,10 @@ class Settings(BaseSettings):
     domain_name: str = get_default_domain_name()
     max_jobs: Annotated[int, Field(ge=1, le=100)] = get_max_jobs()
     force_ssl: bool = get_force_ssl()
-    trusted_hosts: str | List[str] = get_trusted_hosts(
+    trusted_hosts: str | list[str] = get_trusted_hosts(
         domain_name=domain_name, host=host
     )
-    trusted_origins: str | List[str] = get_trusted_origins(
+    trusted_origins: str | list[str] = get_trusted_origins(
         domain_name=domain_name,
         port=port,
         force_ssl=force_ssl,
@@ -200,7 +200,7 @@ class Settings(BaseSettings):
         str
             The Redis URL
         """
-        if self.redis is False:
+        if not self.redis:
             return None
         if self.redis_url:
             return self.redis_url
@@ -266,7 +266,7 @@ class Settings(BaseSettings):
         str
             The database URL
         """
-        if self.postgres is False:
+        if not self.postgres:
             name_prefix = ENV_PREFIX.lower()
             db_name = f"{name_prefix}database.sqlite3"
             if self.is_testing() and not skip_test_check:
@@ -349,7 +349,7 @@ class Settings(BaseSettings):
             If a required environment variable
             is not set or is invalid
         """
-        env_items: List[Tuple[str, Any]] = []
+        env_items: list[tuple[str, Any]] = []
         for key, value in self.model_dump().items():
             key_upper = key.upper()
             env_key = f"{ENV_PREFIX}{key_upper}"
@@ -412,6 +412,7 @@ class Settings(BaseSettings):
         return env_value
 
     # pylint: disable=unused-argument
+    # noinspection PyUnusedLocal,PyNestedDecorators
     @field_validator("log_level", mode="before")
     @classmethod
     def validate_log_level(cls, value: Any, info: ValidationInfo) -> Any:
@@ -433,9 +434,10 @@ class Settings(BaseSettings):
             return value.upper()
         return value  # pragma: no cover
 
+    # noinspection PyUnusedLocal,PyNestedDecorators
     @field_validator("trusted_hosts", "trusted_origins", mode="before")
     @classmethod
-    def split_str_value(cls, value: Any, info: ValidationInfo) -> List[str]:
+    def split_str_value(cls, value: Any, info: ValidationInfo) -> list[str]:
         """Split the value if it is a string.
 
         Parameters
@@ -447,7 +449,7 @@ class Settings(BaseSettings):
 
         Returns
         -------
-        List[str]
+        list[str]
             The value as a list
         """
         if isinstance(value, str):
@@ -473,7 +475,7 @@ class Settings(BaseSettings):
         ValueError
             If the OIDC settings are invalid
         """
-        if self.use_oidc_auth is False:
+        if not self.use_oidc_auth:
             return self
         if not self.oidc_issuer_url:
             raise ValueError("OIDC issuer URL is required")

@@ -137,5 +137,5 @@ def get_redis_url() -> str | None:
     str | None
         The Redis URL
     """
-    value = get_value("--redis-url", "REDIS_URL", str, None)
+    value = get_value("--redis-url", "REDIS_URL", str, "")
     return value if value else None

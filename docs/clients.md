@@ -9,10 +9,10 @@ All interactions with the API or WebSocket require a valid token linked to a spe
 
 There are two types of clients, each associated with a specific **audience**:
 
-| Audience       | Description                                | Scope              |
-|----------------|--------------------------------------------|---------------------|
-| `clients-api`  | Manages other clients                      | `/api/v1/clients/*` |
-| `tasks-api`    | Submits and interacts with tasks           | `/api/v1/tasks/*`, `/ws/{task_id}` |
+| Audience      | Description                      | Scope                              |
+|---------------|----------------------------------|------------------------------------|
+| `clients-api` | Manages other clients            | `/api/v1/clients/*`                |
+| `tasks-api`   | Submits and interacts with tasks | `/api/v1/tasks/*`, `/ws/{task_id}` |
 
 ---
 
@@ -86,7 +86,7 @@ JSON body:
 ```json
 {
     "refresh_token": "...",
-    "audience": "tasks-api" // optional
+    "audience": "tasks-api"
 }
 ```
 

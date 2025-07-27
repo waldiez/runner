@@ -6,6 +6,7 @@
 """Test waldiez_runner.tasks.schedule module."""
 
 import os
+from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -49,6 +50,7 @@ async def test_cleanup_old_tasks(
     mock_storage = MagicMock()
     mock_db_session = AsyncMock()
 
+    # noinspection PyUnusedLocal
     async def get_tasks_to_delete(*args: Any, **kwargs: Any) -> Page[Task]:
         """Return tasks to delete."""
         default_params = Params(page=1, size=100)
@@ -61,14 +63,14 @@ async def test_cleanup_old_tasks(
                     Task(
                         id="get_tasks_to_delete1",
                         client_id="client1",
-                        created_at="2024-01-01T00:00:00",
-                        updated_at="2024-01-01T00:00:00",
+                        created_at=datetime.now(tz=timezone.utc),
+                        updated_at=datetime.now(tz=timezone.utc),
                     ),
                     Task(
                         id="get_tasks_to_delete2",
                         client_id="client2",
-                        created_at="2024-02-01T00:00:00",
-                        updated_at="2024-01-01T00:00:00",
+                        created_at=datetime.now(tz=timezone.utc),
+                        updated_at=datetime.now(tz=timezone.utc),
                     ),
                 ],
                 page=1,
@@ -82,6 +84,7 @@ async def test_cleanup_old_tasks(
     mock_delete_folder = AsyncMock()
     mock_storage.delete_folder = mock_delete_folder
 
+    # noinspection PyTypeChecker
     await cleanup_old_tasks(db_session=mock_db_session, storage=mock_storage)
 
     assert mock_get_tasks_to_delete.await_count == 2
@@ -106,6 +109,7 @@ async def test_check_stuck_tasks(
     mock_storage = MagicMock()
     mock_db_session = AsyncMock()
 
+    # noinspection PyUnusedLocal
     async def get_stuck_tasks(*args: Any, **kwargs: Any) -> Page[Task]:
         """Return tasks to check."""
         default_params = Params(page=1, size=100)
@@ -118,29 +122,29 @@ async def test_check_stuck_tasks(
                     Task(
                         id="test_check_stuck_tasks1",
                         client_id="client1",
-                        created_at="2024-01-01T00:00:00",
-                        updated_at="2024-01-01T00:00:00",
+                        created_at=datetime.now(tz=timezone.utc),
+                        updated_at=datetime.now(tz=timezone.utc),
                         results={"key": "value"},
                     ),
                     Task(
                         id="test_check_stuck_tasks2",
                         client_id="client2",
-                        created_at="2024-02-01T00:00:00",
-                        updated_at="2024-01-01T00:00:00",
+                        created_at=datetime.now(tz=timezone.utc),
+                        updated_at=datetime.now(tz=timezone.utc),
                         results=None,
                     ),
                     Task(
                         id="test_check_stuck_tasks3",
                         client_id="client3",
-                        created_at="2024-01-01T00:00:00",
-                        updated_at="2024-01-01T00:00:00",
+                        created_at=datetime.now(tz=timezone.utc),
+                        updated_at=datetime.now(tz=timezone.utc),
                         results={"key": "value"},
                     ),
                     Task(
                         id="test_check_stuck_tasks4",
                         client_id="client4",
-                        created_at="2024-02-01T00:00:00",
-                        updated_at="2024-01-01T00:00:00",
+                        created_at=datetime.now(tz=timezone.utc),
+                        updated_at=datetime.now(tz=timezone.utc),
                         results={"error": "Something went wrong"},
                     ),
                 ],
@@ -160,6 +164,7 @@ async def test_check_stuck_tasks(
     mock_storage.list_files = mock_list_files
     mock_get_stuck_tasks.side_effect = get_stuck_tasks
 
+    # noinspection PyTypeChecker
     await check_stuck_tasks(db_session=mock_db_session, storage=mock_storage)
 
     assert mock_get_stuck_tasks.await_count == 2
@@ -226,7 +231,10 @@ async def test_trim_old_stream_entries(
     """Test trimming old stream entries."""
     stream_name = "task:test_trim_old_stream_entries:output"
     for i in range(10):
-        await a_fake_redis.xadd(stream_name, {"key": f"value{i}"})
+        await a_fake_redis.xadd(  # pyright: ignore[reportUnknownMemberType]
+            stream_name,
+            {"key": f"value{i}"},
+        )
     assert await a_fake_redis.xlen(stream_name) == 10
     manager = make_redis_manager_ctx(a_fake_redis)
     await trim_old_stream_entries(

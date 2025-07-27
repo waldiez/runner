@@ -5,7 +5,6 @@
 """Test waldiez_runner.config.settings.*."""
 
 import os
-from typing import List, Tuple
 from unittest.mock import patch
 
 import pytest
@@ -40,6 +39,7 @@ def test_env_override() -> None:
     assert settings.port == 9999
 
 
+# noinspection HttpUrlsUsage
 @pytest.mark.parametrize(
     "input_value,expected",
     [
@@ -48,7 +48,7 @@ def test_env_override() -> None:
         ("", []),
     ],
 )
-def test_trusted_origins_parsing(input_value: str, expected: List[str]) -> None:
+def test_trusted_origins_parsing(input_value: str, expected: list[str]) -> None:
     """Test trusted_origins parsing from string to list."""
     settings = Settings(trusted_origins=input_value)
     assert settings.trusted_origins == expected
@@ -92,7 +92,7 @@ def test_get_redis_url(
     redis_enabled: bool,
     redis_url: str,
     redis_password: str | None,
-    expected_urls: Tuple[str | None, str | None],
+    expected_urls: tuple[str | None, str | None],
 ) -> None:
     """Test Redis URL generation logic."""
     settings = Settings(
@@ -166,7 +166,7 @@ def test_get_database_url_not_testing(
 def test_generate_database_url(
     postgres_enabled: bool,
     db_url: str | None,
-    expected_urls: Tuple[str | None, str | None],
+    expected_urls: tuple[str | None, str | None],
 ) -> None:
     """Test database URL generation logic."""
     settings = Settings(

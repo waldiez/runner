@@ -9,7 +9,7 @@ import asyncio
 import logging
 import threading
 import time
-from typing import Any, Callable, Coroutine, Dict
+from typing import Any, Callable, Coroutine
 
 import websockets.asyncio.client
 import websockets.sync.client
@@ -51,12 +51,12 @@ class SyncWebSocketClient:
         )
         self.listener_thread: threading.Thread | None = None
 
-    def _get_headers(self) -> Dict[str, str]:
+    def _get_headers(self) -> dict[str, str]:
         """Get the headers to use for the WebSocket connection.
 
         Returns
         -------
-        Dict[str, str]
+        dict[str, str]
             The headers to use for the WebSocket connection
         """
         return {"Authorization": f"Bearer {self.auth.sync_get_token()}"}
@@ -284,7 +284,7 @@ class AsyncWebSocketClient:
         )
         self.listener_task: asyncio.Task[Any] | None = None
 
-    async def _get_headers(self) -> Dict[str, str]:
+    async def _get_headers(self) -> dict[str, str]:
         """Get the headers to use for the WebSocket connection."""
         return {"Authorization": f"Bearer {await self.auth.async_get_token()}"}
 

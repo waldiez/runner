@@ -3,26 +3,27 @@
 #
 """Tasks API client implementation."""
 
-from typing import Any, Dict, List
+from typing import Any
 
 import httpx
 
 from ._api_base import BaseAPIClient
 
 
+# noinspection DuplicatedCode
 class TasksAPIClient(BaseAPIClient):
     """Tasks API client."""
 
     url_prefix = "/api/v1/tasks"
 
     def list_tasks(
-        self, params: Dict[str, Any] | None = None
-    ) -> Dict[str, Any]:
+        self, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """List all tasks.
 
         Parameters
         ----------
-        params : Dict[str, Any] | None
+        params : dict[str, Any] | None
             The query parameters to filter the tasks
             like for pagination, status, etc.
             (default: None)
@@ -55,7 +56,7 @@ class TasksAPIClient(BaseAPIClient):
 
     def create_task(
         self, file_data: bytes, file_name: str, input_timeout: int = 180
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Trigger a task.
         Parameters
         ----------
@@ -68,7 +69,7 @@ class TasksAPIClient(BaseAPIClient):
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The response JSON
 
         Raises
@@ -94,7 +95,7 @@ class TasksAPIClient(BaseAPIClient):
             raise e
         return response.json()
 
-    def get_task(self, task_id: str) -> Dict[str, Any]:
+    def get_task(self, task_id: str) -> dict[str, Any]:
         """Retrieve the status of a task.
 
         Parameters
@@ -104,7 +105,7 @@ class TasksAPIClient(BaseAPIClient):
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The response JSON
 
         Raises
@@ -129,19 +130,19 @@ class TasksAPIClient(BaseAPIClient):
             raise e
         return response.json()
 
-    def update_task(self, task_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    def update_task(self, task_id: str, data: dict[str, Any]) -> dict[str, Any]:
         """Update a task.
 
         Parameters
         ----------
         task_id : str
             The task ID
-        data : Dict[str, Any]
+        data : dict[str, Any]
             The data to update
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The response JSON
 
         Raises
@@ -240,7 +241,7 @@ class TasksAPIClient(BaseAPIClient):
             raise e
         return response.content
 
-    def cancel_task(self, task_id: str) -> Dict[str, Any]:
+    def cancel_task(self, task_id: str) -> dict[str, Any]:
         """Cancel or delete a task.
 
         Parameters
@@ -250,7 +251,7 @@ class TasksAPIClient(BaseAPIClient):
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The response JSON
 
         Raises
@@ -309,13 +310,13 @@ class TasksAPIClient(BaseAPIClient):
             raise e
 
     def delete_tasks(
-        self, ids: List[str] | None = None, force: bool = False
+        self, ids: list[str] | None = None, force: bool = False
     ) -> None:
         """Delete all tasks for the client.
 
         Parameters
         ----------
-        ids : List[str] | None
+        ids : list[str] | None
             The task IDs to delete (default: None)
             If None, all tasks will be deleted.
         force : bool
@@ -351,20 +352,20 @@ class TasksAPIClient(BaseAPIClient):
             raise e
 
     async def a_list_tasks(
-        self, params: Dict[str, Any] | None = None
-    ) -> Dict[str, Any]:
+        self, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """List all tasks asynchronously.
 
         Parameters
         ----------
-        params : Dict[str, Any] | None
+        params : dict[str, Any] | None
             The query parameters to filter the tasks
             like for pagination, status, etc.
             (default: None)
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The response JSON
 
         Raises
@@ -395,7 +396,7 @@ class TasksAPIClient(BaseAPIClient):
         file_data: bytes,
         file_name: str,
         input_timeout: int = 180,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Trigger a task asynchronously.
 
         Parameters
@@ -409,7 +410,7 @@ class TasksAPIClient(BaseAPIClient):
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The response JSON
 
         Raises
@@ -435,7 +436,7 @@ class TasksAPIClient(BaseAPIClient):
             raise e
         return response.json()
 
-    async def a_get_task(self, task_id: str) -> Dict[str, Any]:
+    async def a_get_task(self, task_id: str) -> dict[str, Any]:
         """Retrieve the status of a task asynchronously.
 
         Parameters
@@ -445,7 +446,7 @@ class TasksAPIClient(BaseAPIClient):
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The response JSON
 
         Raises
@@ -471,20 +472,20 @@ class TasksAPIClient(BaseAPIClient):
         return response.json()
 
     async def a_update_task(
-        self, task_id: str, data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, task_id: str, data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Update a task asynchronously.
 
         Parameters
         ----------
         task_id : str
             The task ID
-        data : Dict[str, Any]
+        data : dict[str, Any]
             The data to update
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The response JSON
 
         Raises
@@ -583,7 +584,7 @@ class TasksAPIClient(BaseAPIClient):
             raise e
         return response.content
 
-    async def a_cancel_task(self, task_id: str) -> Dict[str, Any]:
+    async def a_cancel_task(self, task_id: str) -> dict[str, Any]:
         """Cancel or delete a task asynchronously.
 
         Parameters
@@ -593,7 +594,7 @@ class TasksAPIClient(BaseAPIClient):
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             The response JSON
 
         Raises
@@ -652,13 +653,13 @@ class TasksAPIClient(BaseAPIClient):
             raise e
 
     async def a_delete_tasks(
-        self, ids: List[str] | None = None, force: bool = False
+        self, ids: list[str] | None = None, force: bool = False
     ) -> None:
         """Delete all tasks for the client asynchronously.
 
         Parameters
         ----------
-        ids : List[str] | None
+        ids : list[str] | None
             The task IDs to delete (default: None)
             If None, all tasks will be deleted.
         force : bool

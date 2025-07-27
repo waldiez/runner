@@ -2,6 +2,7 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 # flake8: noqa: E501
 # pylint: disable=missing-param-doc,missing-return-doc,protected-access
+# pyright: reportPrivateUsage=false,reportOptionalMemberAccess=false
 """Test waldiez_runner.client._tasks_api.*."""
 
 import asyncio
@@ -10,6 +11,7 @@ import httpx
 import pytest
 from pytest_httpx import HTTPXMock
 
+# noinspection PyProtectedMember
 from waldiez_runner.client._tasks_api import TasksAPIClient
 from waldiez_runner.client.auth import Auth
 

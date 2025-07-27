@@ -4,7 +4,7 @@
 """Authentication related functions for dependencies."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 import jwt
 import jwt.algorithms
@@ -36,10 +36,10 @@ LOG = logging.getLogger(__name__)
 def decode_local_jwt(
     token: str,
     settings: "Settings",
-    audience: str | List[str] | None,
+    audience: str | list[str] | None,
     verify_aud: bool = True,
     leeway: float = 30,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Decode local HS256 JWT.
 
     Parameters
@@ -48,15 +48,16 @@ def decode_local_jwt(
         The JWT token.
     settings : Settings
         The settings instance.
-    audience : str | List[str] | None
+    audience : str | list[str] | None
         The expected audience.
     verify_aud : bool
         Whether to verify the audience.
     leeway : float
         The leeway in seconds.
+
     Returns
     -------
-    Dict[str, Any]
+    dict[str, Any]
         The decoded payload.
     """
     return jwt.decode(
@@ -78,7 +79,7 @@ async def decode_oidc_jwt(
     jwks_cache: JWKSCache,
     verify_aud: bool = True,
     leeway: float = 30,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Decode OIDC RS256 JWT using cached JWKS.
 
     Parameters
@@ -93,9 +94,10 @@ async def decode_oidc_jwt(
         Whether to verify the audience.
     leeway : float
         The leeway in seconds.
+
     Returns
     -------
-    Dict[str, Any]
+    dict[str, Any]
         The decoded payload.
 
     Raises
@@ -149,16 +151,16 @@ async def decode_oidc_jwt(
 
 
 async def get_client_id_from_token(
-    expected_audience: str | List[str] | None,
+    expected_audience: str | list[str] | None,
     token: str,
     settings: "Settings",
     jwks_cache: JWKSCache,
-) -> Tuple[str | None, BaseException | None]:
+) -> tuple[str | None, BaseException | None]:
     """Get the client ID from the token.
 
     Parameters
     ----------
-    expected_audience : str | List[str] | None
+    expected_audience : str | list[str] | None
         The expected audience.
     token : str
         The token.
@@ -166,9 +168,10 @@ async def get_client_id_from_token(
         The settings instance.
     jwks_cache : JWKSCache
         The JWKS cache.
+
     Returns
     -------
-    Tuple[str, BaseException | None]
+    tuple[str, BaseException | None]
         The client ID and the exception if any.
     """
     # pylint: disable=broad-exception-caught, too-many-try-statements
@@ -211,7 +214,7 @@ async def get_client_id_from_token(
 async def verify_external_auth_token(
     token: str,
     settings: "Settings",
-) -> Tuple[
+) -> tuple[
     Optional[ExternalTokenService.ExternalTokenResponse],
     Optional[BaseException],
 ]:
@@ -226,7 +229,7 @@ async def verify_external_auth_token(
 
     Returns
     -------
-    Tuple[Optional[ExternalTokenService.ExternalTokenResponse],
+    tuple[Optional[ExternalTokenService.ExternalTokenResponse],
     Optional[BaseException]]
         A tuple containing:
         - The token response object if verification succeeded, None otherwise

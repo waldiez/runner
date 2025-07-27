@@ -317,6 +317,7 @@ async def test_verify_deleted_client(
     assert verified_client is None
 
 
+# noinspection DuplicatedCode
 @pytest.mark.anyio
 async def test_get_client_in_db(
     async_session: AsyncSession,
@@ -344,6 +345,7 @@ async def test_get_nonexistent_client_in_db(
     assert client_in_db is None
 
 
+# noinspection DuplicatedCode
 @pytest.mark.anyio
 async def test_get_client_by_client_id(
     async_session: AsyncSession,

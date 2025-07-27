@@ -6,11 +6,12 @@
 
 import os
 import sys
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import patch
 
 import pytest
 
+# noinspection PyProtectedMember
 from waldiez_runner._logging import (
     ENV_PREFIX,
     get_log_level,
@@ -19,7 +20,7 @@ from waldiez_runner._logging import (
 
 
 @pytest.fixture(name="mock_logging_config")
-def mock_logging_config_fixture() -> Dict[str, Any]:
+def mock_logging_config_fixture() -> dict[str, Any]:
     """Fixture to mock the uvicorn logging configuration."""
     return {
         "formatters": {"default": {"fmt": "%(message)s"}},
@@ -31,7 +32,7 @@ def mock_logging_config_fixture() -> Dict[str, Any]:
     }
 
 
-def test_get_logging_config(mock_logging_config: Dict[str, Any]) -> None:
+def test_get_logging_config(mock_logging_config: dict[str, Any]) -> None:
     """Test the get_logging_config function."""
     with patch("uvicorn.config.LOGGING_CONFIG", mock_logging_config):
         log_level = "WARNING"

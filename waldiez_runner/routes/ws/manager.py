@@ -8,7 +8,7 @@
 import asyncio
 import logging
 import time
-from typing import Any, Dict, List
+from typing import Any
 
 from fastapi import WebSocket
 
@@ -40,9 +40,9 @@ class WsTaskManager:
         self.max_clients = max_clients
         self.queue_size = queue_size
         self.last_used = time.monotonic()
-        self.clients: List[WebSocket] = []
-        self.client_queues: Dict[WebSocket, asyncio.Queue[Dict[str, Any]]] = {}
-        self.client_tasks: Dict[WebSocket, asyncio.Task[Any]] = {}
+        self.clients: list[WebSocket] = []
+        self.client_queues: dict[WebSocket, asyncio.Queue[dict[str, Any]]] = {}
+        self.client_tasks: dict[WebSocket, asyncio.Task[Any]] = {}
 
     def add_client(self, websocket: WebSocket) -> None:
         """Add a WebSocket client if within limits.
@@ -62,7 +62,7 @@ class WsTaskManager:
                 f"Too many clients for task {self.task_id}"
             )
 
-        queue: asyncio.Queue[Dict[str, Any]] = asyncio.Queue(
+        queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(
             maxsize=self.queue_size
         )
         self.clients.append(websocket)
@@ -81,7 +81,7 @@ class WsTaskManager:
     async def websocket_writer(
         self,
         websocket: WebSocket,
-        queue: asyncio.Queue[Dict[str, Any]],
+        queue: asyncio.Queue[dict[str, Any]],
     ) -> None:
         """Sends messages from queue to the WebSocket client.
 
@@ -122,6 +122,7 @@ class WsTaskManager:
                 task.cancel()  # Stop sending messages
             if queue:
                 while not queue.empty():
+                    # noinspection PyBroadException
                     try:
                         queue.get_nowait()  # Drain queue to free memory
                     except BaseException:  # pragma: no cover
@@ -136,7 +137,7 @@ class WsTaskManager:
             pass  # Client already removed?
 
     async def broadcast(
-        self, message: Dict[str, Any], skip_queue: bool = False
+        self, message: dict[str, Any], skip_queue: bool = False
     ) -> None:
         """Broadcast a message by adding it to each client's queue.
 

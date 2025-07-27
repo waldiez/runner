@@ -60,6 +60,7 @@ def test_print_with_file_string_io(fake_redis: fakeredis.FakeRedis) -> None:
 
     output = io.StringIO()
     output.write(" Hello, World!")
+    # noinspection DuplicatedCode
     stream.print("Hello", "World", file=output)
     # also check this is published to Redis
     entries = fake_redis.xrange(f"task:{task_id}:output")
@@ -77,6 +78,7 @@ def test_print_with_file_bytes_io(fake_redis: fakeredis.FakeRedis) -> None:
 
     output = io.BytesIO()
     output.write(b" Hello, World!")
+    # noinspection DuplicatedCode
     stream.print("Hello", "World", file=output)
     # also check this is published to Redis
     entries = fake_redis.xrange(f"task:{task_id}:output")

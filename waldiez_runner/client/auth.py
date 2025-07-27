@@ -9,7 +9,7 @@ import logging
 import threading
 import urllib.parse
 from datetime import datetime, timedelta, timezone
-from typing import Any, AsyncGenerator, Callable, Coroutine, Dict, Generator
+from typing import Any, AsyncGenerator, Callable, Coroutine, Generator
 
 import httpx
 
@@ -413,12 +413,13 @@ class Auth(httpx.Auth):
             self._handle_error(f"Failed to refresh token: {response.text}")
 
     # pylint: disable=no-self-use
-    def _parse_token_response(self, data: Dict[str, Any]) -> TokensResponse:
+    # noinspection PyMethodMayBeStatic
+    def _parse_token_response(self, data: dict[str, Any]) -> TokensResponse:
         """Parse and return the token response.
 
         Parameters
         ----------
-        data : Dict[str, Any]
+        data : dict[str, Any]
             The token response data
 
         Returns
@@ -446,6 +447,7 @@ class Auth(httpx.Auth):
         audience = data.get("audience", "tasks-api")
         if audience not in ["tasks-api", "clients-api"]:
             audience = "tasks-api"
+        # noinspection PyTypeChecker
         return TokensResponse(
             access_token=data["access_token"],
             refresh_token=data["refresh_token"],

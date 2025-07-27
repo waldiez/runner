@@ -7,18 +7,18 @@ import shutil
 import subprocess  # nosemgrep # nosec
 import sys
 from pathlib import Path
-from typing import List
 
 # pylint: disable=duplicate-code  # also in ./lint.py
+# noinspection DuplicatedCode
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
 
-def run_command(args: List[str]) -> None:
+def run_command(args: list[str]) -> None:
     """Run a command.
 
     Parameters
     ----------
-    args : List[str]
+    args : list[str]
         List of arguments to pass to the command.
     """
     args_str = " ".join(args).replace(str(ROOT_DIR), ".")

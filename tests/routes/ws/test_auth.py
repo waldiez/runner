@@ -3,15 +3,18 @@
 
 # pylint: disable=missing-return-doc,missing-param-doc,too-few-public-methods
 # pylint: disable=missing-yield-doc,disable=line-too-long, unused-argument
+# pyright: reportPrivateUsage=false
 """Test waldiez_runner.routes.ws.auth.*."""
 
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import WebSocket
 
 from waldiez_runner.config import Settings
+
+# noinspection PyProtectedMember
 from waldiez_runner.routes.ws.auth import (
     _get_jwt_from_auth_header,
     _get_jwt_from_cookie,
@@ -28,9 +31,9 @@ class MockWebSocket:
 
     def __init__(
         self,
-        headers: Dict[str, Any] | None = None,
-        cookies: Dict[str, Any] | None = None,
-        query_params: Dict[str, Any] | None = None,
+        headers: dict[str, Any] | None = None,
+        cookies: dict[str, Any] | None = None,
+        query_params: dict[str, Any] | None = None,
     ) -> None:
         """Initialize the fake WebSocket object."""
         self.headers = headers or {}
@@ -160,7 +163,7 @@ async def test_get_ws_client_id_no_auth(
     ],
 )
 async def test_get_jwt_from_cookie(
-    cookies: Dict[str, str],
+    cookies: dict[str, str],
     expected_token: str | None,
 ) -> None:
     """Test JWT extraction from cookies."""
@@ -180,7 +183,7 @@ async def test_get_jwt_from_cookie(
     ],
 )
 def test_get_jwt_from_auth_header(
-    headers: Dict[str, str],
+    headers: dict[str, str],
     expected_token: str | None,
 ) -> None:
     """Test JWT extraction from Authorization header."""
@@ -200,7 +203,7 @@ def test_get_jwt_from_auth_header(
     ],
 )
 def test_get_jwt_from_subprotocol(
-    headers: Dict[str, str],
+    headers: dict[str, str],
     expected_token: str | None,
 ) -> None:
     """Test JWT extraction from WebSocket subprotocol."""
@@ -209,6 +212,7 @@ def test_get_jwt_from_subprotocol(
     assert token == expected_token
 
 
+# noinspection DuplicatedCode
 @pytest.mark.asyncio
 async def test_get_ws_client_id_with_external_auth_success() -> None:
     """Test get_ws_client_id with successful external auth."""
@@ -282,6 +286,7 @@ async def test_get_ws_client_id_with_external_auth_disabled() -> None:
     mock_verify_external.assert_not_called()
 
 
+# noinspection DuplicatedCode
 @pytest.mark.asyncio
 async def test_get_ws_client_id_with_external_auth_failure() -> None:
     """Test get_ws_client_id with external auth failure."""
@@ -320,6 +325,7 @@ async def test_get_ws_client_id_with_external_auth_failure() -> None:
     mock_verify_external.assert_called_once()
 
 
+# noinspection DuplicatedCode
 @pytest.mark.asyncio
 async def test_get_ws_client_id_external_auth_exception() -> None:
     """Test get_ws_client_id handling external auth exceptions."""

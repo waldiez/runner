@@ -61,13 +61,14 @@ class RedisManager:
             Whether to skip setting up the Redis connection, by default False.
         """
         self.settings = settings
-        if skip_setup is False:
+        if not skip_setup:
             self.setup()
         atexit.register(self._atexit_close)
 
     def _atexit_close(self) -> None:
         """Fallback sync cleanup in case async close wasn't awaited."""
         if self._pool:
+            # noinspection PyBroadException
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():

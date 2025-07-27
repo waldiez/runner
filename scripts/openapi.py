@@ -21,7 +21,7 @@ ROOT_DIR = HERE.parent.resolve()
 try:
     from _lib import ensure_not_running, start_services, wait_for_services
 except ImportError:
-    HAD_TO_MODIFY_SYS_PATH = True
+    HAD_TO_MODIFY_SYS_PATH = True  # pyright: ignore[reportConstantRedefinition]
     sys.path.insert(0, str(HERE))
     from _lib import (  # type: ignore
         ensure_not_running,
@@ -57,6 +57,7 @@ def download_openapi_json() -> bool:
             ) as response,
             open(DEST, "wb") as out,
         ):
+            # noinspection PyTypeChecker
             shutil.copyfileobj(response, out)
         response.release_conn()
         # let's check that it is a json

@@ -2,12 +2,10 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 """Client routes."""
 
-from typing import Annotated, List
-
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi_pagination import Page
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing_extensions import Literal
+from typing_extensions import Annotated, Literal
 
 from waldiez_runner.dependencies import (
     CLIENT_API_AUDIENCE,
@@ -241,6 +239,7 @@ async def delete_client(
     return Response(status_code=204)
 
 
+# noinspection PyUnusedLocal
 @client_router.delete("/clients/", include_in_schema=False)
 @client_router.delete(
     "/clients",
@@ -251,9 +250,9 @@ async def delete_client(
 async def delete_clients(
     client_id: Annotated[str, Depends(validate_clients_audience)],
     session: Annotated[AsyncSession, Depends(get_db)],
-    ids: Annotated[List[str] | None, Query()] = None,
-    audiences: Annotated[List[str] | None, Query()] = None,
-    excluded: Annotated[List[str] | None, Query()] = None,
+    ids: Annotated[list[str] | None, Query()] = None,
+    audiences: Annotated[list[str] | None, Query()] = None,
+    excluded: Annotated[list[str] | None, Query()] = None,
 ) -> Response:
     """Delete multiple clients.
 
@@ -267,11 +266,11 @@ async def delete_clients(
         The current client ID.
     session : AsyncSession
         The database session.
-    ids: List[str] | None
+    ids: list[str] | None
         An optional list of client IDs to include in the deletion.
-    audiences : List[str] | None
+    audiences : list[str] | None
         An optional list of audience to filter the clients.
-    excluded : List[str] | None
+    excluded : list[str] | None
         An optional list of client IDs to exclude from deletion.
 
     Returns

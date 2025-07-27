@@ -5,7 +5,7 @@
 """Clients management service."""
 
 import logging
-from typing import Any, List, Sequence
+from typing import Any, Sequence
 
 from fastapi_pagination import Page, Params
 from fastapi_pagination.ext.sqlalchemy import apaginate
@@ -81,6 +81,7 @@ async def verify_client(
     if not client or client.deleted_at is not None:
         LOG.warning("Client not found or deleted: %s", client_id)
         return None
+    # noinspection PyTypeChecker
     if not client.verify(client_secret, client.client_secret):
         LOG.warning("Invalid client secret for client: %s", client_id)
         return None
@@ -254,26 +255,26 @@ async def delete_client(session: AsyncSession, client_id: str) -> None:
 
 async def delete_clients(
     session: AsyncSession,
-    ids: List[str] | None = None,
-    audiences: List[str] | None = None,
-    excluded: List[str] | None = None,
-) -> List[str]:
+    ids: list[str] | None = None,
+    audiences: list[str] | None = None,
+    excluded: list[str] | None = None,
+) -> list[str]:
     """Delete multiple clients.
 
     Parameters
     ----------
     session : AsyncSession
         The database session.
-    excluded : List[str] | None
+    excluded : list[str] | None
         An optional list of client IDs to exclude.
-    ids : List[str] | None
+    ids : list[str] | None
         An optional list of client IDs to filter.
-    audiences : List[str]
+    audiences : list[str]
         Optional list of audiences to filter.
 
     Returns
     -------
-    List[str]
+    list[str]
         The list of deleted client IDs.
     """
     filters: list[Any] = []

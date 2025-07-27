@@ -12,7 +12,7 @@ fastapi[all]==0.116.1
 faststream[redis,cli]==0.5.48
 hiredis==3.2.1
 nest-asyncio==1.6.0
-orjson==3.11.0
+orjson==3.11.1
 psutil==7.0.0
 psycopg>=3.2.9; sys_platform == 'linux'
 psycopg>=3.2.9; sys_platform == 'win32' and platform_machine == 'AARCH64'
@@ -28,10 +28,10 @@ pysqlite3-binary==0.5.4; sys_platform == 'linux' and platform_machine != 'arm64'
 python-multipart==0.0.20
 python-ulid==3.0.0
 python_dotenv>=1.1.1
-redis<6
+redis==6.2.0
 slowapi==0.1.9
 taskiq-dependencies==1.5.7
-taskiq-redis==1.0.9
+taskiq-redis==1.1.0
 taskiq==0.11.18
 tenacity<10.0.0
 trio==0.30.0

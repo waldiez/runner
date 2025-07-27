@@ -8,7 +8,6 @@ import secrets
 import sys
 import traceback
 from pathlib import Path
-from typing import List, Tuple
 
 import redis
 from dotenv import load_dotenv
@@ -141,12 +140,12 @@ def update_dotenv(key: str, value: str) -> None:
         file.writelines(lines)
 
 
-def assert_secrets(entries: List[Tuple[str, str | None]]) -> None:
+def assert_secrets(entries: list[tuple[str, str | None]]) -> None:
     """Ensure that the secrets are available.
 
     Parameters
     ----------
-    entries : Tuple[str, str]
+    entries : list[tuple[str, str]]
         The entries to check (getattr, value)
     Raises
     ------

@@ -2,13 +2,16 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
 # pylint: disable=too-many-try-statements
+# pyright: reportUnnecessaryIsInstance=false,reportUnknownMemberType=false
+# pyright: reportUnknownArgumentType=false,reportUnknownVariableType=false
+
 
 """The tasks to start when a WebSocket connection is established."""
 
 import asyncio
 import json
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
 
@@ -137,7 +140,7 @@ def valid_user_input(payload: Any) -> bool:
     )
 
 
-def decode_stream_msg(raw: Dict[Any, Any], msg_id: str) -> Dict[str, Any]:
+def decode_stream_msg(raw: dict[Any, Any], msg_id: str) -> dict[str, Any]:
     """Decode the raw message from Redis stream.
 
     Parameters
@@ -148,7 +151,7 @@ def decode_stream_msg(raw: Dict[Any, Any], msg_id: str) -> Dict[str, Any]:
         The message ID.
     Returns
     -------
-    Dict[str, Any]
+    dict[str, Any]
         The decoded message.
     """
     if not isinstance(raw, dict):

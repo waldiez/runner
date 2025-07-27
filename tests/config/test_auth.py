@@ -11,6 +11,7 @@ from typing import Generator
 
 import pytest
 
+# noinspection PyProtectedMember
 from waldiez_runner.config import ENV_PREFIX, _auth
 
 THIS_FILE = Path(__file__).resolve()

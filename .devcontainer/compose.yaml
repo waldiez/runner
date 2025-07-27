@@ -67,6 +67,7 @@ services:
       - runner-redis-data:/data
     healthcheck:
       <<: *common-healthcheck
+      # noinspection ComposeUnknownValues
       test:
         - CMD-SHELL
         - >
@@ -120,6 +121,7 @@ services:
         condition: service_healthy
     healthcheck:
       <<: *common-healthcheck
+      # noinspection ComposeUnknownValues
       test:
         - CMD
         - curl

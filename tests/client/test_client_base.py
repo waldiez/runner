@@ -2,10 +2,13 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 # pylint: disable=missing-param-doc,missing-return-doc
 # pylint: disable=protected-access,unused-argument
+# pyright: reportPrivateUsage=false,reportUnknownArgumentType=false
+# pyright: reportUnknownLambdaType=false
+
 """Test waldiez_runner.client._client_base.*."""
 
 import asyncio
-from typing import Any, Coroutine, List
+from typing import Any, Coroutine
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -27,9 +30,11 @@ def base_client_fixture() -> BaseClient:
 def test_configure_sets_auth_and_handlers() -> None:
     """Test that configure sets the auth and handlers correctly."""
 
+    # noinspection PyUnusedLocal
     def token_cb(token: str) -> None:
         """Token callback."""
 
+    # noinspection PyUnusedLocal
     def error_cb(msg: str) -> None:
         """Error callback."""
 
@@ -49,6 +54,7 @@ def test_configure_sets_auth_and_handlers() -> None:
     assert client.on_error == error_cb
 
 
+# noinspection PyUnusedLocal
 def test_has_valid_token_true(mocker: MockerFixture) -> None:
     """Test that has_valid_token returns True when auth is valid."""
     client = BaseClient()
@@ -65,6 +71,7 @@ def test_has_valid_token_false() -> None:
     assert not client.has_valid_token()
 
 
+# noinspection PyUnusedLocal
 def test_authenticate_success(mocker: MockerFixture) -> None:
     """Test that authenticate returns True when auth is successful."""
     client = BaseClient()
@@ -76,6 +83,7 @@ def test_authenticate_success(mocker: MockerFixture) -> None:
     assert client.authenticate()
 
 
+# noinspection PyUnusedLocal
 def test_authenticate_failure(mocker: MockerFixture) -> None:
     """Test that authenticate returns False when auth fails."""
     client = BaseClient()
@@ -89,6 +97,7 @@ def test_authenticate_failure(mocker: MockerFixture) -> None:
     client._handle_auth_error.assert_called_once()
 
 
+# noinspection PyUnusedLocal
 @pytest.mark.anyio
 async def test_a_authenticate_success(mocker: MockerFixture) -> None:
     """Test that a_authenticate returns True when auth is successful."""
@@ -101,6 +110,7 @@ async def test_a_authenticate_success(mocker: MockerFixture) -> None:
     assert await client.a_authenticate()
 
 
+# noinspection PyUnusedLocal
 @pytest.mark.anyio
 async def test_a_authenticate_failure(mocker: MockerFixture) -> None:
     """Test that a_authenticate returns False when auth fails."""
@@ -140,7 +150,7 @@ async def test_context_manager_async() -> None:
 
 def test_handle_auth_error_sync() -> None:
     """Test that handle_auth_error calls the callback."""
-    called: List[str] = []
+    called: list[str] = []
 
     def cb(msg: str) -> None:
         """Callback."""
@@ -155,7 +165,7 @@ def test_handle_auth_error_async_create_task(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test that handle_auth_error calls the callback."""
-    called: List[str] = []
+    called: list[str] = []
 
     async def cb(msg: str) -> None:
         """Async callback."""
@@ -171,11 +181,12 @@ def test_handle_auth_error_async_create_task(
     assert called == ["fail"]
 
 
+# noinspection DuplicatedCode
 def test_handle_auth_error_async_fallback_run(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test that handle_auth_error calls the callback."""
-    called: List[str] = []
+    called: list[str] = []
 
     async def cb(msg: str) -> None:
         """Async callback."""
@@ -198,7 +209,7 @@ def test_handle_auth_error_async_fallback_run(
 
 def test_handle_error_sync() -> None:
     """Test that handle_error calls the callback."""
-    called: List[str] = []
+    called: list[str] = []
 
     def cb(msg: str) -> None:
         """Callback."""
@@ -213,7 +224,7 @@ def test_handle_error_async_create_task(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test that handle_error calls the callback."""
-    called: List[str] = []
+    called: list[str] = []
 
     async def cb(msg: str) -> None:
         """Async callback."""
@@ -229,11 +240,12 @@ def test_handle_error_async_create_task(
     assert called == ["fail"]
 
 
+# noinspection DuplicatedCode
 def test_handle_error_async_fallback_run(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test that handle_error calls the callback."""
-    called: List[str] = []
+    called: list[str] = []
 
     async def cb(msg: str) -> None:
         """Async callback."""
@@ -263,6 +275,7 @@ def test_ensure_configured_raises_if_not_configured() -> None:
 
 # Dummy loop for async task scheduling
 # pylint: disable=too-few-public-methods,no-self-use
+# noinspection PyMethodMayBeStatic
 class DummyLoop:
     """Dummy loop for async task scheduling."""
 
@@ -271,6 +284,7 @@ class DummyLoop:
         asyncio.get_event_loop().run_until_complete(coro)
 
 
+# noinspection DuplicatedCode
 def test_get_status_success(httpx_mock: HTTPXMock, auth: Auth) -> None:
     """Test get_status returns valid StatusResponse on success."""
 
@@ -304,6 +318,7 @@ def test_get_status_success(httpx_mock: HTTPXMock, auth: Auth) -> None:
     assert result.cpu_percent == 35.5
 
 
+# noinspection DuplicatedCode
 @pytest.mark.anyio
 async def test_a_get_status_success(httpx_mock: HTTPXMock, auth: Auth) -> None:
     """Test a_get_status returns valid StatusResponse on success."""
@@ -339,7 +354,7 @@ async def test_a_get_status_success(httpx_mock: HTTPXMock, auth: Auth) -> None:
 
 def test_get_status_unauthorized(httpx_mock: HTTPXMock, auth: Auth) -> None:
     """Test get_status handles 401 Unauthorized error."""
-    called: List[str] = []
+    called: list[str] = []
 
     def on_auth_error(msg: str) -> None:
         called.append(msg)
@@ -364,7 +379,7 @@ def test_get_status_unauthorized(httpx_mock: HTTPXMock, auth: Auth) -> None:
 
 def test_get_status_request_error(httpx_mock: HTTPXMock, auth: Auth) -> None:
     """Test get_status handles network errors (RequestError)."""
-    called: List[str] = []
+    called: list[str] = []
 
     def on_error(msg: str) -> None:
         called.append(msg)
@@ -386,7 +401,7 @@ def test_get_status_generic_exception(
     httpx_mock: HTTPXMock, auth: Auth
 ) -> None:
     """Test get_status handles unexpected exception gracefully."""
-    called: List[str] = []
+    called: list[str] = []
 
     def on_error(msg: str) -> None:
         called.append(msg)
