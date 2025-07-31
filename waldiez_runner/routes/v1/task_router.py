@@ -6,6 +6,7 @@
 """Task routes."""
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -883,6 +884,10 @@ async def validate_task_input(
             status_code=400,
             detail="Invalid file or file URL",
         )
+    filename_hash = hashlib.md5(
+        filename.encode("utf-8"), usedforsecurity=False
+    ).hexdigest()[:8]
+    file_hash = f"{file_hash}-{filename_hash}"
     active_task = next(
         (task for task in active_tasks.items if task.flow_id == file_hash), None
     )

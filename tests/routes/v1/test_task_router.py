@@ -223,7 +223,13 @@ async def test_create_task(
     }
     response = await client.post("/tasks", files=file)
 
-    expected_md5 = hashlib.md5(file_content, usedforsecurity=False).hexdigest()
+    expected_content_md5 = hashlib.md5(
+        file_content, usedforsecurity=False
+    ).hexdigest()
+    expected_filename_md5 = hashlib.md5(
+        f"test_file{VALID_EXTENSION}".encode("utf-8"), usedforsecurity=False
+    ).hexdigest()[:8]
+    expected_md5 = f"{expected_content_md5}-{expected_filename_md5}"
     assert response.status_code == HTTP_200_OK
     data = response.json()
     assert data["client_id"] == client_id
@@ -257,7 +263,13 @@ async def test_create_task_active_flow_task(
     """Test creating a task with an active task with the same flow ID."""
     file_content = b'{"key": "value"}'
     file_name = f"test_file{VALID_EXTENSION}"
-    flow_hash = hashlib.md5(file_content, usedforsecurity=False).hexdigest()
+    flow_content_hash = hashlib.md5(
+        file_content, usedforsecurity=False
+    ).hexdigest()
+    file_name_hash = hashlib.md5(
+        file_name.encode("utf-8"), usedforsecurity=False
+    ).hexdigest()[:8]
+    flow_hash = f"{flow_content_hash}-{file_name_hash}"
     task = Task(
         client_id=client_id,
         flow_id=flow_hash,
