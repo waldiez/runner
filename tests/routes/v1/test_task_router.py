@@ -224,7 +224,6 @@ async def test_create_task(
     response = await client.post("/tasks", files=file)
 
     expected_md5 = hashlib.md5(file_content, usedforsecurity=False).hexdigest()
-
     assert response.status_code == HTTP_200_OK
     data = response.json()
     assert data["client_id"] == client_id

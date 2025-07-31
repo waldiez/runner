@@ -5,12 +5,12 @@ black[jupyter]==25.1.0
 flake8==7.3.0
 hatchling==1.27.0
 isort==6.0.1
-jupyter==1.1.1
-mypy==1.17.0
+jupy==0.2.2
+mypy==1.17.1
 pre-commit==4.2.0
 pydocstyle==6.3.0
 pylint==3.3.7
-ruff==0.12.5
+ruff==0.12.7
 streamlit-autorefresh==1.0.1
 streamlit==1.47.1
 taskiq[reload]==0.11.18

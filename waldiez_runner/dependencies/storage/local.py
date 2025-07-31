@@ -13,6 +13,7 @@ import logging
 import shutil
 import tempfile
 from pathlib import Path
+from urllib.parse import urlparse
 
 import aiofiles
 import puremagic
@@ -20,7 +21,17 @@ from aiofiles import os
 from fastapi import BackgroundTasks, HTTPException, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 
-from .common import ALLOWED_MIME_TYPES, CHUNK_SIZE, MAX_FILE_SIZE
+from .utils import (
+    ALLOWED_MIME_TYPES,
+    CHUNK_SIZE,
+    MAX_FILE_SIZE,
+    download_file,
+    download_ftp_file,
+    download_gcs_file,
+    download_http_file,
+    download_s3_file,
+    download_sftp_file,
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -36,8 +47,52 @@ class LocalStorage:
         root_dir : Path
             The root directory.
         """
-        self.root_dir = root_dir
+        self.root_dir = Path(root_dir).resolve()
         self.root_dir.mkdir(exist_ok=True, parents=True)
+
+    def _safe_path(self, path: str) -> Path:
+        """Create a safe path within root_dir, preventing path traversal.
+
+        Parameters
+        ----------
+        path : str
+            The path to make safe.
+
+        Returns
+        -------
+        Path
+            Safe resolved path within root_dir.
+
+        Raises
+        ------
+        HTTPException
+            If path tries to escape root_dir.
+        """
+        path_obj = Path(path)
+
+        if path_obj.is_absolute():
+            resolved_path = path_obj.resolve()
+            try:
+                resolved_path.relative_to(self.root_dir)
+                return resolved_path  # It's already safe and within root_dir
+            except ValueError as e:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid path: outside of allowed directory",
+                ) from e
+
+        clean_path = str(path).lstrip("/")
+        full_path = (self.root_dir / clean_path).resolve()
+
+        try:
+            full_path.relative_to(self.root_dir)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid path: outside of allowed directory",
+            ) from e
+
+        return full_path
 
     # pylint: disable=unused-argument,no-self-use
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
@@ -121,6 +176,55 @@ class LocalStorage:
                 detail=f"Failed to upload file: {str(error)}",
             ) from error
 
+    # pylint: disable=unused-argument,no-self-use, too-many-try-statements
+    # noinspection PyMethodMayBeStatic,PyUnusedLocal
+    async def get_file_from_url(
+        self,
+        file_url: str,
+        allowed_extensions: list[str] | None = None,
+        max_size: int | None = None,
+    ) -> tuple[str, str]:
+        """Download a file from a URL and save it to a temporary location.
+
+        Parameters
+        ----------
+        file_url : str
+            The URL of the file to download.
+        allowed_extensions : list[str], optional
+            List of allowed file extensions for validation.
+        max_size : int, optional
+            Maximum file size in bytes. Defaults to MAX_FILE_SIZE.
+
+        Returns
+        -------
+        tuple[str, str]
+            The MD5 hash and the temporary file path.
+
+        Raises
+        ------
+        HTTPException
+            If the file is invalid, too large, or download fails.
+        """
+        if max_size is None:
+            max_size = MAX_FILE_SIZE
+        parsed_url = urlparse(file_url)
+        if parsed_url.scheme.lower() == "s3":
+            return await download_s3_file(file_url, max_size)
+        if parsed_url.scheme.lower() == "gs":
+            return await download_gcs_file(file_url, max_size)
+        if parsed_url.scheme.lower() in ("http", "https"):
+            return await download_http_file(file_url, max_size)
+        if parsed_url.scheme.lower() == "file":
+            return await download_file(file_url, max_size)
+        if parsed_url.scheme.lower() == "sftp":
+            return await download_sftp_file(file_url, max_size)
+        if parsed_url.scheme.lower() == "ftp":
+            return await download_ftp_file(file_url, max_size)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported URL scheme: {parsed_url.scheme}",
+        )
+
     async def move_file(
         self,
         src_path: str,
@@ -140,15 +244,21 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        full_dst_path = self.root_dir / dst_path
-        await os.makedirs(full_dst_path.parent, exist_ok=True)
+        full_src_path = Path(src_path).resolve().absolute()
+        full_dst_path = self._safe_path(dst_path)
+
+        if not full_src_path.exists() or not full_src_path.is_file():
+            raise HTTPException(status_code=404, detail="Source file not found")
         if full_dst_path.exists():
             raise HTTPException(
                 status_code=400, detail="Destination file already exists"
             )
+
+        full_dst_path.parent.mkdir(parents=True, exist_ok=True)
+
         move = os.wrap(shutil.move)
         try:
-            await move(src_path, full_dst_path)
+            await move(full_src_path, full_dst_path)
         except Exception as error:
             raise HTTPException(
                 status_code=500,
@@ -182,9 +292,8 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        full_parent_folder = self.root_dir / parent_folder
-        parent_path = Path(full_parent_folder).resolve()
-        await os.makedirs(parent_path, exist_ok=True)
+        full_parent_path = self._safe_path(parent_folder)
+        full_parent_path.mkdir(parents=True, exist_ok=True)
 
         async def cleanup(tmp_dir: str | None) -> None:
             """Clean up the temporary directory.
@@ -202,17 +311,13 @@ class LocalStorage:
         # pylint: disable=too-many-try-statements, broad-exception-caught
         # pylint: disable=consider-using-with
         try:
-            # async with aiofiles.tempfile.TemporaryDirectory(
-            #     delete=False  # this cannot work with aiofiles
-            #      (no overload for delete=False)
-            # ) as tempdir:
-            temp_dir = temp_dir = tempfile.mkdtemp()
+            temp_dir = tempfile.mkdtemp()
             zip_path = Path(temp_dir) / f"{folder_name}.zip"
             make_archive = os.wrap(shutil.make_archive)
             archive = await make_archive(
                 base_name=str(zip_path.with_suffix("")),
                 format="zip",
-                root_dir=str(parent_path),
+                root_dir=str(full_parent_path),
                 base_dir=folder_name,
             )
             content_disposition = f"attachment; filename={zip_path.name}"
@@ -221,7 +326,6 @@ class LocalStorage:
                 archive,
                 filename=zip_path.name,
                 media_type="application/zip",
-                background=background_tasks,
                 headers={
                     "Content-Disposition": content_disposition,
                     "X-Accel-Buffering": "no",
@@ -254,20 +358,20 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        full_src_path = self.root_dir / src_path
-        full_dest_path = self.root_dir / dest_path
-        src = Path(full_src_path).resolve()
-        dest = Path(full_dest_path).resolve()
-        if not await os.path.exists(src) or not await os.path.isfile(src):
+        full_src_path = Path(src_path).resolve().absolute()
+        full_dest_path = self._safe_path(dest_path)
+        full_dest_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if not full_src_path.exists() or not full_src_path.is_file():
             raise HTTPException(status_code=404, detail="Source file not found")
-        if await os.path.exists(dest) and await os.path.isfile(dest):
+        if full_dest_path.exists():
             raise HTTPException(
                 status_code=400, detail="Destination file already exists"
             )
         copyfile = os.wrap(shutil.copyfile)
         # pylint: disable=too-many-try-statements, broad-exception-caught
         try:
-            await copyfile(str(src), str(dest))
+            await copyfile(str(full_src_path), str(full_dest_path))
         except Exception as error:
             raise HTTPException(
                 status_code=500,
@@ -288,22 +392,26 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        full_src_path = self.root_dir / src_path
-        full_dest_path = self.root_dir / dest_path
-        src = Path(full_src_path).resolve()
-        dest = Path(full_dest_path).resolve()
-        if not await os.path.exists(src) or not await os.path.isdir(src):
+        full_src_path = Path(src_path).resolve().absolute()
+        full_dest_path = self._safe_path(dest_path)
+        full_dest_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if not await os.path.exists(full_src_path) or not await os.path.isdir(
+            full_src_path
+        ):
             raise HTTPException(
                 status_code=404, detail="Source folder not found"
             )
-        if await os.path.exists(dest) and await os.path.isdir(dest):
+        if await os.path.exists(full_dest_path) and await os.path.isdir(
+            full_dest_path
+        ):
             raise HTTPException(
                 status_code=400, detail="Destination folder already exists"
             )
         copytree = os.wrap(shutil.copytree)
         # pylint: disable=too-many-try-statements, broad-exception-caught
         try:
-            await copytree(str(src), str(dest))
+            await copytree(str(full_src_path), str(full_dest_path))
         except Exception as error:
             raise HTTPException(
                 status_code=500,
@@ -323,8 +431,7 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        full_path = self.root_dir / path
-        file_path = Path(full_path).resolve()
+        file_path = Path(path).resolve().absolute()
         if not await os.path.exists(file_path) or not await os.path.isfile(
             file_path
         ):
@@ -353,8 +460,7 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        full_folder_path = self.root_dir / folder_path
-        folder = Path(full_folder_path).resolve()
+        folder = Path(folder_path).resolve().absolute()
         if not await os.path.exists(folder) or not await os.path.isdir(folder):
             LOG.warning("Folder not found: %s", folder)
             return
@@ -387,9 +493,7 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        root = Path(folder_path).resolve()
-        if not await os.path.exists(root) or not await os.path.isdir(root):
-            root = (self.root_dir / folder_path).resolve()
+        root = self._safe_path(folder_path)
         if not await os.path.exists(root) or not await os.path.isdir(root):
             LOG.warning("Folder not found: %s", root)
             return []

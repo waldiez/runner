@@ -60,6 +60,28 @@ class Storage(Protocol):
             If an error occurs.
         """
 
+    async def get_file_from_url(
+        self,
+        file_url: str,
+    ) -> tuple[str, str]:
+        """Download a file from a URL and save it to a temporary location.
+
+        Parameters
+        ----------
+        file_url : str
+            The URL of the file.
+
+        Returns
+        -------
+        tuple[str, str]
+            The MD5 hash and the temporary file path.
+
+        Raises
+        ------
+        HTTPException
+            If the file is invalid or an error occurs.
+        """
+
     async def download_archive(
         self,
         parent_folder: str,

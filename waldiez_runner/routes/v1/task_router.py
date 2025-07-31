@@ -16,7 +16,6 @@ from fastapi import (
     APIRouter,
     BackgroundTasks,
     Depends,
-    File,
     Form,
     HTTPException,
     Query,
@@ -37,6 +36,7 @@ from waldiez_runner.dependencies import (
     app_state,
     get_client_id,
     get_db,
+    get_filename_from_url,
     get_storage,
 )
 from waldiez_runner.middleware.slow_api import limiter
@@ -54,6 +54,15 @@ MAX_TASKS_PER_CLIENT = 3
 MAX_TASKS_ERROR = (
     f"Cannot create more than {MAX_TASKS_PER_CLIENT} tasks "
     "at the same time. Please wait for some tasks to finish"
+)
+ALLOWED_REMOTE_URL_SCHEMES = (
+    # "http",
+    "https",
+    # "ftp",
+    "ftps",
+    "sftp",
+    "s3",
+    # "gs",
 )
 LOG = logging.getLogger(__name__)
 TaskSort = Literal[
@@ -136,7 +145,9 @@ async def create_task(
     client_id: Annotated[str, Depends(validate_tasks_audience)],
     session: Annotated[AsyncSession, Depends(get_db)],
     storage: Annotated[Storage, Depends(get_storage)],
-    file: Annotated[UploadFile, File(...)],
+    # file: Annotated[UploadFile, File(...)],
+    file: Optional[UploadFile] = None,
+    file_url: Optional[str] = Form(None),
     input_timeout: int = Form(180),
     schedule_type: Optional[Literal["once", "cron"]] = Form(None),
     scheduled_time: Optional[datetime] = Form(None),
@@ -154,8 +165,10 @@ async def create_task(
         The database session dependency.
     storage : Storage
         The storage service dependency.
-    file : UploadFile
+    file : Optional[UploadFile]
         The file to process.
+    file_url : Optional[str], optional
+        The URL of the file to process, by default None
     input_timeout : int, optional
         The timeout for input requests, by default 180
     schedule_type : Optional[Literal["once", "cron"]], optional
@@ -179,9 +192,20 @@ async def create_task(
     HTTPException
         If the task cannot be created.
     """
+    if not file and not file_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either file or file_url must be provided",
+        )
+    if file and file_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only one of file or file_url can be provided",
+        )
     file_hash, filename, save_path = await validate_task_input(
         session=session,
         file=file,
+        file_url=file_url,
         client_id=client_id,
         storage=storage,
         schedule_type=schedule_type,
@@ -794,7 +818,8 @@ def _validate_uploaded_file(file: UploadFile) -> str:
 
 async def validate_task_input(
     session: AsyncSession,
-    file: UploadFile,
+    file: Optional[UploadFile],
+    file_url: Optional[str],
     client_id: str,
     storage: Storage,
     schedule_type: Optional[Literal["once", "cron"]] = None,
@@ -805,8 +830,10 @@ async def validate_task_input(
     ----------
     session : AsyncSession
         The database session.
-    file : UploadFile
+    file : Optional[UploadFile]
         The file to validate.
+    file_url : Optional[str]
+        The URL of the file to validate, by default None
     client_id : str
         The client ID.
     storage : Storage
@@ -833,8 +860,29 @@ async def validate_task_input(
     )
     if len(active_tasks.items) >= MAX_TASKS_PER_CLIENT:
         raise HTTPException(status_code=400, detail=MAX_TASKS_ERROR)
-    filename = _validate_uploaded_file(file)
-    file_hash, saved_path = await storage.save_file(client_id, file)
+    saved_path: str = ""
+    file_hash: str = ""
+    filename: str = ""
+    if file:
+        filename = _validate_uploaded_file(file)
+        file_hash, saved_path = await storage.save_file(client_id, file)
+    if file_url:
+        if not file_url.startswith(ALLOWED_REMOTE_URL_SCHEMES):
+            raise HTTPException(status_code=400, detail="Invalid file URL")
+        filename = get_filename_from_url(
+            file_url,
+            allowed_extensions=ALLOWED_EXTENSIONS,
+            default_extension=ALLOWED_EXTENSIONS[0],
+            strict_validation=True,
+        )
+        file_hash, saved_path = await storage.get_file_from_url(
+            file_url=file_url,
+        )
+    if not file_hash or not filename or not saved_path:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file or file URL",
+        )
     active_task = next(
         (task for task in active_tasks.items if task.flow_id == file_hash), None
     )

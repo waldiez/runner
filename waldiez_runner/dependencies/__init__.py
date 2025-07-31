@@ -30,6 +30,7 @@ from .storage import (
     ALLOWED_MIME_TYPES,
     Storage,
     StorageBackend,
+    get_filename_from_url,
     get_storage_backend,
 )
 
@@ -65,4 +66,5 @@ __all__ = [
     "verify_external_auth_token",
     "RequestContext",
     "get_request_context",
+    "get_filename_from_url",
 ]
