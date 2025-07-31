@@ -40,10 +40,11 @@ def upload_file_fixture() -> UploadFile:
 @pytest.mark.anyio
 async def test_safe_path_absolute_outside_root(storage: LocalStorage) -> None:
     """Test _safe_path with absolute path outside root directory."""
-    outside_path = "/etc/passwd"  # Absolute path outside root
+    storage_root = Path(storage.root_dir).resolve()
+    outside_root = storage_root.parent / "outside_storage" / "file.txt"
 
     with pytest.raises(HTTPException) as exc_info:
-        storage._safe_path(outside_path)
+        storage._safe_path(str(outside_root))
 
     assert exc_info.value.status_code == 400
     assert "Invalid path: outside of allowed directory" in exc_info.value.detail
@@ -52,7 +53,10 @@ async def test_safe_path_absolute_outside_root(storage: LocalStorage) -> None:
 @pytest.mark.anyio
 async def test_safe_path_relative_traversal(storage: LocalStorage) -> None:
     """Test _safe_path with path traversal attempt."""
-    traversal_path = "../../../etc/passwd"  # Path traversal attempt
+    storage_root = Path(storage.root_dir).resolve()
+    levels_up = len(storage_root.parts)
+    traversal_parts = [".."] * (levels_up + 2) + ["etc", "passwd"]
+    traversal_path = "/".join(traversal_parts)
 
     with pytest.raises(HTTPException) as exc_info:
         storage._safe_path(traversal_path)
@@ -82,7 +86,7 @@ async def test_get_file_from_url_validation_error(
     """Test get_file_from_url with URL validation error."""
     # Mock get_filename_from_url to raise a non-HTTPException
     with pytest.raises(HTTPException) as exc_info:
-        await storage.get_file_from_url("invalid://url", "folder")
+        await storage.get_file_from_url("invalid://url")
 
     assert exc_info.value.status_code == 400
     assert "Unsupported URL scheme" in exc_info.value.detail
@@ -142,9 +146,7 @@ async def test_get_file_from_url_unsupported_scheme(
 ) -> None:
     """Test get_file_from_url with unsupported URL scheme."""
     with pytest.raises(HTTPException) as exc_info:
-        await storage.get_file_from_url(
-            "unsupported://example.com/file.txt", "folder"
-        )
+        await storage.get_file_from_url("unsupported://example.com/file.txt")
 
     assert exc_info.value.status_code == 400
     assert "Unsupported URL scheme: unsupported" in exc_info.value.detail
