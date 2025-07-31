@@ -6,6 +6,7 @@
 """Test waldiez_runner.routes.task_router."""
 
 import hashlib
+import json
 from pathlib import Path
 from typing import AsyncGenerator
 from unittest.mock import AsyncMock, patch
@@ -221,7 +222,13 @@ async def test_create_task(
             VALID_CONTENT_TYPE,
         )
     }
-    response = await client.post("/tasks", files=file)
+    env_vars = {
+        "API_1_KEY": "test_api_key",
+        "API_2_KEY": "test_api_key_2",
+    }
+    response = await client.post(
+        "/tasks", files=file, params={"env_vars": json.dumps(env_vars)}
+    )
 
     expected_content_md5 = hashlib.md5(
         file_content, usedforsecurity=False

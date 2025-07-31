@@ -17,6 +17,13 @@ from faststream import FastStream
 from faststream.redis import RedisBroker
 
 try:
+    from dotenv import load_dotenv
+except ImportError:
+    pass
+else:
+    load_dotenv(override=True)
+
+try:
     from .cli import TaskParams, parse_args
     from .flow_runner import FlowRunner
 except ImportError:

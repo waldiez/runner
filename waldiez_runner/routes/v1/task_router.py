@@ -134,7 +134,8 @@ async def get_client_tasks(
     )
 
 
-# pylint: disable=too-many-locals
+# pylint: disable=too-many-locals,too-many-arguments
+# pylint: disable=too-many-positional-arguments
 @task_router.post("/tasks/", include_in_schema=False)
 @task_router.post(
     "/tasks",
@@ -149,6 +150,9 @@ async def create_task(
     # file: Annotated[UploadFile, File(...)],
     file: Optional[UploadFile] = None,
     file_url: Optional[str] = Form(None),
+    env_vars: Optional[str] = Form(
+        None, description="JSON string of environment variables"
+    ),
     input_timeout: int = Form(180),
     schedule_type: Optional[Literal["once", "cron"]] = Form(None),
     scheduled_time: Optional[datetime] = Form(None),
@@ -170,6 +174,8 @@ async def create_task(
         The file to process.
     file_url : Optional[str], optional
         The URL of the file to process, by default None
+    env_vars : Optional[str], optional
+        A JSON string of environment variables, by default None
     input_timeout : int, optional
         The timeout for input requests, by default 180
     schedule_type : Optional[Literal["once", "cron"]], optional
@@ -203,10 +209,16 @@ async def create_task(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only one of file or file_url can be provided",
         )
-    file_hash, filename, save_path = await validate_task_input(
+    (
+        file_hash,
+        filename,
+        save_path,
+        environment_vars,
+    ) = await validate_task_input(
         session=session,
         file=file,
         file_url=file_url,
+        env_vars=env_vars,
         client_id=client_id,
         storage=storage,
         schedule_type=schedule_type,
@@ -253,9 +265,19 @@ async def create_task(
         ) from error
     task_response = TaskResponse.model_validate(task, from_attributes=True)
     if task.schedule_type is None or trigger_now:
-        await _trigger_run_task(task_response, session, storage)
+        await _trigger_run_task(
+            task=task_response,
+            env_vars=environment_vars,
+            session=session,
+            storage=storage,
+        )
     if task.schedule_type is not None:
-        await _schedule_task(task_response, session, storage)
+        await _schedule_task(
+            task=task_response,
+            _session=session,
+            _storage=storage,
+            _env_vars=environment_vars,
+        )
     return task_response
 
 
@@ -696,6 +718,7 @@ async def _trigger_run_task(
     task: TaskResponse,
     session: AsyncSession,
     storage: Storage,
+    env_vars: dict[str, str],
 ) -> None:
     """Trigger a task."""
     if not app_state.redis:  # pragma: no cover
@@ -705,6 +728,7 @@ async def _trigger_run_task(
         bg_task = asyncio.create_task(
             run_task_job(
                 task=task,
+                env_vars=env_vars,
                 db_session=session,
                 storage=storage,
                 redis_manager=app_state.redis,
@@ -718,7 +742,7 @@ async def _trigger_run_task(
             )
         )
     else:
-        await run_task_job.kiq(task=task)
+        await run_task_job.kiq(task=task, env_vars=env_vars)
 
 
 async def publish_task_cancellation(
@@ -821,10 +845,11 @@ async def validate_task_input(
     session: AsyncSession,
     file: Optional[UploadFile],
     file_url: Optional[str],
+    env_vars: Optional[str],
     client_id: str,
     storage: Storage,
     schedule_type: Optional[Literal["once", "cron"]] = None,
-) -> tuple[str, str, str]:
+) -> tuple[str, str, str, dict[str, str]]:
     """Validate the uploaded file.
 
     Parameters
@@ -835,6 +860,8 @@ async def validate_task_input(
         The file to validate.
     file_url : Optional[str]
         The URL of the file to validate, by default None
+    env_vars : Optional[str]
+        A JSON string of environment variables, by default None
     client_id : str
         The client ID.
     storage : Storage
@@ -844,8 +871,8 @@ async def validate_task_input(
 
     Returns
     -------
-    tuple[str, str, str]
-        The file hash, filename, and saved path.
+    tuple[str, str, str, dict[str, str]]
+        The file hash, filename, the saved path, and environment variables.
 
     Raises
     ------
@@ -901,13 +928,50 @@ async def validate_task_input(
                 f"status: {active_task.get_status()}"
             ),
         )
-    return file_hash, filename, saved_path
+    environment_vars = get_env_vars(env_vars)
+    return file_hash, filename, saved_path, environment_vars
+
+
+def get_env_vars(
+    env_vars: Optional[str],
+) -> dict[str, str]:
+    """Get environment variables from a JSON string.
+
+    Parameters
+    ----------
+    env_vars : Optional[str]
+        The JSON string of environment variables.
+
+    Returns
+    -------
+    dict[str, Any]
+        The environment variables as a dictionary.
+
+    Raises
+    ------
+    HTTPException
+        If the JSON string is invalid.
+    """
+    environment_vars: dict[str, str] = {}
+    if env_vars:
+        try:
+            environment_vars = json.loads(env_vars)
+            if not isinstance(environment_vars, dict):  # pyright: ignore
+                raise HTTPException(
+                    status_code=400, detail="env_vars must be a JSON object"
+                )
+        except json.JSONDecodeError as e:
+            raise HTTPException(
+                status_code=400, detail="Invalid JSON format for env_vars"
+            ) from e
+    return {str(k): str(v) for k, v in environment_vars.items()}
 
 
 async def _schedule_task(
     task: TaskResponse,
     _session: AsyncSession,
     _storage: Storage,
+    _env_vars: dict[str, str],  # pylint: disable=unused-argument
 ) -> None:
     """Schedule a task.
 
@@ -919,6 +983,8 @@ async def _schedule_task(
         The database session.
     storage : Storage
         The storage service.
+    env_vars : dict[str, str]
+        The environment variables for the task.
     """
     LOG.debug(
         "Scheduling task %s with schedule type %s",

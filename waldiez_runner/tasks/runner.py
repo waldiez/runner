@@ -30,6 +30,7 @@ LOG = logging.getLogger(__name__)
 
 async def execute_task(
     task: TaskResponse,
+    env_vars: dict[str, str],
     venv_dir: Path,
     app_dir: Path,
     file_path: Path,
@@ -44,6 +45,8 @@ async def execute_task(
     ----------
     task : TaskResponse
         TaskResponse object.
+    env_vars : dict[str, str]
+        Environment variables for the task.
     venv_dir : Path
         Venv directory.
     app_dir : Path
@@ -68,6 +71,7 @@ async def execute_task(
     try:
         exit_code = await run_app_in_venv(
             venv_root=venv_dir,
+            env_vars=env_vars,
             app_dir=app_dir,
             task_id=task.id,
             file_path=file_path,
@@ -198,6 +202,7 @@ async def run_pip(python_exec: Path, cwd: Path, args: list[str]) -> None:
 # pylint: disable=too-many-locals
 async def run_app_in_venv(
     venv_root: Path,
+    env_vars: dict[str, str],
     app_dir: Path,
     task_id: str,
     file_path: Path,
@@ -213,6 +218,8 @@ async def run_app_in_venv(
     ----------
     venv_root : Path
         Venv root directory.
+    env_vars : dict[str, str]
+        Environment variables for the task.
     app_dir : Path
         App directory.
     task_id : str
@@ -236,6 +243,7 @@ async def run_app_in_venv(
         Exit code.
     """
     python_exec = get_venv_python_executable(venv_root)
+    write_dot_env(app_dir, env_vars)
     args = [
         str(python_exec),
         "-m",
@@ -331,3 +339,20 @@ def interpret_exit_code(
     return TaskStatus.FAILED, {
         "error": f"Task failed with exit code {exit_code}"
     }
+
+
+def write_dot_env(app_dir: Path, env_vars: dict[str, str]) -> None:
+    """Write environment variables to a .env file in the app directory.
+
+    Parameters
+    ----------
+    app_dir : Path
+        App directory.
+    env_vars : dict[str, str]
+        Environment variables to write.
+    """
+    dot_env_path = app_dir / ".env"
+    with open(dot_env_path, "w", encoding="utf-8") as f:
+        for key, value in env_vars.items():
+            f.write(f"{key}={value}\n")
+    LOG.debug("Wrote environment variables to %s", dot_env_path)

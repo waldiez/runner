@@ -32,6 +32,7 @@ APP_DIR = HERE / "app"
 @broker.task
 async def run_task(
     task: TaskResponse,
+    env_vars: dict[str, str],
     db_session: AsyncSession = TaskiqDepends(get_db_session),
     storage: Storage = TaskiqDepends(get_storage),
     redis_manager: RedisManager = TaskiqDepends(get_redis_manager),
@@ -42,6 +43,8 @@ async def run_task(
     ----------
     task: Task
         Task object.
+    env_vars: dict[str, str]
+        Environment variables for the task.
     db_session : AsyncSession
         Database session dependency.
     storage : Storage
@@ -66,6 +69,7 @@ async def run_task(
     ):
         status, results = await execute_task(
             task,
+            env_vars,
             venv_dir,
             app_dir,
             file_path,
