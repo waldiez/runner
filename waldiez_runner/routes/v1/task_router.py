@@ -49,6 +49,7 @@ from waldiez_runner.tasks import delete_task as delete_task_job
 from waldiez_runner.tasks import run_task as run_task_job
 
 from ._common import Order, get_pagination_params
+from ._env_vars import get_env_vars
 
 REQUIRED_AUDIENCES = [TASK_API_AUDIENCE]
 MAX_TASKS_PER_CLIENT = 3
@@ -930,41 +931,6 @@ async def validate_task_input(
         )
     environment_vars = get_env_vars(env_vars)
     return file_hash, filename, saved_path, environment_vars
-
-
-def get_env_vars(
-    env_vars: Optional[str],
-) -> dict[str, str]:
-    """Get environment variables from a JSON string.
-
-    Parameters
-    ----------
-    env_vars : Optional[str]
-        The JSON string of environment variables.
-
-    Returns
-    -------
-    dict[str, Any]
-        The environment variables as a dictionary.
-
-    Raises
-    ------
-    HTTPException
-        If the JSON string is invalid.
-    """
-    environment_vars: dict[str, str] = {}
-    if env_vars:
-        try:
-            environment_vars = json.loads(env_vars)
-            if not isinstance(environment_vars, dict):  # pyright: ignore
-                raise HTTPException(
-                    status_code=400, detail="env_vars must be a JSON object"
-                )
-        except json.JSONDecodeError as e:
-            raise HTTPException(
-                status_code=400, detail="Invalid JSON format for env_vars"
-            ) from e
-    return {str(k): str(v) for k, v in environment_vars.items()}
 
 
 async def _schedule_task(
