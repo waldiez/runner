@@ -255,13 +255,9 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        full_parent_path = self._resolve(parent_folder)
-        if not full_parent_path.exists() or not full_parent_path.is_dir():
-            raise HTTPException(
-                status_code=404,
-                detail="Parent folder not found or is not a directory",
-            )
-        full_parent_path.mkdir(parents=True, exist_ok=True)
+        full_parent_folder = self.root_dir / parent_folder
+        parent_path = Path(full_parent_folder).resolve()
+        await os.makedirs(parent_path, exist_ok=True)
 
         async def cleanup(tmp_dir: str | None) -> None:
             """Clean up the temporary directory.
@@ -285,7 +281,7 @@ class LocalStorage:
             archive = await make_archive(
                 base_name=str(zip_path.with_suffix("")),
                 format="zip",
-                root_dir=str(full_parent_path),
+                root_dir=str(parent_path),
                 base_dir=folder_name,
             )
             content_disposition = f"attachment; filename={zip_path.name}"
@@ -294,6 +290,7 @@ class LocalStorage:
                 archive,
                 filename=zip_path.name,
                 media_type="application/zip",
+                background=background_tasks,
                 headers={
                     "Content-Disposition": content_disposition,
                     "X-Accel-Buffering": "no",
