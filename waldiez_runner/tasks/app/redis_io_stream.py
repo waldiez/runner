@@ -280,7 +280,10 @@ class RedisIOStream(IOStream):
         """
         payload: dict[str, Any] = {
             "type": "print",
-            "data": message.model_dump_json(),
+            "data": message.model_dump_json(
+                serialize_as_any=True,
+                fallback=str,
+            ),
         }
         self._print(payload)
 
