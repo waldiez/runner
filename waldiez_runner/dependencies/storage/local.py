@@ -50,49 +50,12 @@ class LocalStorage:
         self.root_dir = Path(root_dir).resolve()
         self.root_dir.mkdir(exist_ok=True, parents=True)
 
-    def _safe_path(self, path: str) -> Path:
-        """Create a safe path within root_dir, preventing path traversal.
-
-        Parameters
-        ----------
-        path : str
-            The path to make safe.
-
-        Returns
-        -------
-        Path
-            Safe resolved path within root_dir.
-
-        Raises
-        ------
-        HTTPException
-            If path tries to escape root_dir.
-        """
-        path_obj = Path(path)
-
-        if path_obj.is_absolute():
-            resolved_path = path_obj.resolve()
-            try:
-                resolved_path.relative_to(self.root_dir)
-                return resolved_path  # It's already safe and within root_dir
-            except ValueError as e:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Invalid path: outside of allowed directory",
-                ) from e
-
-        clean_path = str(path).lstrip("/")
-        full_path = (self.root_dir / clean_path).resolve()
-
-        try:
-            full_path.relative_to(self.root_dir)
-        except ValueError as e:
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid path: outside of allowed directory",
-            ) from e
-
-        return full_path
+    def _resolve(self, path: str) -> Path:
+        """Resolve a path."""
+        resolved = Path(path)
+        if not resolved.is_absolute():
+            resolved = self.root_dir / path.lstrip("/")
+        return resolved.resolve().absolute()
 
     # pylint: disable=unused-argument,no-self-use
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
@@ -244,8 +207,8 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        full_src_path = Path(src_path).resolve().absolute()
-        full_dst_path = self._safe_path(dst_path)
+        full_src_path = self._resolve(src_path)
+        full_dst_path = self._resolve(dst_path)
 
         if not full_src_path.exists() or not full_src_path.is_file():
             raise HTTPException(status_code=404, detail="Source file not found")
@@ -292,7 +255,12 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        full_parent_path = self._safe_path(parent_folder)
+        full_parent_path = self._resolve(parent_folder)
+        if not full_parent_path.exists() or not full_parent_path.is_dir():
+            raise HTTPException(
+                status_code=404,
+                detail="Parent folder not found or is not a directory",
+            )
         full_parent_path.mkdir(parents=True, exist_ok=True)
 
         async def cleanup(tmp_dir: str | None) -> None:
@@ -358,8 +326,10 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        full_src_path = Path(src_path).resolve().absolute()
-        full_dest_path = self._safe_path(dest_path)
+        full_src_path = self._resolve(src_path)
+        if not full_src_path.exists() or not full_src_path.is_file():
+            raise HTTPException(status_code=404, detail="Source file not found")
+        full_dest_path = self._resolve(dest_path)
         full_dest_path.parent.mkdir(parents=True, exist_ok=True)
 
         if not full_src_path.exists() or not full_src_path.is_file():
@@ -392,8 +362,8 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        full_src_path = Path(src_path).resolve().absolute()
-        full_dest_path = self._safe_path(dest_path)
+        full_src_path = self._resolve(src_path)
+        full_dest_path = self._resolve(dest_path)
         full_dest_path.parent.mkdir(parents=True, exist_ok=True)
 
         if not await os.path.exists(full_src_path) or not await os.path.isdir(
@@ -431,7 +401,7 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        file_path = Path(path).resolve().absolute()
+        file_path = self._resolve(path)
         if not await os.path.exists(file_path) or not await os.path.isfile(
             file_path
         ):
@@ -460,7 +430,7 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        folder = Path(folder_path).resolve().absolute()
+        folder = self._resolve(folder_path)
         if not await os.path.exists(folder) or not await os.path.isdir(folder):
             LOG.warning("Folder not found: %s", folder)
             return
@@ -493,7 +463,7 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        root = self._safe_path(folder_path)
+        root = self._resolve(folder_path)
         if not await os.path.exists(root) or not await os.path.isdir(root):
             LOG.warning("Folder not found: %s", root)
             return []

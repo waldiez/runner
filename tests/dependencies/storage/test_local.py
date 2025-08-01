@@ -38,48 +38,6 @@ def upload_file_fixture() -> UploadFile:
 
 
 @pytest.mark.anyio
-async def test_safe_path_absolute_outside_root(storage: LocalStorage) -> None:
-    """Test _safe_path with absolute path outside root directory."""
-    storage_root = Path(storage.root_dir).resolve()
-    outside_root = storage_root.parent / "outside_storage" / "file.txt"
-
-    with pytest.raises(HTTPException) as exc_info:
-        storage._safe_path(str(outside_root))
-
-    assert exc_info.value.status_code == 400
-    assert "Invalid path: outside of allowed directory" in exc_info.value.detail
-
-
-@pytest.mark.anyio
-async def test_safe_path_relative_traversal(storage: LocalStorage) -> None:
-    """Test _safe_path with path traversal attempt."""
-    storage_root = Path(storage.root_dir).resolve()
-    levels_up = len(storage_root.parts)
-    traversal_parts = [".."] * (levels_up + 2) + ["etc", "passwd"]
-    traversal_path = "/".join(traversal_parts)
-
-    with pytest.raises(HTTPException) as exc_info:
-        storage._safe_path(traversal_path)
-
-    assert exc_info.value.status_code == 400
-    assert "Invalid path: outside of allowed directory" in exc_info.value.detail
-
-
-@pytest.mark.anyio
-async def test_safe_path_absolute_within_root(storage: LocalStorage) -> None:
-    """Test _safe_path with absolute path within root directory."""
-    # Create a test file within root
-    test_file = storage.root_dir / "test_file.txt"
-    test_file.write_text("test")
-
-    # Test with absolute path within root
-    safe_path = storage._safe_path(str(test_file))
-
-    assert safe_path == test_file
-    assert safe_path.exists()
-
-
-@pytest.mark.anyio
 async def test_get_file_from_url_validation_error(
     storage: LocalStorage,
 ) -> None:
@@ -108,7 +66,7 @@ async def test_move_file_source_not_found(storage: LocalStorage) -> None:
 @pytest.mark.anyio
 async def test_download_archive_base_exception(storage: LocalStorage) -> None:
     """Test download_archive with BaseException."""
-    folder = storage.root_dir / "test_folder"
+    folder = storage.root_dir / "test_download_archive_base_exception"
     folder.mkdir()
     (folder / "file.txt").write_text("test")
 
@@ -120,7 +78,9 @@ async def test_download_archive_base_exception(storage: LocalStorage) -> None:
     ):
         with pytest.raises(HTTPException) as exc_info:
             await storage.download_archive(
-                str(storage.root_dir), "test_folder", background_tasks
+                str(storage.root_dir),
+                "test_download_archive_base_exception",
+                background_tasks,
             )
 
         assert exc_info.value.status_code == 500
@@ -580,14 +540,13 @@ async def test_list_files_max_depth_reached(storage: LocalStorage) -> None:
 async def test_list_files_with_relative_path(storage: LocalStorage) -> None:
     """Test list_files with relative path."""
     # Create test structure
-    test_folder = storage.root_dir / "test_folder"
+    test_folder = storage.root_dir / "test_list_files_with_relative_path"
     test_folder.mkdir()
     (test_folder / "file1.txt").write_text("content1")
     (test_folder / "file2.txt").write_text("content2")
 
     # Use relative path
-    files = await storage.list_files("test_folder")
-
+    files = await storage.list_files("test_list_files_with_relative_path")
     assert len(files) == 2
     assert "file1.txt" in files
     assert "file2.txt" in files
@@ -635,7 +594,7 @@ async def test_download_archive_cleanup_called(
     storage: LocalStorage, tmp_path: Path
 ) -> None:
     """Test that download_archive cleanup function is properly called."""
-    folder = storage.root_dir / "test_folder"
+    folder = storage.root_dir / "test_download_archive_cleanup_called"
     folder.mkdir()
     (folder / "file.txt").write_text("test")
 
@@ -650,7 +609,9 @@ async def test_download_archive_cleanup_called(
             return_value=str(tmp_path / "test_temp_dir" / "archive.zip"),
         ):
             response = await storage.download_archive(
-                str(storage.root_dir), "test_folder", background_tasks
+                str(storage.root_dir),
+                "test_download_archive_cleanup_called",
+                background_tasks,
             )
 
             # Verify background task was added
