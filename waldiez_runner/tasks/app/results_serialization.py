@@ -6,11 +6,14 @@
 """Module for serializing results into a JSON-compatible format."""
 
 import json
+import traceback
 from dataclasses import asdict, is_dataclass
 from typing import Any
 
+from autogen.io.run_response import RunResponse  # type: ignore
 
-def make_serializable_results(data: Any) -> Any:
+
+def make_serializable_results(data: Any) -> Any:  # noqa: C901
     """Convert any data structure to JSON-serializable format.
 
     Parameters
@@ -23,6 +26,8 @@ def make_serializable_results(data: Any) -> Any:
     Any
         JSON-serializable version of the data.
     """
+    if isinstance(data, RunResponse):
+        return serialize_run_response(data)
     # Handle None
     if data is None:
         return None
@@ -55,7 +60,7 @@ def make_serializable_results(data: Any) -> Any:
         # Try to JSON serialize first to catch obvious non-serializable types
         json.dumps(data)
         return data
-    except (TypeError, ValueError):
+    except BaseException:
         return str(data)
 
 
@@ -73,3 +78,46 @@ def is_dataclass_instance(obj: Any) -> bool:
         True if the object is a dataclass instance, False otherwise.
     """
     return is_dataclass(obj) and not isinstance(obj, type)
+
+
+def serialize_run_response(
+    data: RunResponse,
+) -> dict[str, Any]:
+    """Serialize a RunResponse object to a dictionary.
+
+    Parameters
+    ----------
+    data : RunResponse
+        The RunResponse object to serialize.
+
+    Returns
+    -------
+    dict[str, Any]
+        The serialized RunResponse as a dictionary.
+    """
+    try:
+        results_dict = {
+            "uuid": str(data.uuid),
+            "messages": list(data.messages),
+            "agents": list(data.agents),
+            "cost": (
+                data.cost.model_dump_json(serialize_as_any=True, fallback=str)
+                if data.cost
+                else None
+            ),
+            "summary": data.summary,
+            "context_variables": (
+                data.context_variables.model_dump_json(
+                    serialize_as_any=True, fallback=str
+                )
+                if data.context_variables
+                else None
+            ),
+            "last_speaker": data.last_speaker,
+        }
+        return results_dict
+    except Exception as e:
+        return {
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+        }

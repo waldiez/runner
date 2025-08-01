@@ -8,10 +8,6 @@ import logging
 import traceback
 from typing import Any
 
-from autogen.io.run_response import (  # type: ignore
-    AsyncRunResponseProtocol,
-    RunResponseProtocol,
-)
 from waldiez import Waldiez, WaldiezRunner
 
 from .redis_io_stream import RedisIOStream
@@ -59,71 +55,56 @@ class FlowRunner:
             input_timeout=self.input_timeout,
         )
 
-    async def run(self) -> list[dict[str, Any]]:
+    async def run(self) -> list[dict[str, Any]] | dict[str, Any]:
         """Run the Waldiez flow and return the results.
 
         Returns
         -------
-        List[Dict[str, Any]]]
+        list[dict[str, Any]] | dict[str, Any]
             The results of the flow execution.
         """
-        results: (
-            list[RunResponseProtocol]
-            | list[AsyncRunResponseProtocol]
-            | list[dict[str, Any]]
-            | dict[str, Any]
-            | dict[int, Any]
-        )
         if not self.waldiez.is_async:
-            results = await asyncio.to_thread(self.run_sync)
-            serializable_results = make_serializable_results(results)
-            return serializable_results
+            return await asyncio.to_thread(self.run_sync)
         with RedisIOStream.set_default(self.io_stream):
             try:
                 runner = WaldiezRunner(self.waldiez)
                 results = await runner.a_run(  # pyright: ignore
                     output_path=self.output_path,
                 )
+                return make_serializable_results(results)
             except BaseException as e:  # pylint: disable=broad-exception-caught
                 tb = traceback.format_exc()
-                results = {
+                return {
                     "error": str(e),
                     "traceback": tb,
                 }
-        serializable_results = make_serializable_results(results)
-        self.io_stream.close()
-        return serializable_results
 
-    def run_sync(self) -> list[dict[str, Any]]:
+            finally:
+                self.io_stream.close()
+
+    def run_sync(self) -> list[dict[str, Any]] | dict[str, Any]:
         """Run the Waldiez flow synchronously and return the results.
 
         Returns
         -------
-        List[Dict[str, Any]]
+        list[dict[str, Any]] | dict[str, Any]
             The results of the flow execution.
         """
-        results: (
-            list[RunResponseProtocol]
-            | list[AsyncRunResponseProtocol]
-            | dict[str, Any]
-            | dict[int, Any]
-        )
         with RedisIOStream.set_default(self.io_stream):
             try:
                 runner = WaldiezRunner(self.waldiez)
                 results = runner.run(  # pyright: ignore
                     output_path=self.output_path,
                 )
+                return make_serializable_results(results)
             except BaseException as e:  # pylint: disable=broad-exception-caught
                 tb = traceback.format_exc()
-                results = {  # pylint: disable=redefined-variable-type
+                return {
                     "error": str(e),
                     "traceback": tb,
                 }
             finally:
                 self.io_stream.close()
-
-        return make_serializable_results(results)
 
     @staticmethod
     def validate_flow(flow_path: str) -> Waldiez:
