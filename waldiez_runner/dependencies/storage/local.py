@@ -21,13 +21,12 @@ from aiofiles import os
 from fastapi import BackgroundTasks, HTTPException, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 
-from .utils import (
+from .utils import (  # download_gcs_file,
     ALLOWED_MIME_TYPES,
     CHUNK_SIZE,
     MAX_FILE_SIZE,
     download_file,
     download_ftp_file,
-    download_gcs_file,
     download_http_file,
     download_s3_file,
     download_sftp_file,
@@ -173,8 +172,8 @@ class LocalStorage:
         parsed_url = urlparse(file_url)
         if parsed_url.scheme.lower() == "s3":
             return await download_s3_file(file_url, max_size)
-        if parsed_url.scheme.lower() == "gs":
-            return await download_gcs_file(file_url, max_size)
+        # if parsed_url.scheme.lower() == "gs":
+        #     return await download_gcs_file(file_url, max_size)
         if parsed_url.scheme.lower() in ("http", "https"):
             return await download_http_file(file_url, max_size)
         if parsed_url.scheme.lower() == "file":

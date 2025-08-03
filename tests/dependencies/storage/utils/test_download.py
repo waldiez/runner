@@ -17,12 +17,11 @@ from botocore.exceptions import (  # type: ignore[import-untyped]
     NoCredentialsError,
 )
 from fastapi import HTTPException
-from google.cloud.exceptions import NotFound
 
-from waldiez_runner.dependencies.storage.utils import (
+# from google.cloud.exceptions import NotFound
+from waldiez_runner.dependencies.storage.utils import (  # download_gcs_file,
     download_file,
     download_ftp_file,
-    download_gcs_file,
     download_http_file,
     download_s3_file,
     download_sftp_file,
@@ -189,94 +188,94 @@ class TestDownloadS3File:
                 assert "AWS credentials not found" in exc_info.value.detail
 
 
-class TestDownloadGcsFile:
-    """Test GCS file download functionality."""
+# class TestDownloadGcsFile:
+#     """Test GCS file download functionality."""
 
-    @pytest.mark.anyio
-    async def test_download_gcs_file_success(self) -> None:
-        """Test successful GCS file download."""
-        mock_blob = MagicMock()
-        mock_blob.size = 100
-        mock_blob.reload.return_value = None
-        mock_blob.download_as_bytes.return_value = b'{"test": "data"}'
+#     @pytest.mark.anyio
+#     async def test_download_gcs_file_success(self) -> None:
+#         """Test successful GCS file download."""
+#         mock_blob = MagicMock()
+#         mock_blob.size = 100
+#         mock_blob.reload.return_value = None
+#         mock_blob.download_as_bytes.return_value = b'{"test": "data"}'
 
-        mock_bucket = MagicMock()
-        mock_bucket.blob.return_value = mock_blob
+#         mock_bucket = MagicMock()
+#         mock_bucket.blob.return_value = mock_blob
 
-        mock_client = MagicMock()
-        mock_client.bucket.return_value = mock_bucket
+#         mock_client = MagicMock()
+#         mock_client.bucket.return_value = mock_bucket
 
-        with patch(
-            "waldiez_runner.dependencies.storage.utils._download.Client",
-            return_value=mock_client,
-        ):
-            with patch(
-                "puremagic.from_string", return_value="application/json"
-            ):
-                with patch("aiofiles.tempfile.NamedTemporaryFile") as mock_temp:
-                    mock_temp.return_value.__aenter__ = AsyncMock(
-                        return_value=Path("test_file")
-                    )
-                    mock_temp.return_value.__aexit__ = AsyncMock()
-                    mock_temp.return_value.name = "test_file"
+#         with patch(
+#             "waldiez_runner.dependencies.storage.utils._download.Client",
+#             return_value=mock_client,
+#         ):
+#             with patch(
+#                 "puremagic.from_string", return_value="application/json"
+#             ):
+#            with patch("aiofiles.tempfile.NamedTemporaryFile") as mock_temp:
+#                     mock_temp.return_value.__aenter__ = AsyncMock(
+#                         return_value=Path("test_file")
+#                     )
+#                     mock_temp.return_value.__aexit__ = AsyncMock()
+#                     mock_temp.return_value.name = "test_file"
 
-                    with patch("aiofiles.open") as mock_aiofiles_open:
-                        mock_file = AsyncMock()
-                        mock_aiofiles_open.return_value.__aenter__ = AsyncMock(
-                            return_value=mock_file
-                        )
-                        mock_aiofiles_open.return_value.__aexit__ = AsyncMock(
-                            return_value=None
-                        )
+#                     with patch("aiofiles.open") as mock_aiofiles_open:
+#                         mock_file = AsyncMock()
+#                     mock_aiofiles_open.return_value.__aenter__ = AsyncMock(
+#                             return_value=mock_file
+#                         )
+#                         mock_aiofiles_open.return_value.__aexit__ = AsyncMock(
+#                             return_value=None
+#                         )
 
-                        hash_val, temp_path = await download_gcs_file(
-                            "gs://test-bucket/test.json"
-                        )
+#                         hash_val, temp_path = await download_gcs_file(
+#                             "gs://test-bucket/test.json"
+#                         )
 
-                        assert len(hash_val) == 32
-                        assert temp_path == "test_file"
+#                         assert len(hash_val) == 32
+#                         assert temp_path == "test_file"
 
-    @pytest.mark.anyio
-    async def test_download_gcs_file_invalid_url(self) -> None:
-        """Test GCS download with invalid URL format."""
-        with pytest.raises(HTTPException) as exc_info:
-            await download_gcs_file("gs://")
+#     @pytest.mark.anyio
+#     async def test_download_gcs_file_invalid_url(self) -> None:
+#         """Test GCS download with invalid URL format."""
+#         with pytest.raises(HTTPException) as exc_info:
+#             await download_gcs_file("gs://")
 
-        assert exc_info.value.status_code == 400
-        assert "Invalid GCS URL format" in exc_info.value.detail
+#         assert exc_info.value.status_code == 400
+#         assert "Invalid GCS URL format" in exc_info.value.detail
 
-    @pytest.mark.anyio
-    async def test_download_gcs_file_not_found(self) -> None:
-        """Test GCS download with object not found."""
+#     @pytest.mark.anyio
+#     async def test_download_gcs_file_not_found(self) -> None:
+#         """Test GCS download with object not found."""
 
-        mock_blob = MagicMock()
-        mock_blob.size = 100
-        mock_blob.reload.side_effect = NotFound(  # type: ignore
-            "Object not found",
-        )
+#         mock_blob = MagicMock()
+#         mock_blob.size = 100
+#         mock_blob.reload.side_effect = NotFound(  # type: ignore
+#             "Object not found",
+#         )
 
-        mock_bucket = MagicMock()
-        mock_bucket.blob.return_value = mock_blob
+#         mock_bucket = MagicMock()
+#         mock_bucket.blob.return_value = mock_blob
 
-        mock_client = MagicMock()
-        mock_client.bucket.return_value = mock_bucket
+#         mock_client = MagicMock()
+#         mock_client.bucket.return_value = mock_bucket
 
-        with patch(
-            "waldiez_runner.dependencies.storage.utils._download.Client",
-            return_value=mock_client,
-        ):
-            with patch("aiofiles.tempfile.NamedTemporaryFile") as mock_temp:
-                mock_temp.return_value.__aenter__ = AsyncMock(
-                    return_value=Path("test_file")
-                )
-                mock_temp.return_value.__aexit__ = AsyncMock()
-                mock_temp.return_value.name = "test_file"
+#         with patch(
+#             "waldiez_runner.dependencies.storage.utils._download.Client",
+#             return_value=mock_client,
+#         ):
+#             with patch("aiofiles.tempfile.NamedTemporaryFile") as mock_temp:
+#                 mock_temp.return_value.__aenter__ = AsyncMock(
+#                     return_value=Path("test_file")
+#                 )
+#                 mock_temp.return_value.__aexit__ = AsyncMock()
+#                 mock_temp.return_value.name = "test_file"
 
-                with pytest.raises(HTTPException) as exc_info:
-                    await download_gcs_file("gs://test-bucket/missing.json")
+#                 with pytest.raises(HTTPException) as exc_info:
+#                     await download_gcs_file("gs://test-bucket/missing.json")
 
-                assert exc_info.value.status_code == 404
-                assert "GCS object not found" in exc_info.value.detail
+#                 assert exc_info.value.status_code == 404
+#                 assert "GCS object not found" in exc_info.value.detail
 
 
 class TestDownloadFile:

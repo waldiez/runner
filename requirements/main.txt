@@ -13,7 +13,6 @@ fakeredis==2.30.3
 fastapi-pagination==0.13.3
 fastapi[all]==0.116.1
 faststream[redis,cli]==0.5.48
-google-cloud-storage==3.2.0
 hiredis==3.2.1
 nest-asyncio==1.6.0
 orjson==3.11.1

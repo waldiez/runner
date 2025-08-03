@@ -8,10 +8,9 @@ from ._common import (
     CHUNK_SIZE,
     MAX_FILE_SIZE,
 )
-from ._download import (
+from ._download import (  # download_gcs_file,
     download_file,
     download_ftp_file,
-    download_gcs_file,
     download_http_file,
     download_s3_file,
     download_sftp_file,
@@ -29,6 +28,6 @@ __all__ = [
     "download_http_file",
     "download_ftp_file",
     "download_s3_file",
-    "download_gcs_file",
+    # "download_gcs_file",
     "download_sftp_file",
 ]

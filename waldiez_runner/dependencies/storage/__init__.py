@@ -5,12 +5,11 @@
 from .base import Storage
 from .factory import StorageBackend, get_storage_backend
 from .local import LocalStorage
-from .utils import (
+from .utils import (  # download_gcs_file,
     ALLOWED_EXTENSIONS,
     ALLOWED_MIME_TYPES,
     download_file,
     download_ftp_file,
-    download_gcs_file,
     download_http_file,
     download_s3_file,
     download_sftp_file,
@@ -29,6 +28,6 @@ __all__ = [
     "download_http_file",
     "download_ftp_file",
     "download_s3_file",
-    "download_gcs_file",
+    # "download_gcs_file",
     "download_sftp_file",
 ]

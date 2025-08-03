@@ -41,7 +41,13 @@ dependencies = [
     "fastapi[all]==0.116.1",
     "fastapi-pagination==0.13.3",
     "faststream[redis,cli]==0.5.48",
-    "google-cloud-storage==3.2.0",
+    # ag2[gemini] needs google-cloud-aiplatform and this needs
+    # google-cloud-storage>=1.26.0,<2.0.0.dev0
+    # "google-cloud-storage>=3.2.0",
+    # but google-cloud-storage>=1.26.0,<2.0.0.dev0 gives:
+    #     .venv/lib/python3.13/site-packages/google/cloud/storage/blob.py:29: in <module>
+    #     import cgi
+    # E   ModuleNotFoundError: No module named 'cgi'
     "hiredis==3.2.1",
     "nest-asyncio==1.6.0",
     "orjson==3.11.1",
