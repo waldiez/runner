@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import traceback
+from pathlib import Path
 from typing import Any
 
 from waldiez import Waldiez, WaldiezRunner
@@ -14,6 +15,7 @@ from .redis_io_stream import RedisIOStream
 from .results_serialization import make_serializable_results
 
 LOG = logging.getLogger(__name__)
+HERE = Path(__file__).parent.resolve()
 
 
 class FlowRunner:
@@ -32,6 +34,8 @@ class FlowRunner:
     input_timeout : int, optional
         The timeout for input requests, by default 180.
     """
+
+    dot_env_path: Path | None
 
     def __init__(
         self,
@@ -54,6 +58,11 @@ class FlowRunner:
             on_input_response=self.on_input_response,
             input_timeout=self.input_timeout,
         )
+        dot_env_path = HERE / ".env"
+        if dot_env_path.exists():
+            self.dot_env_path = dot_env_path
+        else:
+            self.dot_env_path = None
 
     async def run(self) -> list[dict[str, Any]] | dict[str, Any]:
         """Run the Waldiez flow and return the results.
@@ -70,6 +79,7 @@ class FlowRunner:
                 runner = WaldiezRunner(self.waldiez)
                 results = await runner.a_run(  # pyright: ignore
                     output_path=self.output_path,
+                    dot_env=self.dot_env_path,
                 )
                 return make_serializable_results(results)
             except BaseException as e:  # pylint: disable=broad-exception-caught
@@ -95,6 +105,7 @@ class FlowRunner:
                 runner = WaldiezRunner(self.waldiez)
                 results = runner.run(  # pyright: ignore
                     output_path=self.output_path,
+                    dot_env=self.dot_env_path,
                 )
                 return make_serializable_results(results)
             except BaseException as e:  # pylint: disable=broad-exception-caught
