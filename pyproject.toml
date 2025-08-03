@@ -36,7 +36,7 @@ dependencies = [
     "anyio==4.9.0",
     "asyncssh==2.21.0",
     "bcrypt==4.3.0",
-    "boto3==1.39.17",
+    "boto3==1.40.1",
     "fakeredis==2.30.3",
     "fastapi[all]==0.116.1",
     "fastapi-pagination==0.13.3",
@@ -99,7 +99,6 @@ dev = [
     "flake8==7.3.0",
     "hatchling==1.27.0",
     "isort==6.0.1",
-    "jupy==0.2.2",
     "mypy==1.17.1",
     "pre-commit==4.2.0",
     "pydocstyle==6.3.0",
@@ -108,7 +107,7 @@ dev = [
     "streamlit==1.47.1",
     "streamlit-autorefresh==1.0.1",
     "taskiq[reload]==0.11.18",
-    "types-aiofiles==24.1.0.20250708",
+    "types-aiofiles==24.1.0.20250801",
     "types-redis==4.6.0.20241004",
     "types-requests==2.32.4.20250611",
     "types-psutil==7.0.0.20250601",
@@ -144,7 +143,7 @@ docs = [
   'mkdocs-minify-html-plugin==0.3.4',
   'mkdocstrings[crystal,python]==0.30.0',
   'mkdocstrings-python==1.16.12',
-  'neoteroi-mkdocs==1.1.2',
+  'neoteroi-mkdocs==1.1.3',
 ]
 
 [tool.hatch.version]
