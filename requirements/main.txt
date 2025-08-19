@@ -4,12 +4,12 @@ aioftp==0.26.2
 aiohttp==3.12.15
 aiosqlite==0.21.0
 alembic==1.16.4
-anyio==4.9.0
+anyio==4.10.0
 asyncssh==2.21.0
 bcrypt==4.3.0
-boto3==1.40.1
+boto3==1.40.12
 click<8.2
-fakeredis==2.30.3
+fakeredis==2.31.0
 fastapi-pagination==0.13.3
 fastapi[all]==0.116.1
 faststream[redis,cli]==0.5.48
@@ -29,9 +29,9 @@ pydantic-settings==2.10.1
 pydantic>=2.11.3,<3.0.0
 pysqlite3-binary==0.5.4; sys_platform == 'linux' and platform_machine != 'arm64' and platform_machine != 'aarch64' and platform_machine != 'ARM64' and platform_machine != 'AARCH64'
 python-multipart==0.0.20
-python-ulid==3.0.0
+python-ulid==3.1.0
 python_dotenv==1.1.1
-redis==6.2.0
+redis==6.4.0
 slowapi==0.1.9
 taskiq-dependencies==1.5.7
 taskiq-redis==1.1.0
@@ -41,6 +41,6 @@ trio==0.30.0
 typer<1
 uvicorn[standard]==0.35.0
 uvloop==0.21.0; sys_platform != 'win32'
-virtualenv==20.33.0
+virtualenv==20.34.0
 waldiez==0.5.9
 zipstream==1.1.4
