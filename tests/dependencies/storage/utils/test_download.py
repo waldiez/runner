@@ -18,8 +18,7 @@ from botocore.exceptions import (  # type: ignore[import-untyped]
 )
 from fastapi import HTTPException
 
-# from google.cloud.exceptions import NotFound
-from waldiez_runner.dependencies.storage.utils import (  # download_gcs_file,
+from waldiez_runner.dependencies.storage.utils import (
     download_file,
     download_ftp_file,
     download_http_file,

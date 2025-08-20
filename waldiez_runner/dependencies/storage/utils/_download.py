@@ -30,8 +30,6 @@ from botocore.exceptions import (  # type: ignore[import-untyped]
 )
 from fastapi import HTTPException
 
-# from google.cloud.exceptions import NotFound
-# from google.cloud.storage import Client  # type: ignore[import-untyped]
 from ._common import ALLOWED_MIME_TYPES, CHUNK_SIZE, MAX_FILE_SIZE
 
 LOG = logging.getLogger(__name__)
