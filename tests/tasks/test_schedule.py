@@ -76,8 +76,9 @@ async def test_cleanup_old_tasks(
                 page=1,
                 size=100,
                 total=2,
+                pages=2,
             )
-        return Page(items=[], page=1, size=100, total=0)
+        return Page(items=[], page=1, size=100, total=0, pages=1)
 
     mock_get_tasks_to_delete.side_effect = get_tasks_to_delete
 
@@ -151,8 +152,9 @@ async def test_check_stuck_tasks(
                 page=1,
                 size=100,
                 total=3,
+                pages=3,
             )
-        return Page(items=[], page=1, size=100, total=0)
+        return Page(items=[], page=1, size=100, total=0, pages=1)
 
     async def list_files(folder_path: str) -> list[str]:
         """List files in a folder."""

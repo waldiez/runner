@@ -7,15 +7,15 @@ alembic==1.16.4
 anyio==4.10.0
 asyncssh==2.21.0
 bcrypt==4.3.0
-boto3==1.40.12
+boto3==1.40.18
 click<8.2
 fakeredis==2.31.0
-fastapi-pagination==0.13.3
+fastapi-pagination==0.14.0
 fastapi[all]==0.116.1
 faststream[redis,cli]==0.5.48
 hiredis==3.2.1
 nest-asyncio==1.6.0
-orjson==3.11.1
+orjson==3.11.3
 psutil==7.0.0
 psycopg>=3.2.9; sys_platform == 'linux'
 psycopg>=3.2.9; sys_platform == 'win32' and platform_machine == 'AARCH64'
