@@ -87,7 +87,7 @@ def get_client_id(
         Returns
         -------
         str
-            The subject of the JWT or "external" for external tokens.
+            The subject of the JWT or the token itself for external tokens.
 
         Raises
         ------
@@ -145,7 +145,10 @@ def get_client_id(
                 context.is_external_auth = True
 
                 # Return a special identifier for external auth
-                return "external"
+                sub = token_response.user_info.get(
+                    "sub", token_response.user_info.get("id", token)
+                )  # pyright: ignore
+                return sub if isinstance(sub, str) else token
 
         # If we get here, all verification methods failed
         raise HTTPException(

@@ -208,7 +208,9 @@ async def test_verify_external_auth_token_success(
     """Test successful external auth token verification."""
     settings = MockedSettings.create_mock()
     token_response = ExternalTokenService.ExternalTokenResponse(
-        valid=True, user_info={"id": "user123", "name": "Test User"}
+        valid=True,
+        user_info={"id": "user123", "name": "Test User"},
+        id="user123",
     )
     mock_verify.return_value = (token_response, None)
 

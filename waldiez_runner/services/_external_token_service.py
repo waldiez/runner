@@ -17,6 +17,7 @@ class ExternalTokenResponse(BaseModel):
     """Response from external token verification."""
 
     valid: bool
+    id: str
     user_info: dict[str, Any] = {}
 
 
@@ -64,9 +65,11 @@ async def verify_external_token(
         )
 
     try:
-        data = response.json()
+        user_info, client_id = get_user_info(response, token)
         token_response = ExternalTokenResponse(
-            valid=True, user_info=data.get("user", {})
+            valid=True,
+            id=client_id,
+            user_info=user_info,
         )
         return token_response, None
     except (ValueError, TypeError, json.JSONDecodeError) as exc:
@@ -75,3 +78,31 @@ async def verify_external_token(
             status_code=500,
             detail="Error processing external verification response",
         )
+
+
+def get_user_info(
+    response: httpx.Response, token: str
+) -> tuple[dict[str, Any], str]:
+    """Extract user information from the external token verification response.
+
+    Parameters
+    ----------
+    response : httpx.Response
+        The response from the external token verification request.
+    token : str
+        The original token that was verified.
+
+    Returns
+    -------
+    dict[str, Any]
+        The user information extracted from the response.
+    """
+    data = response.json()
+    user_info: dict[str, Any] = data.get("user", data)
+    if not isinstance(user_info, dict):  # pyright: ignore  # pragma: no cover
+        user_info = {}
+    sub = user_info.get("sub", user_info.get("id", token))  # pyright: ignore
+    if not isinstance(sub, str):
+        sub = token
+    user_info["sub"] = sub
+    return user_info, sub

@@ -228,7 +228,9 @@ async def test_get_ws_client_id_with_external_auth_success() -> None:
     mock_get_client_id = AsyncMock(return_value=(None, "some error"))
 
     mock_token_response = ExternalTokenService.ExternalTokenResponse(
-        valid=True, user_info={"id": "user123", "name": "Test User"}
+        valid=True,
+        user_info={"id": "user123", "name": "Test User", "sub": "user234"},
+        id="user234",
     )
     mock_verify_external = AsyncMock(return_value=(mock_token_response, None))
 
@@ -243,11 +245,12 @@ async def test_get_ws_client_id_with_external_auth_success() -> None:
     ):
         client_id, subprotocol = await get_ws_client_id(websocket, settings)
 
-    assert client_id == "external"
+    assert client_id == "user234"
     assert subprotocol is None
     assert websocket.state.external_user_info == {
         "id": "user123",
         "name": "Test User",
+        "sub": "user234",
     }
     mock_get_client_id.assert_called_once()
     mock_verify_external.assert_called_once_with("external-token", settings)
@@ -302,7 +305,7 @@ async def test_get_ws_client_id_with_external_auth_failure() -> None:
     mock_get_client_id = AsyncMock(return_value=(None, "some error"))
 
     mock_token_response = ExternalTokenService.ExternalTokenResponse(
-        valid=False, user_info={}
+        valid=False, user_info={}, id="user234"
     )
     mock_verify_external = AsyncMock(
         return_value=(mock_token_response, "external validation error")
@@ -400,7 +403,7 @@ async def test_get_ws_client_id_external_auth_from_different_sources(
     mock_get_client_id = AsyncMock(return_value=(None, "some error"))
 
     mock_token_response = ExternalTokenService.ExternalTokenResponse(
-        valid=True, user_info={"id": "user123"}
+        valid=True, user_info={"key": "value"}, id="user123"
     )
     mock_verify_external = AsyncMock(return_value=(mock_token_response, None))
 
@@ -415,6 +418,9 @@ async def test_get_ws_client_id_external_auth_from_different_sources(
     ):
         client_id, subprotocol = await get_ws_client_id(websocket, settings)
 
-    assert client_id == "external"
+    assert client_id == "user123"
     assert subprotocol == expected_subprotocol
-    assert websocket.state.external_user_info == {"id": "user123"}
+    assert websocket.state.client_id == "user123"
+    assert websocket.state.external_user_info == {
+        "key": "value",
+    }

@@ -104,7 +104,7 @@ async def get_ws_client_id(
 
             if external_validated:
                 subprotocol = cast(str | None, source["subprotocol"])
-                return "external", subprotocol
+                return websocket.state.client_id, subprotocol
 
     # No valid token found
     return None, None
@@ -136,6 +136,7 @@ async def _try_external_validation(
     if token_response and not ext_exception and token_response.valid:
         # Store user info on websocket state
         websocket.state.external_user_info = token_response.user_info
+        websocket.state.client_id = token_response.id
         return True
     return False
 

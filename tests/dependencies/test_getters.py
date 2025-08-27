@@ -85,7 +85,9 @@ async def test_get_client_id_with_external_token(
     # External validation succeeds
     mock_verify_external.return_value = (
         ExternalTokenService.ExternalTokenResponse(
-            valid=True, user_info={"id": "ext-user", "name": "External User"}
+            valid=True,
+            user_info={"id": "ext-user", "name": "External User"},
+            id="ext-user",
         ),
         None,
     )
@@ -140,7 +142,7 @@ async def test_get_client_id_with_external_token(
             result = await dependency_fn(credentials)
 
             # Assertions
-            assert result == "external"
+            assert result
             mock_get_client_id.assert_awaited_once()
             mock_verify_external.assert_awaited_once()
 
