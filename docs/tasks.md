@@ -35,6 +35,26 @@ Uploads a `.waldiez` flow and creates a new task. Limited to 3 concurrent tasks 
 
 ***Error***: `429` if the task limit is exceeded.
 
+### Permission Check
+
+Before creating a task, the system performs a permission verification by sending a GET request to a configurable external endpoint. This check ensures the user has permission to run tasks.
+
+**Request Details:**
+- **URL**: Configured via `TASK_PERMISSION_VERIFY_URL` environment variable
+- **Parameters**: `user_id` (extracted from JWT token)
+- **Headers**: `X-Runner-Secret-Key` (configured via `TASK_PERMISSION_SECRET`)
+
+**Expected Response:**
+- **200 OK** with `{"can_run": true}` if permission is granted
+- **429 Too Many Requests** with `{"can_run": false, "reason": "custom reason"}` if permission is denied
+
+**Error Handling:**
+- If permission is denied (429), the API returns `429` with the reason from the response
+- If the permission check fails (network error, invalid response), the API returns `500`
+- Permission check is skipped if external auth is disabled or not configured
+
+This feature allows integration with external authorization systems to control task execution based on user permissions, quotas, or other business logic.
+
 ---
 
 ## 📄 Get Task by ID

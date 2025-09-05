@@ -209,3 +209,32 @@ def get_external_auth_secret() -> str:
         The external auth verification secret
     """
     return get_value("--external-auth-secret", "EXTERNAL_AUTH_SECRET", str, "")
+
+
+def get_task_permission_verify_url() -> str:
+    """Get the task permission verification URL.
+
+    Returns
+    -------
+    str
+        The task permission verification URL
+    """
+    return get_value(
+        "--task-permission-verify-url",
+        "TASK_PERMISSION_VERIFY_URL",
+        str,
+        "https://example.com/task-permission",
+    )
+
+
+def get_task_permission_secret() -> str:
+    """Get the task permission verification secret.
+
+    Returns
+    -------
+    str
+        The task permission verification secret
+    """
+    return get_value(
+        "--task-permission-secret", "TASK_PERMISSION_SECRET", str, ""
+    )

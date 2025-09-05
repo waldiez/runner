@@ -36,6 +36,8 @@ from ._common import (
     get_enable_external_auth,
     get_external_auth_secret,
     get_external_auth_verify_url,
+    get_task_permission_secret,
+    get_task_permission_verify_url,
     is_testing,
     to_kebab,
 )
@@ -153,6 +155,9 @@ class Settings(BaseSettings):
     enable_external_auth: bool = get_enable_external_auth()
     external_auth_verify_url: str = get_external_auth_verify_url()
     external_auth_secret: str = get_external_auth_secret()
+    # Task permission settings
+    task_permission_verify_url: str = get_task_permission_verify_url()
+    task_permission_secret: str = get_task_permission_secret()
     # Task specific
     input_timeout: Annotated[int, Field(ge=1, le=3600)] = get_input_timeout()
 
