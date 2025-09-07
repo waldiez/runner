@@ -1,19 +1,25 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
+# pyright: reportPrivateUsage=false
 """Test task permission checking functionality."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
+from httpx import HTTPStatusError
 
 from waldiez_runner.dependencies.context import RequestContext
-from waldiez_runner.routes.v1.task_router import _check_user_can_run_task
+from waldiez_runner.routes.v1.task_permission import check_user_can_run_task
+
+TASK_PERMISSION = "waldiez_runner.routes.v1.task_permission"
+APP_STATE = f"{TASK_PERMISSION}.app_state"
+HTTPX_ASYNC_CLIENT = f"{TASK_PERMISSION}.httpx.AsyncClient"
 
 
 @pytest.mark.asyncio
-@patch("waldiez_runner.routes.v1.task_router.app_state")
+@patch(APP_STATE)
 async def test_check_user_can_run_task_external_auth_disabled(
     mock_app_state: AsyncMock,
 ) -> None:
@@ -33,11 +39,11 @@ async def test_check_user_can_run_task_external_auth_disabled(
     context = RequestContext()
 
     # Should not raise any exception
-    await _check_user_can_run_task(context)
+    await check_user_can_run_task(context)
 
 
 @pytest.mark.asyncio
-@patch("waldiez_runner.routes.v1.task_router.app_state")
+@patch(APP_STATE)
 async def test_check_user_can_run_task_missing_settings(
     mock_app_state: AsyncMock,
 ) -> None:
@@ -56,14 +62,14 @@ async def test_check_user_can_run_task_missing_settings(
 
     # Should raise HTTPException with 500 status
     with pytest.raises(HTTPException) as exc_info:
-        await _check_user_can_run_task(context)
+        await check_user_can_run_task(context)
 
     assert exc_info.value.status_code == 500
     assert "Settings not initialized" in exc_info.value.detail
 
 
 @pytest.mark.asyncio
-@patch("waldiez_runner.routes.v1.task_router.app_state")
+@patch(APP_STATE)
 async def test_check_user_can_run_task_missing_config(
     mock_app_state: AsyncMock,
 ) -> None:
@@ -86,11 +92,11 @@ async def test_check_user_can_run_task_missing_config(
     context.external_user_info = {"sub": "user123"}
 
     # Should not raise any exception (warning logged but check skipped)
-    await _check_user_can_run_task(context)
+    await check_user_can_run_task(context)
 
 
 @pytest.mark.asyncio
-@patch("waldiez_runner.routes.v1.task_router.app_state")
+@patch(APP_STATE)
 async def test_check_user_can_run_task_missing_user_info(
     mock_app_state: AsyncMock,
 ) -> None:
@@ -115,7 +121,7 @@ async def test_check_user_can_run_task_missing_user_info(
 
     # Should raise HTTPException with 400 status
     with pytest.raises(HTTPException) as exc_info:
-        await _check_user_can_run_task(context)
+        await check_user_can_run_task(context)
 
     assert exc_info.value.status_code == 400
     assert (
@@ -125,7 +131,7 @@ async def test_check_user_can_run_task_missing_user_info(
 
 
 @pytest.mark.asyncio
-@patch("waldiez_runner.routes.v1.task_router.app_state")
+@patch(APP_STATE)
 async def test_check_user_can_run_task_invalid_user_id(
     mock_app_state: AsyncMock,
 ) -> None:
@@ -150,7 +156,7 @@ async def test_check_user_can_run_task_invalid_user_id(
 
     # Should raise HTTPException with 400 status
     with pytest.raises(HTTPException) as exc_info:
-        await _check_user_can_run_task(context)
+        await check_user_can_run_task(context)
 
     assert exc_info.value.status_code == 400
     assert (
@@ -159,8 +165,8 @@ async def test_check_user_can_run_task_invalid_user_id(
 
 
 @pytest.mark.asyncio
-@patch("waldiez_runner.routes.v1.task_router.app_state")
-@patch("waldiez_runner.routes.v1.task_router.httpx.AsyncClient")
+@patch(APP_STATE)
+@patch(HTTPX_ASYNC_CLIENT)
 async def test_check_user_can_run_task_permission_granted(
     mock_client_class: AsyncMock,
     mock_app_state: AsyncMock,
@@ -195,7 +201,7 @@ async def test_check_user_can_run_task_permission_granted(
     context.external_user_info = {"sub": "user123", "id": "user123"}
 
     # Should not raise any exception
-    await _check_user_can_run_task(context)
+    await check_user_can_run_task(context)
 
     # Verify the request was made correctly
     mock_client.get.assert_called_once_with(
@@ -207,8 +213,8 @@ async def test_check_user_can_run_task_permission_granted(
 
 
 @pytest.mark.asyncio
-@patch("waldiez_runner.routes.v1.task_router.app_state")
-@patch("waldiez_runner.routes.v1.task_router.httpx.AsyncClient")
+@patch(APP_STATE)
+@patch(HTTPX_ASYNC_CLIENT)
 async def test_check_user_can_run_task_permission_denied(
     mock_client_class: AsyncMock,
     mock_app_state: AsyncMock,
@@ -231,7 +237,6 @@ async def test_check_user_can_run_task_permission_denied(
     mock_app_state.settings = mock_settings
 
     # Mock HTTP client to simulate 429 response
-    from httpx import HTTPStatusError
 
     mock_client = AsyncMock()
     mock_response = MagicMock()
@@ -251,15 +256,15 @@ async def test_check_user_can_run_task_permission_denied(
 
     # Should raise HTTPException with 429 status
     with pytest.raises(HTTPException) as exc_info:
-        await _check_user_can_run_task(context)
+        await check_user_can_run_task(context)
 
     assert exc_info.value.status_code == 429
     assert exc_info.value.detail == "User quota exceeded"
 
 
 @pytest.mark.asyncio
-@patch("waldiez_runner.routes.v1.task_router.app_state")
-@patch("waldiez_runner.routes.v1.task_router.httpx.AsyncClient")
+@patch(APP_STATE)
+@patch(HTTPX_ASYNC_CLIENT)
 async def test_check_user_can_run_task_http_error(
     mock_client_class: AsyncMock,
     mock_app_state: AsyncMock,
@@ -292,15 +297,15 @@ async def test_check_user_can_run_task_http_error(
 
     # Should raise HTTPException with 500 status
     with pytest.raises(HTTPException) as exc_info:
-        await _check_user_can_run_task(context)
+        await check_user_can_run_task(context)
 
     assert exc_info.value.status_code == 500
     assert "Failed to verify user permission" in exc_info.value.detail
 
 
 @pytest.mark.asyncio
-@patch("waldiez_runner.routes.v1.task_router.app_state")
-@patch("waldiez_runner.routes.v1.task_router.httpx.AsyncClient")
+@patch(APP_STATE)
+@patch(HTTPX_ASYNC_CLIENT)
 async def test_check_user_can_run_task_invalid_json(
     mock_client_class: AsyncMock,
     mock_app_state: AsyncMock,
@@ -336,15 +341,15 @@ async def test_check_user_can_run_task_invalid_json(
 
     # Should raise HTTPException with 500 status
     with pytest.raises(HTTPException) as exc_info:
-        await _check_user_can_run_task(context)
+        await check_user_can_run_task(context)
 
     assert exc_info.value.status_code == 500
     assert "Invalid response from permission check" in exc_info.value.detail
 
 
 @pytest.mark.asyncio
-@patch("waldiez_runner.routes.v1.task_router.app_state")
-@patch("waldiez_runner.routes.v1.task_router.httpx.AsyncClient")
+@patch(APP_STATE)
+@patch(HTTPX_ASYNC_CLIENT)
 async def test_check_user_can_run_task_user_id_from_id_field(
     mock_client_class: AsyncMock,
     mock_app_state: AsyncMock,
@@ -379,7 +384,7 @@ async def test_check_user_can_run_task_user_id_from_id_field(
     context.external_user_info = {"id": "user456"}
 
     # Should not raise any exception
-    await _check_user_can_run_task(context)
+    await check_user_can_run_task(context)
 
     # Verify the request was made with the correct user_id
     mock_client.get.assert_called_once_with(
@@ -391,8 +396,8 @@ async def test_check_user_can_run_task_user_id_from_id_field(
 
 
 @pytest.mark.asyncio
-@patch("waldiez_runner.routes.v1.task_router.app_state")
-@patch("waldiez_runner.routes.v1.task_router.httpx.AsyncClient")
+@patch(APP_STATE)
+@patch(HTTPX_ASYNC_CLIENT)
 async def test_check_user_can_run_task_sub_takes_precedence(
     mock_client_class: AsyncMock,
     mock_app_state: AsyncMock,
@@ -427,7 +432,7 @@ async def test_check_user_can_run_task_sub_takes_precedence(
     context.external_user_info = {"sub": "user_from_sub", "id": "user_from_id"}
 
     # Should not raise any exception
-    await _check_user_can_run_task(context)
+    await check_user_can_run_task(context)
 
     # Verify the request was made with 'sub' value
     mock_client.get.assert_called_once_with(

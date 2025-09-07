@@ -24,9 +24,11 @@ from waldiez_runner.dependencies.storage import LocalStorage
 from waldiez_runner.main import get_app
 from waldiez_runner.models.task import Task
 from waldiez_runner.models.task_status import TaskStatus
-from waldiez_runner.routes.v1.task_router import (  # type: ignore
+from waldiez_runner.routes.v1.task_input_validation import (
     MAX_TASKS_ERROR,
     MAX_TASKS_PER_CLIENT,
+)
+from waldiez_runner.routes.v1.task_router import (  # type: ignore
     get_storage,
     validate_tasks_audience,
 )
@@ -34,7 +36,7 @@ from waldiez_runner.schemas.client import ClientCreateResponse
 
 VALID_EXTENSION = ".waldiez"
 VALID_CONTENT_TYPE = "application/json"
-ROOT_MODULE = "waldiez_runner"
+ROOT_MODULE = "waldiez_runner.routes.v1"
 
 
 @pytest.fixture(name="storage_service")
@@ -87,7 +89,7 @@ def kiq_fixture(
     """Fixture to mock Taskiq task `kiq()` calls."""
     task_name = request.param  # e.g., "cancel_task_job", "delete_task_job"
     return mocker.patch(
-        f"{ROOT_MODULE}.routes.v1.task_router.{task_name}.kiq",
+        f"{ROOT_MODULE}.task_jobs.{task_name}.kiq",
         new_callable=AsyncMock,
     )
 
@@ -396,7 +398,7 @@ async def test_cancel_task(
     # with redis / FakeRedis
     # we handle it in smoke tests and (should! handle it) e2e tests
     with patch(
-        f"{ROOT_MODULE}.routes.v1.task_router.publish_task_cancellation",
+        f"{ROOT_MODULE}.task_router.publish_task_cancellation",
         new_callable=AsyncMock,
     ):
         response = await client.post(f"/tasks/{task.id}/cancel")

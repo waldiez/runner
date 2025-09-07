@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 from fastapi import HTTPException
 
-from waldiez_runner.routes.v1._env_vars import get_env_vars
+from waldiez_runner.routes.v1.env_vars import get_env_vars
 
 
 class TestGetEnvVars:

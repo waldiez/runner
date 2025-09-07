@@ -3,12 +3,13 @@
 """Schemas for Waldiez Runner."""
 
 from .client import ClientCreate, ClientResponseBase, ClientUpdate
-from .task import TaskCreate, TaskResponse, TaskUpdate
+from .task import InputResponse, TaskCreate, TaskResponse, TaskUpdate
 
 __all__ = [
     "ClientCreate",
     "ClientResponseBase",
     "ClientUpdate",
+    "InputResponse",
     "TaskCreate",
     "TaskUpdate",
     "TaskResponse",

@@ -129,3 +129,10 @@ class TaskResponse(TaskBase):
         if v is None:
             return None
         return v.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+class InputResponse(BaseModel):
+    """Input response model."""
+
+    request_id: str
+    data: str

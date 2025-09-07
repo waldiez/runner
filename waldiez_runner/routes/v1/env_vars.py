@@ -19,7 +19,7 @@ UNSAFE_ENV_VALUE_PATTERNS = [
     re.compile(r"\.\.[\\/]"),  # Path traversal
     re.compile(r"\\x[0-9a-fA-F]{2}"),  # Hex encoding
     re.compile(r"%[0-9a-fA-F]{2}"),  # URL encoding
-    re.compile(r"https?://"),  # URLs (potential data exfiltration)
+    re.compile(r"https?://"),  # URLs
     re.compile(r"ftp://"),  # FTP URLs
 ]
 PROTECTED_ENV_VARS = {
@@ -39,7 +39,7 @@ PROTECTED_ENV_VARS = {
     "SHELL",
     "TERM",
     "PWD",
-    # Network and proxy settings (prevent data exfiltration)
+    # Network and proxy settings
     "HTTP_PROXY",
     "HTTPS_PROXY",
     "FTP_PROXY",

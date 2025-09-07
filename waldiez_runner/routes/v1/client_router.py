@@ -21,7 +21,7 @@ from waldiez_runner.schemas.client import (
 )
 from waldiez_runner.services.client_service import ClientService
 
-from ._common import Order, get_pagination_params
+from .pagination import Order, get_pagination_params
 
 REQUIRED_AUDIENCES = [CLIENT_API_AUDIENCE]
 

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
-# pylint: disable=consider-using-with
+# pylint: disable=consider-using-with,unused-argument
 
 """Start the server and the worker in development mode."""
 
@@ -145,8 +145,8 @@ def start_broker(reload: bool, log_level: LogLevel, skip_redis: bool) -> None:
         log_level.upper(),
         f"{module_name}.worker:broker",
     ]
-    if reload:  # pragma: no-branch
-        worker_args.append("--reload")
+    # if reload:  # pragma: no-branch
+    #     worker_args.append("--reload")
     worker_process = run_process(worker_args, cwd, skip_redis)
     try:
         worker_process.wait()
@@ -352,8 +352,8 @@ def get_worker_command(
         log_level.upper(),
         f"{module_name}.worker:broker",
     ]
-    if reload:
-        worker_cmd.append("--reload")
+    # if reload:
+    #     worker_cmd.append("--reload")
     return worker_cmd
 
 
