@@ -9,9 +9,9 @@ mypy==1.17.1
 pre-commit==4.3.0
 pydocstyle==6.3.0
 pylint==3.3.8
-ruff==0.12.10
+ruff==0.12.12
 streamlit-autorefresh==1.0.1
-streamlit==1.49.0
+streamlit==1.49.1
 types-PyYAML==6.0.12.20250822
 types-aiofiles==24.1.0.20250822
 types-psutil==7.0.0.20250822

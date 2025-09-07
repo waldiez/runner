@@ -3,18 +3,18 @@ aiofiles==24.1.0
 aioftp==0.26.2
 aiohttp==3.12.15
 aiosqlite==0.21.0
-alembic==1.16.4
+alembic==1.16.5
 anyio==4.10.0
 asyncssh==2.21.0
 bcrypt==4.3.0
-boto3==1.40.18
+boto3==1.40.25
 click<8.2
-fakeredis==2.31.0
-fastapi-pagination==0.14.0
+fakeredis==2.31.1
+fastapi-pagination==0.14.1
 fastapi[all]==0.116.1
 faststream[redis,cli]==0.5.48
 hiredis==3.2.1
-httpx==0.28.1
+httpx<1
 nest-asyncio==1.6.0
 orjson==3.11.3
 psutil==7.0.0
@@ -23,7 +23,8 @@ psycopg>=3.2.9; sys_platform == 'win32' and platform_machine == 'AARCH64'
 psycopg>=3.2.9; sys_platform == 'win32' and platform_machine == 'ARM64'
 psycopg>=3.2.9; sys_platform == 'win32' and platform_machine == 'aarch64'
 psycopg>=3.2.9; sys_platform == 'win32' and platform_machine == 'arm64'
-psycopg[binary]>=3.2.9; sys_platform != 'linux' and platform_machine != 'arm64' and platform_machine != 'ARM64' and platform_machine != 'aarch64' and platform_machine != 'AARCH64'
+psycopg[binary]>=3.2.9; sys_platform == 'darwin'
+psycopg[binary]>=3.2.9; sys_platform == 'win32' and platform_machine != 'arm64' and platform_machine != 'ARM64' and platform_machine != 'aarch64' and platform_machine != 'AARCH64'
 puremagic==1.30
 pyJWT[crypto]==2.10.1
 pydantic-settings==2.10.1
