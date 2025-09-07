@@ -447,7 +447,7 @@ async def send_user_input(
     return
 
 
-# pylint: disable=too-complex
+# pylint: disable=too-complex,too-many-statements
 async def task_status_check(  # noqa
     task: dict[str, Any], tasks_access_token: str
 ) -> None:
