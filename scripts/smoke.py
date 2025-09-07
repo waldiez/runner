@@ -333,13 +333,22 @@ async def cancel_task(
         f"{TASKS_URL}/{task_id}/cancel",
         headers={"Authorization": f"Bearer {tasks_access_token}"},
     )
-    response.raise_for_status()
-    if response.status_code != 204:
-        print(response.json())
+    # pylint: disable=too-many-try-statements
+    try:
+        response.raise_for_status()
+        if response.status_code != 204:
+            print(response.json())
+            if not might_not_be_active:
+                raise AssertionError("The task should be cancelled.")
+    except httpx.HTTPStatusError as exc:
         if not might_not_be_active:
-            raise AssertionError("The task should be cancelled.")
-        print("It's probably ok, using fake redis")
-    return
+            # already cancelled?
+            if (
+                exc.response.json().get("detail")
+                != "Cannot cancel task with status CANCELLED"
+            ):
+                print(exc.response.content)
+                raise AssertionError("The task should be cancelled.") from exc
 
 
 async def tasks_check(client: dict[str, Any]) -> tuple[dict[str, Any], str]:
@@ -515,13 +524,20 @@ async def task_status_check(  # noqa
                 )
                 user_inputs += 1
             await asyncio.sleep(sleep_duration)
+            response = await HTTPX_CLIENT.get(
+                task_url,
+                headers={"Authorization": f"Bearer {tasks_access_token}"},
+            )
+            response.raise_for_status()
+            task = response.json()
     if task["status"] == "COMPLETED":
         print("The task is completed.")
         archive = await download_task_archive(task_id, tasks_access_token)
         print("Task archive downloaded.")
         print(f"Task archive size: {len(archive)}")
-    else:
+    elif task["status"] != "CANCELLED":
         await cancel_task(task_id, tasks_access_token)
+        print(task["status"])
         raise AssertionError("The task should be completed by now.")
     await delete_task(task_id, tasks_access_token)
     print("Task deleted.")
