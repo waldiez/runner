@@ -50,7 +50,7 @@
                 },
                 "pylint.args": ["--rcfile=pyproject.toml"],
                 "pylint.importStrategy": "fromEnvironment",
-                "editor.defaultFormatter": "ms-python.black-formatter",
+                "editor.defaultFormatter": "charliermarsh.ruff",
                 "black-formatter.args": ["--config=pyproject.toml"],
                 "ruff.configuration": "pyproject.toml",
                 "mypy.runUsingActiveInterpreter": true,
