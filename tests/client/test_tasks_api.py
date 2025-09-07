@@ -107,12 +107,12 @@ def test_cancel_task(client: TasksAPIClient, httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(
         method="POST",
         url="http://localhost:8000/api/v1/tasks/12345/cancel",
-        json={"status": "canceled"},
+        json={"status": "cancelled"},
         status_code=200,
     )
 
     response = client.cancel_task("12345")
-    assert response == {"status": "canceled"}
+    assert response == {"status": "cancelled"}
 
 
 def test_delete_task(client: TasksAPIClient, httpx_mock: HTTPXMock) -> None:
@@ -301,12 +301,12 @@ async def test_a_cancel_task(
     httpx_mock.add_response(
         method="POST",
         url="http://localhost:8000/api/v1/tasks/12345/cancel",
-        json={"status": "canceled"},
+        json={"status": "cancelled"},
         status_code=200,
     )
 
     response = await client.a_cancel_task("12345")
-    assert response == {"status": "canceled"}
+    assert response == {"status": "cancelled"}
 
 
 @pytest.mark.anyio
