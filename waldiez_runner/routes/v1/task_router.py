@@ -27,8 +27,10 @@ from starlette import status
 from typing_extensions import Literal
 
 from waldiez_runner.dependencies import (
+    ADMIN_API_AUDIENCE,
     TASK_API_AUDIENCE,
     Storage,
+    get_admin_client_id,
     get_client_id,
     get_db,
     get_storage,
@@ -54,6 +56,7 @@ from .task_permission import check_user_can_run_task
 from .task_pub import publish_task_cancellation, publish_task_input_response
 
 REQUIRED_AUDIENCES = [TASK_API_AUDIENCE]
+ADMIN_AUDIENCES = [ADMIN_API_AUDIENCE]
 
 LOG = logging.getLogger(__name__)
 TaskSort = Literal[
@@ -63,6 +66,7 @@ TaskSort = Literal[
     "status",
 ]
 validate_tasks_audience = get_client_id(*REQUIRED_AUDIENCES)
+validate_admin_audience = get_admin_client_id(*ADMIN_AUDIENCES)
 task_router = APIRouter()
 
 
@@ -110,6 +114,53 @@ async def get_client_tasks(
     return await TaskService.get_client_tasks(
         session,
         client_id,
+        params=params,
+        search=search,
+        order_by=order_by,
+        descending=order_type == "desc",
+    )
+
+
+@task_router.get(
+    "/admin/tasks",
+    response_model=Page[TaskResponse],
+    summary="Get all tasks (admin only)",
+    description="Get all tasks from all users. Requires admin audience.",
+)
+async def get_all_tasks(
+    _: Annotated[str, Depends(validate_admin_audience)],
+    session: Annotated[AsyncSession, Depends(get_db)],
+    search: Annotated[str | None, Query(description="A term to search")] = None,
+    order_by: Annotated[
+        TaskSort | None,
+        Query(description="The field to sort the results"),
+    ] = None,
+    order_type: Annotated[
+        Order | None,
+        Query(description="The order direction, can be 'asc' or 'desc'"),
+    ] = None,
+) -> Page[TaskResponse]:
+    """Get all tasks from all users.
+
+    Parameters
+    ----------
+    session : AsyncSession
+        The database session.
+    search : str | None
+        A search term to filter the tasks.
+    order_by : str | None
+        The field to sort the tasks.
+    order_type : str | None
+        The order to sort the tasks. Can be "asc" or "desc".
+
+    Returns
+    -------
+    Page[TaskResponse]
+        All tasks from all users.
+    """
+    params = get_pagination_params()
+    return await TaskService.get_all_tasks(
+        session,
         params=params,
         search=search,
         order_by=order_by,

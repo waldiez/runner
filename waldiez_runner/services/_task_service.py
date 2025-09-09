@@ -106,6 +106,70 @@ async def get_client_tasks(
     return page
 
 
+async def get_all_tasks(
+    session: AsyncSession,
+    params: Params,
+    search: str | None = None,
+    order_by: str | None = None,
+    descending: bool = False,
+) -> Page[TaskResponse]:
+    """Retrieve all tasks for all clients.
+
+    Parameters
+    ----------
+    session : AsyncSession
+        SQLAlchemy async session.
+    params : Params
+        Pagination parameters.
+    search : str | None
+        Optional search term.
+    order_by : str | None
+        Optional field to order by.
+    descending : bool
+        Whether to order in descending order. Default is False.
+
+    Returns
+    -------
+    Page[TaskResponse]
+        List of all tasks.
+
+    Raises
+    ------
+    ValueError
+        If an invalid field is provided for ordering.
+    """
+
+    query = select(Task).where(Task.deleted_at.is_(None))
+    if search:
+        # a simple ilike
+        query = query.where(
+            or_(
+                Task.filename.ilike(f"%{search}%"),
+                Task.status.ilike(f"%{search}%"),
+            )
+        )
+    if order_by:
+        if order_by not in Task.__table__.columns:  # pragma: no cover
+            # already checked in the router
+            raise ValueError(f"Invalid field for ordering: {order_by}")
+        if descending:
+            query = query.order_by(desc(getattr(Task, order_by)))
+        else:
+            query = query.order_by(asc(getattr(Task, order_by)))
+    else:
+        query = query.order_by(
+            desc(Task.created_at) if descending else asc(Task.created_at)
+        )
+
+    page = await apaginate(
+        session,
+        query,
+        params=params,
+        transformer=task_transformer,
+    )
+    return page
+
+
 async def create_task(
     session: AsyncSession,
     task_create: TaskCreate,

@@ -159,6 +159,129 @@ def get_client_id(
     return dependency
 
 
+def get_admin_client_id(
+    *expected_audiences: str, allow_external_auth: bool = True
+) -> Callable[
+    [HTTPAuthorizationCredentials],
+    Coroutine[Any, Any, str],
+]:
+    """Require a specific audience for the request and check admin role for external auth.
+
+    Parameters
+    ----------
+    *expected_audiences : str
+        The expected audiences.
+    allow_external_auth : bool, optional
+        Whether to allow external authentication, by default True
+
+    Returns
+    -------
+    Callable[[HTTPAuthorizationCredentials],Coroutine[Any, Any, str]]
+        The dependency.
+    """
+
+    async def dependency(
+        credentials: Annotated[
+            HTTPAuthorizationCredentials, Security(bearer_scheme)
+        ],
+        session: AsyncSession = Depends(get_db),
+        context: RequestContext = Depends(get_request_context),
+    ) -> str:
+        """Check the audience of the JWT payload and admin role for external auth.
+
+        Parameters
+        ----------
+        credentials : HTTPAuthorizationCredentials
+            The authorization credentials.
+        session : AsyncSession
+            The database session.
+        context : RequestContext
+            The request context.
+
+        Returns
+        -------
+        str
+            The subject of the JWT or the token itself for external tokens.
+
+        Raises
+        ------
+        HTTPException
+            If the audience is not as expected or user is not admin.
+        RuntimeError
+            If the settings or JWKs cache are not initialized.
+        """
+        token = credentials.credentials
+        scheme = credentials.scheme
+        if scheme.lower() != "bearer":
+            raise HTTPException(status_code=401, detail="Invalid credentials.")
+
+        settings = app_state.settings
+        jwks_cache = app_state.jwks_cache
+        if not settings or not jwks_cache:
+            raise RuntimeError("Settings or JWKs cache not initialized")
+
+        audience: str | list[str] | None = None
+        if expected_audiences:
+            audience = (
+                list(expected_audiences)
+                if len(expected_audiences) > 1
+                else (
+                    expected_audiences[0]
+                    if len(expected_audiences) == 1
+                    else None
+                )
+            )
+
+        # First try standard JWT verification
+        client_id, exception = await get_client_id_from_token(
+            audience, token, settings, jwks_cache
+        )
+
+        # If successful, verify the client exists in the database
+        if client_id and not exception:
+            client = await ClientService.get_client_in_db(
+                session, None, client_id
+            )
+            if not client:
+                raise HTTPException(
+                    status_code=401, detail="Invalid credentials."
+                )
+            return client.id
+
+        # If standard auth failed and external auth is allowed, try that next
+        if allow_external_auth and settings.enable_external_auth:
+            token_response, ext_exception = await verify_external_auth_token(
+                token, settings
+            )
+
+            if token_response and not ext_exception:
+                # Check if user is admin
+                user_info = token_response.user_info
+                is_admin = user_info.get("isAdmin", user_info.get("admin", False))
+                if not is_admin:
+                    raise HTTPException(
+                        status_code=403, detail="Admin access required."
+                    )
+
+                # Store in context for other parts of the request to access
+                context.external_user_info = user_info
+                context.is_external_auth = True
+
+                # Return a special identifier for external auth
+                sub = user_info.get(
+                    "sub", user_info.get("id", token)
+                )  # pyright: ignore
+                return sub if isinstance(sub, str) else token
+
+        # If we get here, all verification methods failed
+        raise HTTPException(
+            status_code=getattr(exception, "status_code", 401),
+            detail=getattr(exception, "detail", "Invalid credentials."),
+        ) from exception
+
+    return dependency
+
+
 def get_external_user_info() -> Callable[
     [HTTPAuthorizationCredentials],
     Coroutine[Any, Any, dict[str, Any]],
