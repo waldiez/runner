@@ -257,7 +257,7 @@ def get_admin_client_id(
             if token_response and not ext_exception:
                 # Check if user is admin
                 user_info = token_response.user_info
-                is_admin = user_info.get("isAdmin", user_info.get("admin", False))
+                is_admin = user_info.get("isAdmin", False)
                 if not is_admin:
                     raise HTTPException(
                         status_code=403, detail="Admin access required."
