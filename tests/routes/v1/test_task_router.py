@@ -814,6 +814,144 @@ async def test_delete_active_task(
     assert response.status_code == 400
 
 
+@pytest.mark.anyio
+async def test_delete_tasks_regular_user_must_specify_ids(
+    client: AsyncClient,
+) -> None:
+    """Test that regular user must specify task IDs."""
+    # Regular user should NOT be able to delete all tasks without specifying IDs
+    response = await client.delete("/tasks")
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Task IDs must be specified for deletion"}
+
+
+@pytest.mark.anyio
+async def test_delete_tasks_regular_user_can_delete_own_tasks_by_ids(
+    client: AsyncClient,
+    async_session: AsyncSession,
+    client_id: str,
+) -> None:
+    """Test that regular user can delete their own tasks by specific IDs."""
+    # Create tasks for the current user
+    task1 = Task(
+        client_id=client_id,
+        flow_id="flow123",
+        status=TaskStatus.COMPLETED,
+        filename="test1",
+    )
+    task2 = Task(
+        client_id=client_id,
+        flow_id="flow456",
+        status=TaskStatus.COMPLETED,
+        filename="test2",
+    )
+    async_session.add(task1)
+    async_session.add(task2)
+    await async_session.commit()
+    await async_session.refresh(task1)
+    await async_session.refresh(task2)
+
+    # Regular user should be able to delete only their own tasks by ID
+    response = await client.delete(f"/tasks?ids={task1.id}")
+
+    assert response.status_code == 204
+
+    # Verify only task1 was soft deleted
+    await async_session.refresh(task1)
+    await async_session.refresh(task2)
+    assert task1.is_deleted
+    assert not task2.is_deleted
+
+
+@pytest.mark.anyio
+async def test_delete_tasks_regular_user_cannot_delete_others_tasks_by_ids(
+    client: AsyncClient,
+    async_session: AsyncSession,
+) -> None:
+    """Test that regular user cannot delete other users' tasks by IDs."""
+    # Create tasks for a different user
+    other_client_id = "other-client-123"
+    task1 = Task(
+        client_id=other_client_id,
+        flow_id="flow123",
+        status=TaskStatus.COMPLETED,
+        filename="test1",
+    )
+    task2 = Task(
+        client_id=other_client_id,
+        flow_id="flow456",
+        status=TaskStatus.COMPLETED,
+        filename="test2",
+    )
+    async_session.add(task1)
+    async_session.add(task2)
+    await async_session.commit()
+    await async_session.refresh(task1)
+    await async_session.refresh(task2)
+
+    # Regular user should NOT be able to delete other users' tasks by ID
+    response = await client.delete(f"/tasks?ids={task1.id}")
+
+    assert response.status_code == 204  # No error, but no tasks should be deleted
+
+    # Verify tasks were NOT deleted
+    await async_session.refresh(task1)
+    await async_session.refresh(task2)
+    assert not task1.is_deleted
+    assert not task2.is_deleted
+
+
+@pytest.mark.anyio
+async def test_delete_tasks_admin_can_delete_any_tasks_by_ids(
+    admin_client: AsyncClient,
+    async_session: AsyncSession,
+) -> None:
+    """Test that admin can delete any tasks by IDs."""
+    # Create tasks for a different user
+    other_client_id = "other-client-123"
+    task1 = Task(
+        client_id=other_client_id,
+        flow_id="flow123",
+        status=TaskStatus.COMPLETED,
+        filename="test1",
+    )
+    task2 = Task(
+        client_id=other_client_id,
+        flow_id="flow456",
+        status=TaskStatus.COMPLETED,
+        filename="test2",
+    )
+    async_session.add(task1)
+    async_session.add(task2)
+    await async_session.commit()
+    await async_session.refresh(task1)
+    await async_session.refresh(task2)
+
+    # Admin should be able to delete any tasks by ID
+    response = await admin_client.delete(f"/tasks?ids={task1.id}&ids={task2.id}")
+
+    assert response.status_code == 204
+
+    # Verify tasks were soft deleted
+    await async_session.refresh(task1)
+    await async_session.refresh(task2)
+    assert task1.is_deleted
+    assert task2.is_deleted
+
+
+@pytest.mark.anyio
+async def test_delete_tasks_admin_must_specify_ids(
+    admin_client: AsyncClient,
+) -> None:
+    """Test that admin must specify task IDs."""
+    # Admin should NOT be able to delete all tasks without specifying IDs
+    response = await admin_client.delete("/tasks")
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Task IDs must be specified for deletion"}
+
+
 # noinspection DuplicatedCode
 @pytest.mark.anyio
 async def test_download_task(

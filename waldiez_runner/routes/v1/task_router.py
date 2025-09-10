@@ -696,10 +696,10 @@ async def delete_task(
     "/tasks",
     response_model=None,
     summary="Delete multiple tasks",
-    description="Delete multiple tasks for the current client",
+    description="Delete multiple tasks. Admins can delete any tasks by ID, regular users can only delete their own.",
 )
 async def delete_tasks(
-    client_id: Annotated[str, Depends(validate_tasks_audience)],
+    client_id_and_admin: Annotated[tuple[str, bool], Depends(validate_client_with_admin)],
     session: Annotated[AsyncSession, Depends(get_db)],
     ids: Annotated[list[str] | None, Query()] = None,
     force: Annotated[bool | None, False] = False,
@@ -708,8 +708,8 @@ async def delete_tasks(
 
     Parameters
     ----------
-    client_id : str
-        The client ID.
+    client_id_and_admin : tuple[str, bool]
+        The client ID and admin status.
     session : AsyncSession
         The database session dependency.
     ids : list[str] | None, optional
@@ -728,12 +728,31 @@ async def delete_tasks(
     HTTPException
         If an error occurs.
     """
-    task_ids_to_delete = await TaskService.soft_delete_client_tasks(
-        session,
-        client_id=client_id,
-        ids=ids,
-        inactive_only=force is not True,
-    )
+    client_id, is_admin = client_id_and_admin
+    
+    if not ids:
+        # Require specific task IDs to prevent accidental deletion of all tasks
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Task IDs must be specified for deletion",
+        )
+    
+    # Delete specific tasks by ID
+    if is_admin:
+        # Admins can delete any tasks by ID
+        task_ids_to_delete = await TaskService.soft_delete_tasks_by_ids(
+            session,
+            task_ids=ids,
+            inactive_only=force is not True,
+        )
+    else:
+        # Regular users can only delete their own tasks by ID
+        task_ids_to_delete = await TaskService.soft_delete_client_tasks(
+            session,
+            client_id=client_id,
+            ids=ids,
+            inactive_only=force is not True,
+        )
 
     # Soft delete in DB
     if task_ids_to_delete:
