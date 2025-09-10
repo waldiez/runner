@@ -32,6 +32,7 @@ from waldiez_runner.dependencies import (
     Storage,
     get_admin_client_id,
     get_client_id,
+    get_client_id_with_admin_check,
     get_db,
     get_storage,
 )
@@ -67,6 +68,7 @@ TaskSort = Literal[
 ]
 validate_tasks_audience = get_client_id(*REQUIRED_AUDIENCES)
 validate_admin_audience = get_admin_client_id(*ADMIN_AUDIENCES)
+validate_client_with_admin = get_client_id_with_admin_check()
 task_router = APIRouter()
 
 
@@ -552,11 +554,11 @@ async def download_task(
     "/tasks/{task_id}/cancel",
     response_model=TaskResponse,
     summary="Cancel a task",
-    description="Cancel a task by ID for the current client",
+    description="Cancel a task by ID. Admins can cancel any task, regular users can only cancel their own.",
 )
 async def cancel_task(
     task_id: str,
-    client_id: Annotated[str, Depends(validate_tasks_audience)],
+    client_info: Annotated[tuple[str, bool], Depends(validate_client_with_admin)],
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> TaskResponse:
     """Cancel a task.
@@ -565,8 +567,8 @@ async def cancel_task(
     ----------
     task_id : str
         The task ID.
-    client_id : str
-        The client ID that triggered the task.
+    client_info : tuple[str, bool]
+        The client ID and whether the user is admin.
     session : AsyncSession
         The database session dependency.
 
@@ -580,12 +582,19 @@ async def cancel_task(
     HTTPException
         If the task is not found or an error occurs.
     """
+    client_id, is_admin = client_info
+    
     task = await TaskService.get_task(
         session,
         task_id=task_id,
     )
-    if task is None or task.client_id != client_id:
+    if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
+    
+    # If not admin, check if task belongs to the user
+    if not is_admin and task.client_id != client_id:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
     if task.is_inactive():
         raise HTTPException(
             status_code=400,
@@ -611,11 +620,11 @@ async def cancel_task(
     "/tasks/{task_id}",
     response_model=None,
     summary="Delete a task",
-    description="Delete a task by ID for the current client",
+    description="Delete a task by ID. Admins can delete any task, regular users can only delete their own.",
 )
 async def delete_task(
     task_id: str,
-    client_id: Annotated[str, Depends(validate_tasks_audience)],
+    client_info: Annotated[tuple[str, bool], Depends(validate_client_with_admin)],
     session: Annotated[AsyncSession, Depends(get_db)],
     storage: Annotated[Storage, Depends(get_storage)],
     force: Annotated[bool | None, False] = False,
@@ -626,8 +635,8 @@ async def delete_task(
     ----------
     task_id : str
         The task ID.
-    client_id : str
-        The client ID that triggered the task.
+    client_info : tuple[str, bool]
+        The client ID and whether the user is admin.
     session : AsyncSession
         The database session.
     storage : Storage
@@ -645,12 +654,19 @@ async def delete_task(
     HTTPException
         If the task is not found or an error occurs.
     """
+    client_id, is_admin = client_info
+
     task = await TaskService.get_task(
         session,
         task_id=task_id,
     )
-    if task is None or task.client_id != client_id:
+    if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
+    
+    # If not admin, check if task belongs to the user
+    if not is_admin and task.client_id != client_id:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
     if task.is_active() and force is not True:
         raise HTTPException(
             status_code=400,

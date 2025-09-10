@@ -275,6 +275,10 @@ def get_client_id_with_admin_check(
     return dependency
 
 
+# Module-level dependency for unified client ID and admin check
+get_client_id_with_admin = get_client_id_with_admin_check()
+
+
 def get_admin_client_id(
     *expected_audiences: str, allow_external_auth: bool = True
 ) -> Callable[

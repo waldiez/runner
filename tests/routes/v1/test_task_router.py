@@ -34,8 +34,10 @@ from waldiez_runner.routes.v1.task_input_validation import (
     MAX_TASKS_PER_CLIENT,
 )
 from waldiez_runner.routes.v1.task_router import (  # type: ignore
+    get_client_id_with_admin_check,
     get_storage,
     validate_admin_audience,
+    validate_client_with_admin,
     validate_tasks_audience,
 )
 from waldiez_runner.schemas.client import ClientCreate, ClientCreateResponse
@@ -66,8 +68,12 @@ async def client_fixture(
 ) -> AsyncGenerator[AsyncClient, None]:
     """Get the FastAPI test client."""
 
-    async def get_valid_api_client_id_mock() -> str:
+    async def get_valid_api_client_id_mock() -> tuple[str, bool]:
         """Mock get_valid_client_id."""
+        return tasks_api_client.id, False
+
+    async def get_valid_tasks_client_id_mock() -> str:
+        """Mock validate_tasks_audience."""
         return tasks_api_client.id
 
     def get_storage_mock() -> LocalStorage:
@@ -77,8 +83,14 @@ async def client_fixture(
     # pylint: disable=duplicate-code
     with patch.object(SettingsManager, "load_settings", return_value=settings):
         app = get_app()
-        app.dependency_overrides[validate_tasks_audience] = (
+        app.dependency_overrides[get_client_id_with_admin_check] = (
             get_valid_api_client_id_mock
+        )
+        app.dependency_overrides[validate_client_with_admin] = (
+            get_valid_api_client_id_mock
+        )
+        app.dependency_overrides[validate_tasks_audience] = (
+            get_valid_tasks_client_id_mock
         )
         app.dependency_overrides[get_storage] = get_storage_mock
         async with LifespanManager(app, startup_timeout=10) as manager:
@@ -97,8 +109,12 @@ async def admin_client_fixture(
 ) -> AsyncGenerator[AsyncClient, None]:
     """Get the FastAPI test client for admin operations."""
 
-    async def get_valid_admin_client_id_mock() -> str:
+    async def get_valid_admin_client_id_mock() -> tuple[str, bool]:
         """Mock get_valid_admin_client_id."""
+        return tasks_api_client.id, True
+
+    async def get_valid_admin_audience_mock() -> str:
+        """Mock validate_admin_audience."""
         return tasks_api_client.id
 
     def get_storage_mock() -> LocalStorage:
@@ -108,8 +124,14 @@ async def admin_client_fixture(
     # pylint: disable=duplicate-code
     with patch.object(SettingsManager, "load_settings", return_value=settings):
         app = get_app()
-        app.dependency_overrides[validate_admin_audience] = (
+        app.dependency_overrides[get_client_id_with_admin_check] = (
             get_valid_admin_client_id_mock
+        )
+        app.dependency_overrides[validate_client_with_admin] = (
+            get_valid_admin_client_id_mock
+        )
+        app.dependency_overrides[validate_admin_audience] = (
+            get_valid_admin_audience_mock
         )
         app.dependency_overrides[get_storage] = get_storage_mock
         async with LifespanManager(app, startup_timeout=10) as manager:
@@ -486,6 +508,133 @@ async def test_cancel_task_invalid_status(
     assert response.json() == {
         "detail": f"Cannot cancel task with status {task.get_status()}"
     }
+
+
+@pytest.mark.anyio
+async def test_cancel_task_regular_user_cannot_cancel_others_task(
+    client: AsyncClient,
+    async_session: AsyncSession,
+) -> None:
+    """Test that regular user cannot cancel another user's task."""
+    # Create a task for a different user (not the test client)
+    other_client_id = "other-client-123"
+    task = Task(
+        client_id=other_client_id,
+        flow_id="flow123",
+        status=TaskStatus.PENDING,
+        filename="test",
+    )
+    async_session.add(task)
+    await async_session.commit()
+    await async_session.refresh(task)
+
+    # Try to cancel the task - should get 404 (not found)
+    response = await client.post(f"/tasks/{task.id}/cancel")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Task not found"}
+
+
+@pytest.mark.anyio
+async def test_cancel_task_admin_can_cancel_any_task(
+    admin_client: AsyncClient,
+    async_session: AsyncSession,
+) -> None:
+    """Test that admin can cancel any user's task."""
+    # Create a task for a different user
+    other_client_id = "other-client-123"
+    task = Task(
+        client_id=other_client_id,
+        flow_id="flow123",
+        status=TaskStatus.PENDING,
+        filename="test",
+    )
+    async_session.add(task)
+    await async_session.commit()
+    await async_session.refresh(task)
+
+    # Admin should be able to cancel the task
+    with patch(
+        f"{ROOT_MODULE}.task_router.publish_task_cancellation",
+        new_callable=AsyncMock,
+    ):
+        response = await admin_client.post(f"/tasks/{task.id}/cancel")
+
+        assert response.status_code == HTTP_200_OK
+        data = response.json()
+        assert data["id"] == str(task.id)
+        assert data["status"] == TaskStatus.CANCELLED.value
+
+        await async_session.refresh(task)
+        task_in_db = await async_session.get(Task, str(task.id))
+        assert task_in_db is not None
+        assert task_in_db.status == TaskStatus.CANCELLED
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("kiq", ["delete_task_job"], indirect=True)
+async def test_delete_task_regular_user_cannot_delete_others_task(
+    client: AsyncClient,
+    async_session: AsyncSession,
+    storage_service: LocalStorage,
+    kiq: AsyncMock,
+) -> None:
+    """Test that regular user cannot delete another user's task."""
+    # Create a task for a different user
+    other_client_id = "other-client-123"
+    task = Task(
+        client_id=other_client_id,
+        flow_id="flow123",
+        status=TaskStatus.COMPLETED,
+        filename="test",
+    )
+    async_session.add(task)
+    await async_session.commit()
+    await async_session.refresh(task)
+
+    # Try to delete the task - should get 404 (not found)
+    response = await client.delete(f"/tasks/{task.id}")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Task not found"}
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("kiq", ["delete_task_job"], indirect=True)
+async def test_delete_task_admin_can_delete_any_task(
+    admin_client: AsyncClient,
+    async_session: AsyncSession,
+    storage_service: LocalStorage,
+    kiq: AsyncMock,
+) -> None:
+    """Test that admin can delete any user's task."""
+    # Create a task for a different user
+    other_client_id = "other-client-123"
+    task = Task(
+        client_id=other_client_id,
+        flow_id="flow123",
+        status=TaskStatus.COMPLETED,
+        filename="test",
+    )
+    async_session.add(task)
+    await async_session.commit()
+    await async_session.refresh(task)
+
+    # Create task folder for cleanup
+    task_folder_path = storage_service.root_dir / other_client_id / str(task.id)
+    task_folder_path.mkdir(parents=True, exist_ok=True)
+    (task_folder_path / "file1.txt").write_text("test")
+
+    # Admin should be able to delete the task
+    response = await admin_client.delete(f"/tasks/{task.id}")
+
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    await async_session.refresh(task)
+    task_in_db = await async_session.get(Task, task.id)
+    assert task_in_db is None or (
+        task_in_db is not None and task_in_db.is_deleted
+    )
 
 
 @pytest.mark.anyio
