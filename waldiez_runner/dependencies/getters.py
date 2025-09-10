@@ -165,7 +165,8 @@ def get_admin_client_id(
     [HTTPAuthorizationCredentials],
     Coroutine[Any, Any, str],
 ]:
-    """Require a specific audience for the request and check admin role for external auth.
+    """Require a specific audience for the request and check admin role
+    for external auth.
 
     Parameters
     ----------
@@ -187,7 +188,8 @@ def get_admin_client_id(
         session: AsyncSession = Depends(get_db),
         context: RequestContext = Depends(get_request_context),
     ) -> str:
-        """Check the audience of the JWT payload and admin role for external auth.
+        """Check the audience of the JWT payload and admin role
+        for external auth.
 
         Parameters
         ----------

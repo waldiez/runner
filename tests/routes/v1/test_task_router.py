@@ -1,41 +1,22 @@
 # SPDX-License-Identifier: Apache-2.0.
-from waldiez_runner.config import Settings, SettingsManager
-from waldiez_runner.dependencies.storage import LocalStorage
-from waldiez_runner.main import get_app
-from waldiez_runner.models.task import Task
-from waldiez_runner.models.task_status import TaskStatus
-from waldiez_runner.routes.v1.task_input_validation import (
-    MAX_TASKS_ERROR,
-    MAX_TASKS_PER_CLIENT,
-)
-from waldiez_runner.routes.v1.task_router import (  # type: ignore
-    get_storage,
-    validate_admin_audience,
-    validate_tasks_audience,
-)
-from waldiez_runner.schemas.client import ClientCreate, ClientCreateResponse
-from waldiez_runner.services import ClientService
-from waldiez_runner.services.client_service import ClientService
 
-# Copyright (c) 2024 - 2025 Waldiez and contributors.
-
-# pylint: disable=missing-return-doc,missing-yield-doc
-# pylint: disable=missing-param-doc,missing-raises-doc,unused-argument
-"""Test waldiez_runner.routes.task_router."""
-
+# Standard library imports
 import hashlib
 import json
 from pathlib import Path
 from typing import AsyncGenerator
 from unittest.mock import AsyncMock, patch
 
+# Third-party imports
 import pytest
 from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
 from pytest_mock import MockerFixture
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.expression import delete
 from starlette.status import HTTP_200_OK, HTTP_204_NO_CONTENT
 
+# Local imports
 from tests.types import CreateTaskCallable
 from waldiez_runner.config import Settings, SettingsManager
 from waldiez_runner.dependencies.storage import LocalStorage
@@ -52,6 +33,13 @@ from waldiez_runner.routes.v1.task_router import (  # type: ignore
     validate_tasks_audience,
 )
 from waldiez_runner.schemas.client import ClientCreate, ClientCreateResponse
+from waldiez_runner.services import ClientService
+
+# Copyright (c) 2024 - 2025 Waldiez and contributors.
+
+# pylint: disable=missing-return-doc,missing-yield-doc
+# pylint: disable=missing-param-doc,missing-raises-doc,unused-argument
+"""Test waldiez_runner.routes.task_router."""
 
 VALID_EXTENSION = ".waldiez"
 VALID_CONTENT_TYPE = "application/json"
@@ -624,9 +612,10 @@ async def test_get_all_tasks_admin(
     """Test getting all tasks as admin."""
     # Clear all existing tasks to ensure clean test state
     from waldiez_runner.models.task import Task
-    await async_session.execute(Task.__table__.delete())
+
+    await async_session.execute(delete(Task))
     await async_session.commit()
-    
+
     # Create tasks for the current client
     task1, _ = await create_task(
         async_session,
@@ -640,7 +629,7 @@ async def test_get_all_tasks_admin(
     other_client = ClientCreate(
         client_id="other_client",
         audience="tasks-api",
-        description="Other client for testing"
+        description="Other client for testing",
     )
     other_client_response = await ClientService.create_client(
         async_session, other_client
@@ -687,9 +676,10 @@ async def test_get_all_tasks_admin_search(
     """Test getting all tasks as admin with search."""
     # Clear all existing tasks to ensure clean test state
     from waldiez_runner.models.task import Task
-    await async_session.execute(Task.__table__.delete())
+
+    await async_session.execute(delete(Task))
     await async_session.commit()
-    
+
     # Create tasks
     task1, _ = await create_task(
         async_session,
