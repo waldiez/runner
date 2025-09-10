@@ -428,6 +428,58 @@ async def test_get_task(
 
 
 @pytest.mark.anyio
+async def test_get_task_regular_user_cannot_get_others_task(
+    client: AsyncClient,
+    async_session: AsyncSession,
+) -> None:
+    """Test that regular user cannot get another user's task."""
+    # Create a task for a different user
+    other_client_id = "other-client-123"
+    task = Task(
+        client_id=other_client_id,
+        flow_id="flow123",
+        status=TaskStatus.PENDING,
+        filename="test",
+    )
+    async_session.add(task)
+    await async_session.commit()
+    await async_session.refresh(task)
+
+    # Try to get the task - should get 404 (not found)
+    response = await client.get(f"/tasks/{task.id}")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Task not found"}
+
+
+@pytest.mark.anyio
+async def test_get_task_admin_can_get_any_task(
+    admin_client: AsyncClient,
+    async_session: AsyncSession,
+) -> None:
+    """Test that admin can get any user's task."""
+    # Create a task for a different user
+    other_client_id = "other-client-123"
+    task = Task(
+        client_id=other_client_id,
+        flow_id="flow123",
+        status=TaskStatus.PENDING,
+        filename="test",
+    )
+    async_session.add(task)
+    await async_session.commit()
+    await async_session.refresh(task)
+
+    # Admin should be able to get the task
+    response = await admin_client.get(f"/tasks/{task.id}")
+
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    assert data["id"] == str(task.id)
+    assert data["client_id"] == other_client_id
+
+
+@pytest.mark.anyio
 async def test_get_task_not_found(
     client: AsyncClient,
 ) -> None:

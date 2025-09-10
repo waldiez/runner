@@ -328,11 +328,11 @@ async def create_task(
     "/tasks/{task_id}",
     response_model=TaskResponse,
     summary="Get a task by ID",
-    description="Get a task by ID for the current client",
+    description="Get a task by ID. Admins can view any task, regular users can only view their own.",
 )
 async def get_task(
     task_id: str,
-    client_id: Annotated[str, Depends(validate_tasks_audience)],
+    client_id_and_admin: Annotated[tuple[str, bool], Depends(validate_client_with_admin)],
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> TaskResponse:
     """Get a task by ID.
@@ -341,8 +341,8 @@ async def get_task(
     ----------
     task_id : str
         The task ID.
-    client_id : str
-        The client ID.
+    client_id_and_admin : tuple[str, bool]
+        The client ID and admin status.
     session : AsyncSession
         The database session.
 
@@ -356,8 +356,9 @@ async def get_task(
     HTTPException
         If the task is not found.
     """
+    client_id, is_admin = client_id_and_admin
     task = await TaskService.get_task(session, task_id=task_id)
-    if task is None or task.client_id != client_id:
+    if task is None or (not is_admin and task.client_id != client_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
         )
