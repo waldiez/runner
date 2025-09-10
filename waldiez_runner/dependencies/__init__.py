@@ -4,6 +4,7 @@
 """App dependencies management."""
 
 from .auth import (
+    ADMIN_API_AUDIENCE,
     CLIENT_API_AUDIENCE,
     TASK_API_AUDIENCE,
     VALID_AUDIENCES,
@@ -14,6 +15,7 @@ from .auth import (
 from .context import RequestContext, get_request_context
 from .database import DatabaseManager
 from .getters import (
+    get_admin_client_id,
     get_client_id,
     get_db,
     get_external_user_info,
@@ -42,6 +44,7 @@ __all__ = [
     "get_db",
     "get_jwks_cache",
     "get_client_id",
+    "get_admin_client_id",
     "get_client_id_from_token",
     "get_storage",
     "get_storage_backend",
@@ -59,6 +62,7 @@ __all__ = [
     "VALID_AUDIENCES",
     "CLIENT_API_AUDIENCE",
     "TASK_API_AUDIENCE",
+    "ADMIN_API_AUDIENCE",
     "ALLOWED_EXTENSIONS",
     "ALLOWED_MIME_TYPES",
     "get_external_user_info",

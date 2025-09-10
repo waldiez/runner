@@ -10,7 +10,11 @@ from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 
 from waldiez_runner.dependencies.context import RequestContext
-from waldiez_runner.dependencies.getters import get_client_id, get_user_info
+from waldiez_runner.dependencies.getters import (
+    get_admin_client_id,
+    get_client_id,
+    get_user_info,
+)
 from waldiez_runner.services.external_token_service import ExternalTokenService
 
 
@@ -236,3 +240,197 @@ async def test_get_user_info_no_data_required() -> None:
     # Assertions
     assert excinfo.value.status_code == 401
     assert "No external user information available" in str(excinfo.value.detail)
+
+
+@pytest.mark.asyncio
+@patch("waldiez_runner.dependencies.getters.get_client_id_from_token")
+@patch("waldiez_runner.dependencies.getters.verify_external_auth_token")
+async def test_get_admin_client_id_with_standard_jwt(
+    mock_verify_external: AsyncMock, mock_get_client_id: AsyncMock
+) -> None:
+    """Test get_admin_client_id with standard JWT token.
+
+    Parameters
+    ----------
+    mock_verify_external : AsyncMock
+        Mock for the verify_external_auth_token function
+    mock_get_client_id : AsyncMock
+        Mock for the get_client_id_from_token function
+    """
+    # Setup
+    mock_get_client_id.return_value = ("client123", None)
+    mock_client = MagicMock()
+    mock_client.id = "client123"
+    mock_client_service = AsyncMock()
+    mock_client_service.get_client_in_db.return_value = mock_client
+
+    with patch(
+        "waldiez_runner.dependencies.getters.ClientService", mock_client_service
+    ):
+        # Create the dependency function
+        dependency_fn = get_admin_client_id(
+            "admin-api", allow_external_auth=True
+        )
+
+        # Create needed parameters
+        credentials = HTTPAuthorizationCredentials(
+            scheme="Bearer", credentials="jwt-token"
+        )
+
+        # Mock app_state
+        mock_app_state = MagicMock()
+        mock_app_state.settings = MagicMock()
+        mock_app_state.settings.enable_external_auth = True
+        mock_app_state.jwks_cache = MagicMock()
+
+        with patch(
+            "waldiez_runner.dependencies.getters.app_state", mock_app_state
+        ):
+            # Test
+            result = await dependency_fn(credentials)
+
+            # Assertions
+            assert result == "client123"
+            mock_get_client_id.assert_awaited_once()
+            mock_verify_external.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@patch("waldiez_runner.dependencies.getters.get_client_id_from_token")
+@patch("waldiez_runner.dependencies.getters.verify_external_auth_token")
+async def test_get_admin_client_id_with_external_auth_admin(
+    mock_verify_external: AsyncMock, mock_get_client_id: AsyncMock
+) -> None:
+    """Test get_admin_client_id with external auth for admin user.
+
+    Parameters
+    ----------
+    mock_verify_external : AsyncMock
+        Mock for the verify_external_auth_token function
+    mock_get_client_id : AsyncMock
+        Mock for the get_client_id_from_token function
+    """
+    # Setup
+    mock_get_client_id.return_value = (None, Exception("Invalid token"))
+    mock_token_response = MagicMock()
+    mock_token_response.user_info = {"id": "user123", "isAdmin": True}
+    mock_verify_external.return_value = (mock_token_response, None)
+
+    # Create the dependency function
+    dependency_fn = get_admin_client_id("admin-api", allow_external_auth=True)
+
+    # Create needed parameters
+    credentials = HTTPAuthorizationCredentials(
+        scheme="Bearer", credentials="external-token"
+    )
+
+    # Mock app_state
+    mock_app_state = MagicMock()
+    mock_app_state.settings = MagicMock()
+    mock_app_state.settings.enable_external_auth = True
+    mock_app_state.jwks_cache = MagicMock()
+
+    with patch("waldiez_runner.dependencies.getters.app_state", mock_app_state):
+        # Test
+        result = await dependency_fn(credentials)
+
+        # Assertions
+        assert result == "user123"
+        mock_get_client_id.assert_awaited_once()
+        mock_verify_external.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+@patch("waldiez_runner.dependencies.getters.get_client_id_from_token")
+@patch("waldiez_runner.dependencies.getters.verify_external_auth_token")
+async def test_get_admin_client_id_with_external_auth_non_admin(
+    mock_verify_external: AsyncMock, mock_get_client_id: AsyncMock
+) -> None:
+    """Test get_admin_client_id with external auth for non-admin user.
+
+    Parameters
+    ----------
+    mock_verify_external : AsyncMock
+        Mock for the verify_external_auth_token function
+    mock_get_client_id : AsyncMock
+        Mock for the get_client_id_from_token function
+    """
+    # Setup
+    mock_get_client_id.return_value = (None, Exception("Invalid token"))
+    mock_token_response = MagicMock()
+    mock_token_response.user_info = {"id": "user123", "isAdmin": False}
+    mock_verify_external.return_value = (mock_token_response, None)
+
+    # Create the dependency function
+    dependency_fn = get_admin_client_id("admin-api", allow_external_auth=True)
+
+    # Create needed parameters
+    credentials = HTTPAuthorizationCredentials(
+        scheme="Bearer", credentials="external-token"
+    )
+
+    # Mock app_state
+    mock_app_state = MagicMock()
+    mock_app_state.settings = MagicMock()
+    mock_app_state.settings.enable_external_auth = True
+    mock_app_state.jwks_cache = MagicMock()
+
+    with patch("waldiez_runner.dependencies.getters.app_state", mock_app_state):
+        # Test - Should raise exception for non-admin
+        with pytest.raises(HTTPException) as excinfo:
+            await dependency_fn(credentials)
+
+        # Assertions
+        assert excinfo.value.status_code == 403
+        assert "Admin access required" in str(excinfo.value.detail)
+        mock_get_client_id.assert_awaited_once()
+        mock_verify_external.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+@patch("waldiez_runner.dependencies.getters.get_client_id_from_token")
+@patch("waldiez_runner.dependencies.getters.verify_external_auth_token")
+async def test_get_admin_client_id_with_external_auth_admin_isadmin_field(
+    mock_verify_external: AsyncMock, mock_get_client_id: AsyncMock
+) -> None:
+    """Test get_admin_client_id with external auth using 'isAdmin' field.
+
+    Parameters
+    ----------
+    mock_verify_external : AsyncMock
+        Mock for the verify_external_auth_token function
+    mock_get_client_id : AsyncMock
+        Mock for the get_client_id_from_token function
+    """
+    # Setup
+    mock_get_client_id.return_value = (None, Exception("Invalid token"))
+    mock_token_response = MagicMock()
+    mock_token_response.user_info = {"id": "user123", "isAdmin": True}
+    mock_verify_external.return_value = (mock_token_response, None)
+
+    # Create the dependency function
+    dependency_fn = get_admin_client_id("admin-api", allow_external_auth=True)
+
+    # Create needed parameters
+    credentials = HTTPAuthorizationCredentials(
+        scheme="Bearer", credentials="external-token"
+    )
+
+    # Mock app_state
+    mock_app_state = MagicMock()
+    mock_app_state.settings = MagicMock()
+    mock_app_state.settings.enable_external_auth = True
+    mock_app_state.jwks_cache = MagicMock()
+
+    with patch("waldiez_runner.dependencies.getters.app_state", mock_app_state):
+        # Test
+        result = await dependency_fn(credentials)
+
+        # Assertions
+        assert result == "user123"
+        mock_get_client_id.assert_awaited_once()
+        mock_verify_external.assert_awaited_once()
+        # Assertions
+        assert result == "user123"
+        mock_get_client_id.assert_awaited_once()
+        mock_verify_external.assert_awaited_once()

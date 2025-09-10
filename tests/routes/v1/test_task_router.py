@@ -3,21 +3,26 @@
 
 # pylint: disable=missing-return-doc,missing-yield-doc
 # pylint: disable=missing-param-doc,missing-raises-doc,unused-argument
+# pylint: disable=missing-module-docstring
 """Test waldiez_runner.routes.task_router."""
 
+# Standard library imports
 import hashlib
 import json
 from pathlib import Path
 from typing import AsyncGenerator
 from unittest.mock import AsyncMock, patch
 
+# Third-party imports
 import pytest
 from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
 from pytest_mock import MockerFixture
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.expression import delete
 from starlette.status import HTTP_200_OK, HTTP_204_NO_CONTENT
 
+# Local imports
 from tests.types import CreateTaskCallable
 from waldiez_runner.config import Settings, SettingsManager
 from waldiez_runner.dependencies.storage import LocalStorage
@@ -30,9 +35,11 @@ from waldiez_runner.routes.v1.task_input_validation import (
 )
 from waldiez_runner.routes.v1.task_router import (  # type: ignore
     get_storage,
+    validate_admin_audience,
     validate_tasks_audience,
 )
-from waldiez_runner.schemas.client import ClientCreateResponse
+from waldiez_runner.schemas.client import ClientCreate, ClientCreateResponse
+from waldiez_runner.services import ClientService
 
 VALID_EXTENSION = ".waldiez"
 VALID_CONTENT_TYPE = "application/json"
@@ -72,6 +79,37 @@ async def client_fixture(
         app = get_app()
         app.dependency_overrides[validate_tasks_audience] = (
             get_valid_api_client_id_mock
+        )
+        app.dependency_overrides[get_storage] = get_storage_mock
+        async with LifespanManager(app, startup_timeout=10) as manager:
+            async with AsyncClient(
+                transport=ASGITransport(app=manager.app),
+                base_url="http://test/api/v1",
+            ) as api_client:
+                yield api_client
+
+
+@pytest.fixture(name="admin_client")
+async def admin_client_fixture(
+    tasks_api_client: ClientCreateResponse,
+    settings: Settings,
+    storage_service: LocalStorage,
+) -> AsyncGenerator[AsyncClient, None]:
+    """Get the FastAPI test client for admin operations."""
+
+    async def get_valid_admin_client_id_mock() -> str:
+        """Mock get_valid_admin_client_id."""
+        return tasks_api_client.id
+
+    def get_storage_mock() -> LocalStorage:
+        """Mock get_storage."""
+        return storage_service
+
+    # pylint: disable=duplicate-code
+    with patch.object(SettingsManager, "load_settings", return_value=settings):
+        app = get_app()
+        app.dependency_overrides[validate_admin_audience] = (
+            get_valid_admin_client_id_mock
         )
         app.dependency_overrides[get_storage] = get_storage_mock
         async with LifespanManager(app, startup_timeout=10) as manager:
@@ -562,3 +600,124 @@ async def test_download_task_not_found(
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Task not found"}
+
+
+@pytest.mark.anyio
+async def test_get_all_tasks_admin(
+    admin_client: AsyncClient,
+    async_session: AsyncSession,
+    client_id: str,
+    create_task: CreateTaskCallable,
+) -> None:
+    """Test getting all tasks as admin."""
+    # Clear all existing tasks to ensure clean test state
+    await async_session.execute(delete(Task))
+    await async_session.commit()
+
+    # Create tasks for the current client
+    task1, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        flow_id="flow123",
+        status=TaskStatus.PENDING,
+        filename="test_admin_1",
+    )
+
+    # Create another client and task
+    other_client = ClientCreate(
+        client_id="other_client",
+        audience="tasks-api",
+        description="Other client for testing",
+    )
+    other_client_response = await ClientService.create_client(
+        async_session, other_client
+    )
+    task2, _ = await create_task(
+        async_session,
+        client_id=other_client_response.id,
+        flow_id="flow456",
+        status=TaskStatus.COMPLETED,
+        filename="test_admin_2",
+    )
+
+    response = await admin_client.get("/admin/tasks")
+
+    assert response.status_code == HTTP_200_OK
+    data_dict = response.json()
+    data = data_dict["items"]
+    assert len(data) == 2
+    task_ids = [task["id"] for task in data]
+    assert str(task1.id) in task_ids
+    assert str(task2.id) in task_ids
+
+    # Clean up created tasks
+    await async_session.delete(task1)
+    await async_session.delete(task2)
+    await async_session.commit()
+
+    # Clean up created client
+    other_client_obj = await ClientService.get_client_in_db(
+        async_session, None, other_client_response.id
+    )
+    if other_client_obj:
+        await async_session.delete(other_client_obj)
+        await async_session.commit()
+
+
+@pytest.mark.anyio
+async def test_get_all_tasks_admin_search(
+    admin_client: AsyncClient,
+    async_session: AsyncSession,
+    client_id: str,
+    create_task: CreateTaskCallable,
+) -> None:
+    """Test getting all tasks as admin with search."""
+    # Clear all existing tasks to ensure clean test state
+    await async_session.execute(delete(Task))
+    await async_session.commit()
+
+    # Create tasks
+    task1, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        flow_id="flow123",
+        status=TaskStatus.PENDING,
+        filename="unique_admin_search",
+    )
+
+    task2, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        flow_id="flow456",
+        status=TaskStatus.COMPLETED,
+        filename="other_task",
+    )
+
+    response = await admin_client.get(
+        "/admin/tasks", params={"search": "unique_admin_search"}
+    )
+
+    assert response.status_code == HTTP_200_OK
+    data_dict = response.json()
+    data = data_dict["items"]
+    assert len(data) == 1
+    assert data[0]["id"] == str(task1.id)
+
+    # Clean up created tasks
+    await async_session.delete(task1)
+    await async_session.delete(task2)
+    await async_session.commit()
+
+
+@pytest.mark.anyio
+async def test_get_all_tasks_admin_empty(
+    admin_client: AsyncClient,
+) -> None:
+    """Test getting all tasks as admin when no tasks exist."""
+    response = await admin_client.get("/admin/tasks")
+
+    assert response.status_code == HTTP_200_OK
+    data_dict = response.json()
+    data = data_dict["items"]
+    assert len(data) == 0
+    assert len(data) == 0

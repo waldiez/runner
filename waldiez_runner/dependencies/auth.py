@@ -15,15 +15,17 @@ from .jwks import JWKSCache
 
 TASK_API_AUDIENCE = "tasks-api"
 CLIENT_API_AUDIENCE = "clients-api"
+ADMIN_API_AUDIENCE = "admin-api"
 
 
 Audience = Literal[
     "tasks-api",
     "clients-api",
+    "admin-api",
 ]
 """Audiences for the JWT token."""
 
-VALID_AUDIENCES = [TASK_API_AUDIENCE, CLIENT_API_AUDIENCE]
+VALID_AUDIENCES = [TASK_API_AUDIENCE, CLIENT_API_AUDIENCE, ADMIN_API_AUDIENCE]
 
 
 if TYPE_CHECKING:

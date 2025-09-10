@@ -20,6 +20,27 @@ Response: `Page[TaskResponse]`
 
 ---
 
+## List All Tasks (Admin Only)
+
+***GET /api/v1/admin/tasks***
+
+Returns a paginated list of all tasks from all clients. Requires a valid JWT token with an ***`admin-api`*** audience.
+
+***Query Parameters (optional)***
+
+- `page` (default: 1)
+- `size` (default: 50)
+- `search`: Search term to filter tasks by filename or status
+- `order_by`: Field to sort by (`id`, `flow_id`, `filename`, `status`)
+- `order_type`: Sort order (`asc` or `desc`, default: `desc`)
+
+Response: `Page[TaskResponse]`
+
+!!! warning
+    This endpoint requires admin privileges and will return tasks from all clients in the system.
+
+---
+
 ## 📥 Create a New Task
 
 ***POST /api/v1/tasks***
@@ -160,3 +181,4 @@ Use force=true to delete active ones.
 - Related topics:
   - [Authentication](clients.md)
   - [Live Input/Output](websocket.md)
+  - [Admin Operations](clients.md#admin-api)

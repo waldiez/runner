@@ -7,12 +7,26 @@ All interactions with the API or WebSocket require a valid token linked to a spe
 
 ## 🎭 Audiences
 
-There are two types of clients, each associated with a specific **audience**:
+There are three types of clients, each associated with a specific **audience**:
 
 | Audience      | Description                      | Scope                              |
 |---------------|----------------------------------|------------------------------------|
 | `clients-api` | Manages other clients            | `/api/v1/clients/*`                |
 | `tasks-api`   | Submits and interacts with tasks | `/api/v1/tasks/*`, `/ws/{task_id}` |
+| `admin-api`   | Administrative operations        | `/api/v1/admin/*`                  |
+
+---
+
+### 🔑 Admin Audience
+
+The `admin-api` audience provides elevated privileges for system administration:
+
+- **Access all tasks** from all clients (not just the client's own tasks)
+- **Cross-client task visibility** for monitoring and oversight
+- **Administrative task management** across the entire system
+
+!!! warning
+    Admin credentials should be carefully protected and only distributed to trusted administrators.
 
 ---
 
@@ -36,6 +50,13 @@ It contains initial client credentials for both audiences.
     "client_secret": "...",
     "audience": "tasks-api",
     "description": "Tasks management API"
+  },
+  {
+    "id": "...",
+    "client_id": "...",
+    "client_secret": "...",
+    "audience": "admin-api",
+    "description": "Administrative operations API"
   }
 ]
 ```
@@ -44,6 +65,10 @@ It contains initial client credentials for both audiences.
     You’ll need the tasks-api credentials to:
     - Use the example UI at http://localhost
     - Submit or manage tasks via Swagger or scripts
+    
+    Admin credentials (admin-api audience) are required for:
+    - Cross-client task visibility and monitoring
+    - Administrative task operations across all clients
 
 ---
 
