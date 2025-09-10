@@ -181,6 +181,7 @@ def get_admin_client_id(
         The dependency.
     """
 
+    # pylint: disable=too-many-locals
     async def dependency(
         credentials: Annotated[
             HTTPAuthorizationCredentials, Security(bearer_scheme)

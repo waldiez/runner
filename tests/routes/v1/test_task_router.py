@@ -1,4 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0.
+# Copyright (c) 2024 - 2025 Waldiez and contributors.
+
+# pylint: disable=missing-return-doc,missing-yield-doc
+# pylint: disable=missing-param-doc,missing-raises-doc,unused-argument
+# pylint: disable=missing-module-docstring
+"""Test waldiez_runner.routes.task_router."""
 
 # Standard library imports
 import hashlib
@@ -34,12 +40,6 @@ from waldiez_runner.routes.v1.task_router import (  # type: ignore
 )
 from waldiez_runner.schemas.client import ClientCreate, ClientCreateResponse
 from waldiez_runner.services import ClientService
-
-# Copyright (c) 2024 - 2025 Waldiez and contributors.
-
-# pylint: disable=missing-return-doc,missing-yield-doc
-# pylint: disable=missing-param-doc,missing-raises-doc,unused-argument
-"""Test waldiez_runner.routes.task_router."""
 
 VALID_EXTENSION = ".waldiez"
 VALID_CONTENT_TYPE = "application/json"
@@ -611,8 +611,6 @@ async def test_get_all_tasks_admin(
 ) -> None:
     """Test getting all tasks as admin."""
     # Clear all existing tasks to ensure clean test state
-    from waldiez_runner.models.task import Task
-
     await async_session.execute(delete(Task))
     await async_session.commit()
 
@@ -675,8 +673,6 @@ async def test_get_all_tasks_admin_search(
 ) -> None:
     """Test getting all tasks as admin with search."""
     # Clear all existing tasks to ensure clean test state
-    from waldiez_runner.models.task import Task
-
     await async_session.execute(delete(Task))
     await async_session.commit()
 
