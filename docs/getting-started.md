@@ -39,10 +39,11 @@ Once started, you can access:
 ## 🔑 Authenticating with the API or Example UI
 
 When the server starts, it automatically generates a `clients.json` file in the project root.  
-This file contains two API clients:
+This file contains three API clients:
 
 - One for the `clients-api` audience (managing clients)
 - One for the `tasks-api` audience (creating and interacting with tasks)
+- One for the `admin-api` audience (administrative operations)
 
 You'll need the `tasks-api` credentials to:
 
