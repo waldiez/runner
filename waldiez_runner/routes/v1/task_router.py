@@ -374,12 +374,12 @@ async def get_task(
     "/tasks/{task_id}",
     response_model=TaskResponse,
     summary="Update a task",
-    description="Update a task by ID for the current client",
+    description="Update a task by ID. Admins can update any task, regular users can only update their own.",
 )
 async def update_task(
     task_id: str,
     task_update: TaskUpdate,
-    client_id: Annotated[str, Depends(validate_tasks_audience)],
+    client_id_and_admin: Annotated[tuple[str, bool], Depends(validate_client_with_admin)],
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> TaskResponse:
     """Update a task.
@@ -390,8 +390,8 @@ async def update_task(
         The task ID.
     task_update : TaskUpdate
         The task update data.
-    client_id : str
-        The client ID.
+    client_id_and_admin : tuple[str, bool]
+        The client ID and admin status.
     session : AsyncSession
         The database session.
 
@@ -405,8 +405,9 @@ async def update_task(
     HTTPException
         If the task is not found or an error occurs.
     """
+    client_id, is_admin = client_id_and_admin
     task = await TaskService.get_task(session, task_id=task_id)
-    if task is None or task.client_id != client_id:
+    if task is None or (not is_admin and task.client_id != client_id):
         raise HTTPException(status_code=404, detail="Task not found")
     if task.is_inactive():
         raise HTTPException(

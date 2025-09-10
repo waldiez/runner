@@ -490,6 +490,65 @@ async def test_get_task_not_found(
 
 
 @pytest.mark.anyio
+async def test_update_task_regular_user_cannot_update_others_task(
+    client: AsyncClient,
+    async_session: AsyncSession,
+) -> None:
+    """Test that regular user cannot update another user's task."""
+    # Create a task for a different user
+    other_client_id = "other-client-123"
+    task = Task(
+        client_id=other_client_id,
+        flow_id="flow123",
+        status=TaskStatus.PENDING,
+        filename="test",
+    )
+    async_session.add(task)
+    await async_session.commit()
+    await async_session.refresh(task)
+
+    # Try to update the task - should get 404 (not found)
+    update_data = {"status": "COMPLETED"}
+    response = await client.patch(f"/tasks/{task.id}", json=update_data)
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Task not found"}
+
+
+@pytest.mark.anyio
+async def test_update_task_admin_can_update_any_task(
+    admin_client: AsyncClient,
+    async_session: AsyncSession,
+) -> None:
+    """Test that admin can update any user's task."""
+    # Create a task for a different user
+    other_client_id = "other-client-123"
+    task = Task(
+        client_id=other_client_id,
+        flow_id="flow123",
+        status=TaskStatus.PENDING,
+        filename="test",
+    )
+    async_session.add(task)
+    await async_session.commit()
+    await async_session.refresh(task)
+
+    # Admin should be able to update the task
+    update_data = {"status": "COMPLETED"}
+    response = await admin_client.patch(f"/tasks/{task.id}", json=update_data)
+
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    assert data["id"] == str(task.id)
+    assert data["status"] == "COMPLETED"
+    assert data["client_id"] == other_client_id
+
+    # Verify the task was actually updated in the database
+    await async_session.refresh(task)
+    assert task.status == TaskStatus.COMPLETED
+
+
+@pytest.mark.anyio
 async def test_cancel_task(
     client: AsyncClient,
     async_session: AsyncSession,
