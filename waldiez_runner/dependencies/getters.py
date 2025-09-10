@@ -146,8 +146,9 @@ def get_client_id(
 
                 # Return a special identifier for external auth
                 sub = token_response.user_info.get(
-                    "sub", token_response.user_info.get("id", token)
-                )  # pyright: ignore
+                    "sub",
+                    token_response.user_info.get("id", token),
+                )
                 return sub if isinstance(sub, str) else token
 
         # If we get here, all verification methods failed
@@ -272,8 +273,9 @@ def get_admin_client_id(
 
                 # Return a special identifier for external auth
                 sub = user_info.get(
-                    "sub", user_info.get("id", token)
-                )  # pyright: ignore
+                    "sub",
+                    user_info.get("id", token),
+                )
                 return sub if isinstance(sub, str) else token
 
         # If we get here, all verification methods failed
