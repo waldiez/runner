@@ -50,7 +50,7 @@ async def test_get_ws_client_id_with_query_token(
     mock_get_client_id_from_token: AsyncMock,
 ) -> None:
     """Test WebSocket authentication via query token."""
-    mock_get_client_id_from_token.return_value = ("test-client-id", None)
+    mock_get_client_id_from_token.return_value = ("test-client-id", "tasks-api", None)
     websocket = MockWebSocket(query_params={"access_token": "mock-query-token"})
     client_id, subprotocol = await get_ws_client_id(
         websocket,  # type: ignore
@@ -72,7 +72,7 @@ async def test_get_ws_client_id_with_cookie(
 ) -> None:
     """Test WebSocket authentication via cookie token."""
     websocket = MockWebSocket(cookies={"access_token": "mock-cookie-token"})
-    mock_get_client_id_from_token.return_value = ("test-client-id", None)
+    mock_get_client_id_from_token.return_value = ("test-client-id", "tasks-api", None)
     client_id, subprotocol = await get_ws_client_id(
         websocket,  # type: ignore
         settings=MagicMock(),
@@ -92,7 +92,7 @@ async def test_get_ws_client_id_with_auth_header(
     mock_get_client_id_from_token: AsyncMock,
 ) -> None:
     """Test WebSocket authentication via Authorization header."""
-    mock_get_client_id_from_token.return_value = ("test-client-id", None)
+    mock_get_client_id_from_token.return_value = ("test-client-id", "tasks-api", None)
     websocket = MockWebSocket(
         headers={
             "Authorization": "Bearer mock-header-token"  # nosemgrep # nosec
@@ -117,7 +117,7 @@ async def test_get_ws_client_id_with_subprotocol(
     mock_get_client_id_from_token: AsyncMock,
 ) -> None:
     """Test WebSocket authentication via subprotocol."""
-    mock_get_client_id_from_token.return_value = ("test-client-id", None)
+    mock_get_client_id_from_token.return_value = ("test-client-id", "tasks-api", None)
     websocket = MockWebSocket(
         headers={
             "Sec-WebSocket-Protocol": "tasks-api,mock-token"  # nosemgrep # nosec  # noqa: E501
@@ -142,7 +142,7 @@ async def test_get_ws_client_id_no_auth(
     mock_get_client_id_from_token: AsyncMock,
 ) -> None:
     """Test WebSocket authentication with no valid authentication method."""
-    mock_get_client_id_from_token.return_value = (None, None)
+    mock_get_client_id_from_token.return_value = (None, None, None)
     websocket = MockWebSocket()
     client_id, subprotocol = await get_ws_client_id(
         websocket,  # type: ignore
@@ -225,7 +225,7 @@ async def test_get_ws_client_id_with_external_auth_success() -> None:
     websocket.cookies = {}
     websocket.state = MagicMock()
 
-    mock_get_client_id = AsyncMock(return_value=(None, "some error"))
+    mock_get_client_id = AsyncMock(return_value=(None, None, "some error"))
 
     mock_token_response = ExternalTokenService.ExternalTokenResponse(
         valid=True,
@@ -268,7 +268,7 @@ async def test_get_ws_client_id_with_external_auth_disabled() -> None:
     websocket.cookies = {}
     websocket.state = MagicMock()
 
-    mock_get_client_id = AsyncMock(return_value=(None, "some error"))
+    mock_get_client_id = AsyncMock(return_value=(None, None, "some error"))
 
     mock_verify_external = AsyncMock()
 
@@ -302,7 +302,7 @@ async def test_get_ws_client_id_with_external_auth_failure() -> None:
     websocket.cookies = {}
     websocket.state = MagicMock()
 
-    mock_get_client_id = AsyncMock(return_value=(None, "some error"))
+    mock_get_client_id = AsyncMock(return_value=(None, None, "some error"))
 
     mock_token_response = ExternalTokenService.ExternalTokenResponse(
         valid=False, user_info={}, id="user234"
@@ -341,7 +341,7 @@ async def test_get_ws_client_id_external_auth_exception() -> None:
     websocket.cookies = {}
     websocket.state = MagicMock()
 
-    mock_get_client_id = AsyncMock(return_value=(None, "some error"))
+    mock_get_client_id = AsyncMock(return_value=(None, None, "some error"))
 
     exception = Exception("External auth service unavailable")
     mock_verify_external = AsyncMock(return_value=(None, exception))
@@ -400,7 +400,7 @@ async def test_get_ws_client_id_external_auth_from_different_sources(
             "Sec-WebSocket-Protocol": "tasks-api, external-token"
         }
 
-    mock_get_client_id = AsyncMock(return_value=(None, "some error"))
+    mock_get_client_id = AsyncMock(return_value=(None, None, "some error"))
 
     mock_token_response = ExternalTokenService.ExternalTokenResponse(
         valid=True, user_info={"key": "value"}, id="user123"

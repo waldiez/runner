@@ -157,7 +157,7 @@ async def get_client_id_from_token(
     token: str,
     settings: "Settings",
     jwks_cache: JWKSCache,
-) -> tuple[str | None, BaseException | None]:
+) -> tuple[str | None, str | None, BaseException | None]:
     """Get the client ID from the token.
 
     Parameters
@@ -173,8 +173,8 @@ async def get_client_id_from_token(
 
     Returns
     -------
-    tuple[str, BaseException | None]
-        The client ID and the exception if any.
+    tuple[str, str | None, BaseException | None]
+        The client ID, the actual audience, and the exception if any.
     """
     # pylint: disable=broad-exception-caught, too-many-try-statements
     try:
@@ -191,26 +191,27 @@ async def get_client_id_from_token(
                 jwks_cache=jwks_cache,
             )
         else:  # pragma: no cover
-            return None, HTTPException(
+            return None, None, HTTPException(
                 status_code=500, detail="Auth configuration error."
             )
 
         client_id = payload.get("sub")
         if not client_id:
-            return None, HTTPException(
+            return None, None, HTTPException(
                 status_code=401, detail="Invalid credentials."
             )
-        return client_id, None
+        audience = payload.get("aud")
+        return client_id, audience, None
 
     except jwt.PyJWTError as e:
         LOG.error("Error while decoding token: %s", e)
-        return None, e
+        return None, None, e
     except HTTPException as e:
         LOG.error("Error while decoding token: %s", e)
-        return None, e
+        return None, None, e
     except BaseException as e:
         LOG.error("Error while decoding token: %s", e)
-        return None, e
+        return None, None, e
 
 
 async def verify_external_auth_token(
