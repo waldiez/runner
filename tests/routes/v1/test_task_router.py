@@ -741,6 +741,77 @@ async def test_download_task(
 
 
 @pytest.mark.anyio
+async def test_download_task_regular_user_cannot_download_others_task(
+    client: AsyncClient,
+    async_session: AsyncSession,
+    storage_service: LocalStorage,
+) -> None:
+    """Test that regular user cannot download another user's task."""
+    # Create a task for a different user
+    other_client_id = "other-client-123"
+    task = Task(
+        client_id=other_client_id,
+        flow_id="flow123",
+        status=TaskStatus.COMPLETED,
+        results={"test": "result"},
+        filename="test",
+    )
+    async_session.add(task)
+    await async_session.commit()
+    await async_session.refresh(task)
+
+    # Create task folder for the other user
+    task_folder_path = storage_service.root_dir / other_client_id / str(task.id)
+    task_folder_path.mkdir(parents=True, exist_ok=True)
+    (task_folder_path / "file1.txt").write_text("test")
+
+    # Try to download the task - should get 404 (not found)
+    response = await client.get(f"/tasks/{task.id}/download")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Task not found"}
+
+
+@pytest.mark.anyio
+async def test_download_task_admin_can_download_any_task(
+    admin_client: AsyncClient,
+    async_session: AsyncSession,
+    storage_service: LocalStorage,
+) -> None:
+    """Test that admin can download any user's task."""
+    # Create a task for a different user
+    other_client_id = "other-client-123"
+    task = Task(
+        client_id=other_client_id,
+        flow_id="flow123",
+        status=TaskStatus.COMPLETED,
+        results={"test": "result"},
+        filename="test",
+    )
+    async_session.add(task)
+    await async_session.commit()
+    await async_session.refresh(task)
+
+    # Create task folder for the other user
+    task_folder_path = storage_service.root_dir / other_client_id / str(task.id)
+    task_folder_path.mkdir(parents=True, exist_ok=True)
+    (task_folder_path / "file1.txt").write_text("test")
+
+    # Admin should be able to download the task
+    response = await admin_client.get(f"/tasks/{task.id}/download")
+
+    assert response.status_code == HTTP_200_OK
+    assert response.headers["Content-Type"] in (
+        "application/zip",
+        "application/x-zip-compressed",
+    )
+    assert (
+        response.headers["content-disposition"]
+        == f"attachment; filename={task.id}.zip"
+    )
+
+
+@pytest.mark.anyio
 async def test_download_task_not_found(
     client: AsyncClient,
 ) -> None:

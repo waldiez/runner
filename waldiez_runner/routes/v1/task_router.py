@@ -498,13 +498,13 @@ async def on_input_request(
     "/tasks/{task_id}/download",
     response_model=None,
     summary="Download a task archive",
-    description="Download a task archive by ID for the current client",
+    description="Download a task archive by ID. Admins can download any task, regular users can only download their own.",
 )
 @limiter.exempt  # type: ignore
 async def download_task(
     task_id: str,
     background_tasks: BackgroundTasks,
-    client_id: Annotated[str, Depends(validate_tasks_audience)],
+    client_id_and_admin: Annotated[tuple[str, bool], Depends(validate_client_with_admin)],
     session: Annotated[AsyncSession, Depends(get_db)],
     storage: Annotated[Storage, Depends(get_storage)],
 ) -> FileResponse | StreamingResponse:
@@ -516,8 +516,8 @@ async def download_task(
         The task ID.
     background_tasks : BackgroundTasks
         Background tasks.
-    client_id : str
-        The client ID.
+    client_id_and_admin : tuple[str, bool]
+        The client ID and admin status.
     session : AsyncSession
         The database session.
     storage : Storage
@@ -533,14 +533,15 @@ async def download_task(
     HTTPException
         If the task is not found or an error occurs.
     """
+    client_id, is_admin = client_id_and_admin
     task = await TaskService.get_task(
         session,
         task_id=task_id,
     )
-    if task is None or task.client_id != client_id:
+    if task is None or (not is_admin and task.client_id != client_id):
         raise HTTPException(status_code=404, detail="Task not found")
     response = await storage.download_archive(
-        client_id, str(task.id), background_tasks
+        task.client_id, str(task.id), background_tasks
     )
     return response
 
@@ -583,7 +584,7 @@ async def cancel_task(
         If the task is not found or an error occurs.
     """
     client_id, is_admin = client_info
-    
+
     task = await TaskService.get_task(
         session,
         task_id=task_id,
