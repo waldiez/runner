@@ -50,7 +50,11 @@ async def test_get_ws_client_id_with_query_token(
     mock_get_client_id_from_token: AsyncMock,
 ) -> None:
     """Test WebSocket authentication via query token."""
-    mock_get_client_id_from_token.return_value = ("test-client-id", "tasks-api", None)
+    mock_get_client_id_from_token.return_value = (
+        "test-client-id",
+        "tasks-api",
+        None,
+    )
     websocket = MockWebSocket(query_params={"access_token": "mock-query-token"})
     client_id, subprotocol = await get_ws_client_id(
         websocket,  # type: ignore
@@ -72,7 +76,11 @@ async def test_get_ws_client_id_with_cookie(
 ) -> None:
     """Test WebSocket authentication via cookie token."""
     websocket = MockWebSocket(cookies={"access_token": "mock-cookie-token"})
-    mock_get_client_id_from_token.return_value = ("test-client-id", "tasks-api", None)
+    mock_get_client_id_from_token.return_value = (
+        "test-client-id",
+        "tasks-api",
+        None,
+    )
     client_id, subprotocol = await get_ws_client_id(
         websocket,  # type: ignore
         settings=MagicMock(),
@@ -92,7 +100,11 @@ async def test_get_ws_client_id_with_auth_header(
     mock_get_client_id_from_token: AsyncMock,
 ) -> None:
     """Test WebSocket authentication via Authorization header."""
-    mock_get_client_id_from_token.return_value = ("test-client-id", "tasks-api", None)
+    mock_get_client_id_from_token.return_value = (
+        "test-client-id",
+        "tasks-api",
+        None,
+    )
     websocket = MockWebSocket(
         headers={
             "Authorization": "Bearer mock-header-token"  # nosemgrep # nosec
@@ -117,7 +129,11 @@ async def test_get_ws_client_id_with_subprotocol(
     mock_get_client_id_from_token: AsyncMock,
 ) -> None:
     """Test WebSocket authentication via subprotocol."""
-    mock_get_client_id_from_token.return_value = ("test-client-id", "tasks-api", None)
+    mock_get_client_id_from_token.return_value = (
+        "test-client-id",
+        "tasks-api",
+        None,
+    )
     websocket = MockWebSocket(
         headers={
             "Sec-WebSocket-Protocol": "tasks-api,mock-token"  # nosemgrep # nosec  # noqa: E501

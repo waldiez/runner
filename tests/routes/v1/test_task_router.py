@@ -823,7 +823,9 @@ async def test_delete_tasks_regular_user_must_specify_ids(
     response = await client.delete("/tasks")
 
     assert response.status_code == 400
-    assert response.json() == {"detail": "Task IDs must be specified for deletion"}
+    assert response.json() == {
+        "detail": "Task IDs must be specified for deletion"
+    }
 
 
 @pytest.mark.anyio
@@ -893,7 +895,9 @@ async def test_delete_tasks_regular_user_cannot_delete_others_tasks_by_ids(
     # Regular user should NOT be able to delete other users' tasks by ID
     response = await client.delete(f"/tasks?ids={task1.id}")
 
-    assert response.status_code == 204  # No error, but no tasks should be deleted
+    assert (
+        response.status_code == 204
+    )  # No error, but no tasks should be deleted
 
     # Verify tasks were NOT deleted
     await async_session.refresh(task1)
@@ -929,7 +933,9 @@ async def test_delete_tasks_admin_can_delete_any_tasks_by_ids(
     await async_session.refresh(task2)
 
     # Admin should be able to delete any tasks by ID
-    response = await admin_client.delete(f"/tasks?ids={task1.id}&ids={task2.id}")
+    response = await admin_client.delete(
+        f"/tasks?ids={task1.id}&ids={task2.id}"
+    )
 
     assert response.status_code == 204
 
@@ -949,7 +955,9 @@ async def test_delete_tasks_admin_must_specify_ids(
     response = await admin_client.delete("/tasks")
 
     assert response.status_code == 400
-    assert response.json() == {"detail": "Task IDs must be specified for deletion"}
+    assert response.json() == {
+        "detail": "Task IDs must be specified for deletion"
+    }
 
 
 # noinspection DuplicatedCode

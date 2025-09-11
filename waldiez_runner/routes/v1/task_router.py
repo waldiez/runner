@@ -328,11 +328,14 @@ async def create_task(
     "/tasks/{task_id}",
     response_model=TaskResponse,
     summary="Get a task by ID",
-    description="Get a task by ID. Admins can view any task, regular users can only view their own.",
+    description="Get a task by ID. Admins can view any task, regular users can "
+    "only view their own.",
 )
 async def get_task(
     task_id: str,
-    client_id_and_admin: Annotated[tuple[str, bool], Depends(validate_client_with_admin)],
+    client_id_and_admin: Annotated[
+        tuple[str, bool], Depends(validate_client_with_admin)
+    ],
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> TaskResponse:
     """Get a task by ID.
@@ -374,12 +377,15 @@ async def get_task(
     "/tasks/{task_id}",
     response_model=TaskResponse,
     summary="Update a task",
-    description="Update a task by ID. Admins can update any task, regular users can only update their own.",
+    description="Update a task by ID. Admins can update any task, regular users"
+    " can only update their own.",
 )
 async def update_task(
     task_id: str,
     task_update: TaskUpdate,
-    client_id_and_admin: Annotated[tuple[str, bool], Depends(validate_client_with_admin)],
+    client_id_and_admin: Annotated[
+        tuple[str, bool], Depends(validate_client_with_admin)
+    ],
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> TaskResponse:
     """Update a task.
@@ -500,13 +506,16 @@ async def on_input_request(
     "/tasks/{task_id}/download",
     response_model=None,
     summary="Download a task archive",
-    description="Download a task archive by ID. Admins can download any task, regular users can only download their own.",
+    description="Download a task archive by ID. Admins can download any task, "
+    "regular users can only download their own.",
 )
 @limiter.exempt  # type: ignore
 async def download_task(
     task_id: str,
     background_tasks: BackgroundTasks,
-    client_id_and_admin: Annotated[tuple[str, bool], Depends(validate_client_with_admin)],
+    client_id_and_admin: Annotated[
+        tuple[str, bool], Depends(validate_client_with_admin)
+    ],
     session: Annotated[AsyncSession, Depends(get_db)],
     storage: Annotated[Storage, Depends(get_storage)],
 ) -> FileResponse | StreamingResponse:
@@ -557,11 +566,14 @@ async def download_task(
     "/tasks/{task_id}/cancel",
     response_model=TaskResponse,
     summary="Cancel a task",
-    description="Cancel a task by ID. Admins can cancel any task, regular users can only cancel their own.",
+    description="Cancel a task by ID. Admins can cancel any task, "
+    "regular users can only cancel their own.",
 )
 async def cancel_task(
     task_id: str,
-    client_info: Annotated[tuple[str, bool], Depends(validate_client_with_admin)],
+    client_info: Annotated[
+        tuple[str, bool], Depends(validate_client_with_admin)
+    ],
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> TaskResponse:
     """Cancel a task.
@@ -593,11 +605,11 @@ async def cancel_task(
     )
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     # If not admin, check if task belongs to the user
     if not is_admin and task.client_id != client_id:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     if task.is_inactive():
         raise HTTPException(
             status_code=400,
@@ -623,11 +635,14 @@ async def cancel_task(
     "/tasks/{task_id}",
     response_model=None,
     summary="Delete a task",
-    description="Delete a task by ID. Admins can delete any task, regular users can only delete their own.",
+    description="Delete a task by ID. Admins can delete any task, "
+    "regular users can only delete their own.",
 )
 async def delete_task(
     task_id: str,
-    client_info: Annotated[tuple[str, bool], Depends(validate_client_with_admin)],
+    client_info: Annotated[
+        tuple[str, bool], Depends(validate_client_with_admin)
+    ],
     session: Annotated[AsyncSession, Depends(get_db)],
     storage: Annotated[Storage, Depends(get_storage)],
     force: Annotated[bool | None, False] = False,
@@ -665,11 +680,11 @@ async def delete_task(
     )
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     # If not admin, check if task belongs to the user
     if not is_admin and task.client_id != client_id:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     if task.is_active() and force is not True:
         raise HTTPException(
             status_code=400,
@@ -696,10 +711,13 @@ async def delete_task(
     "/tasks",
     response_model=None,
     summary="Delete multiple tasks",
-    description="Delete multiple tasks. Admins can delete any tasks by ID, regular users can only delete their own.",
+    description="Delete multiple tasks. Admins can delete any tasks by ID, "
+    "regular users can only delete their own.",
 )
 async def delete_tasks(
-    client_id_and_admin: Annotated[tuple[str, bool], Depends(validate_client_with_admin)],
+    client_id_and_admin: Annotated[
+        tuple[str, bool], Depends(validate_client_with_admin)
+    ],
     session: Annotated[AsyncSession, Depends(get_db)],
     ids: Annotated[list[str] | None, Query()] = None,
     force: Annotated[bool | None, False] = False,
@@ -729,14 +747,14 @@ async def delete_tasks(
         If an error occurs.
     """
     client_id, is_admin = client_id_and_admin
-    
+
     if not ids:
         # Require specific task IDs to prevent accidental deletion of all tasks
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Task IDs must be specified for deletion",
         )
-    
+
     # Delete specific tasks by ID
     if is_admin:
         # Admins can delete any tasks by ID

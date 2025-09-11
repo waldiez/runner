@@ -165,7 +165,7 @@ def get_client_id(
 
 
 def get_client_id_with_admin_check(
-    allow_external_auth: bool = True
+    allow_external_auth: bool = True,
 ) -> Callable[
     [HTTPAuthorizationCredentials],
     Coroutine[Any, Any, tuple[str, bool]],
@@ -181,7 +181,8 @@ def get_client_id_with_admin_check(
 
     Returns
     -------
-    Callable[[HTTPAuthorizationCredentials],Coroutine[Any, Any, tuple[str, bool]]]
+    Callable[[HTTPAuthorizationCredentials],Coroutine[Any, Any,
+    tuple[str, bool]]]
         The dependency that returns (client_id, is_admin).
     """
 

@@ -191,14 +191,20 @@ async def get_client_id_from_token(
                 jwks_cache=jwks_cache,
             )
         else:  # pragma: no cover
-            return None, None, HTTPException(
-                status_code=500, detail="Auth configuration error."
+            return (
+                None,
+                None,
+                HTTPException(
+                    status_code=500, detail="Auth configuration error."
+                ),
             )
 
         client_id = payload.get("sub")
         if not client_id:
-            return None, None, HTTPException(
-                status_code=401, detail="Invalid credentials."
+            return (
+                None,
+                None,
+                HTTPException(status_code=401, detail="Invalid credentials."),
             )
         audience = payload.get("aud")
         return client_id, audience, None
