@@ -30,6 +30,31 @@ The `admin-api` audience provides elevated privileges for system administration:
 
 ---
 
+## 🔧 Admin Task Operations
+
+Users with `admin-api` audience tokens or external admin tokens have elevated privileges for task management across all clients:
+
+### 📊 View All Tasks
+- **`GET /api/v1/admin/tasks`** — View all tasks from all clients with pagination and filtering
+
+### 🎯 Individual Task Operations
+Admins can perform operations on any task regardless of which client owns it:
+
+- **`GET /api/v1/tasks/{task_id}`** — View any task's details
+- **`PATCH /api/v1/tasks/{task_id}`** — Update any task's metadata
+- **`POST /api/v1/tasks/{task_id}/cancel`** — Cancel any running task
+- **`GET /api/v1/tasks/{task_id}/download`** — Download any task's results
+- **`DELETE /api/v1/tasks/{task_id}`** — Delete any task
+- **`DELETE /api/v1/tasks?ids=...`** — Delete multiple tasks from any clients
+
+### 🔒 Security Notes
+- All admin endpoints require JWT tokens with `admin-api` audience **or external tokens with admin rights**
+- Regular users can only access their own tasks
+- Admin access provides cross-client visibility and control
+- **External authentication** can grant admin privileges via the `isAdmin` field in the token response
+
+---
+
 ## 📂 `clients.json`
 
 Upon first startup (or running `initial_data.py`), a file named `clients.json` is generated in the project root.  
