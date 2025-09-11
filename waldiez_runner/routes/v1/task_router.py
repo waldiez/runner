@@ -32,6 +32,7 @@ from waldiez_runner.dependencies import (
     Storage,
     get_admin_client_id,
     get_client_id,
+    get_client_id_with_admin_check,
     get_db,
     get_storage,
 )
@@ -67,6 +68,7 @@ TaskSort = Literal[
 ]
 validate_tasks_audience = get_client_id(*REQUIRED_AUDIENCES)
 validate_admin_audience = get_admin_client_id(*ADMIN_AUDIENCES)
+validate_client_with_admin = get_client_id_with_admin_check()
 task_router = APIRouter()
 
 
@@ -326,11 +328,14 @@ async def create_task(
     "/tasks/{task_id}",
     response_model=TaskResponse,
     summary="Get a task by ID",
-    description="Get a task by ID for the current client",
+    description="Get a task by ID. Admins can view any task, regular users can "
+    "only view their own.",
 )
 async def get_task(
     task_id: str,
-    client_id: Annotated[str, Depends(validate_tasks_audience)],
+    client_id_and_admin: Annotated[
+        tuple[str, bool], Depends(validate_client_with_admin)
+    ],
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> TaskResponse:
     """Get a task by ID.
@@ -339,8 +344,8 @@ async def get_task(
     ----------
     task_id : str
         The task ID.
-    client_id : str
-        The client ID.
+    client_id_and_admin : tuple[str, bool]
+        The client ID and admin status.
     session : AsyncSession
         The database session.
 
@@ -354,8 +359,9 @@ async def get_task(
     HTTPException
         If the task is not found.
     """
+    client_id, is_admin = client_id_and_admin
     task = await TaskService.get_task(session, task_id=task_id)
-    if task is None or task.client_id != client_id:
+    if task is None or (not is_admin and task.client_id != client_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
         )
@@ -371,12 +377,15 @@ async def get_task(
     "/tasks/{task_id}",
     response_model=TaskResponse,
     summary="Update a task",
-    description="Update a task by ID for the current client",
+    description="Update a task by ID. Admins can update any task, regular users"
+    " can only update their own.",
 )
 async def update_task(
     task_id: str,
     task_update: TaskUpdate,
-    client_id: Annotated[str, Depends(validate_tasks_audience)],
+    client_id_and_admin: Annotated[
+        tuple[str, bool], Depends(validate_client_with_admin)
+    ],
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> TaskResponse:
     """Update a task.
@@ -387,8 +396,8 @@ async def update_task(
         The task ID.
     task_update : TaskUpdate
         The task update data.
-    client_id : str
-        The client ID.
+    client_id_and_admin : tuple[str, bool]
+        The client ID and admin status.
     session : AsyncSession
         The database session.
 
@@ -402,8 +411,9 @@ async def update_task(
     HTTPException
         If the task is not found or an error occurs.
     """
+    client_id, is_admin = client_id_and_admin
     task = await TaskService.get_task(session, task_id=task_id)
-    if task is None or task.client_id != client_id:
+    if task is None or (not is_admin and task.client_id != client_id):
         raise HTTPException(status_code=404, detail="Task not found")
     if task.is_inactive():
         raise HTTPException(
@@ -496,13 +506,16 @@ async def on_input_request(
     "/tasks/{task_id}/download",
     response_model=None,
     summary="Download a task archive",
-    description="Download a task archive by ID for the current client",
+    description="Download a task archive by ID. Admins can download any task, "
+    "regular users can only download their own.",
 )
 @limiter.exempt  # type: ignore
 async def download_task(
     task_id: str,
     background_tasks: BackgroundTasks,
-    client_id: Annotated[str, Depends(validate_tasks_audience)],
+    client_id_and_admin: Annotated[
+        tuple[str, bool], Depends(validate_client_with_admin)
+    ],
     session: Annotated[AsyncSession, Depends(get_db)],
     storage: Annotated[Storage, Depends(get_storage)],
 ) -> FileResponse | StreamingResponse:
@@ -514,8 +527,8 @@ async def download_task(
         The task ID.
     background_tasks : BackgroundTasks
         Background tasks.
-    client_id : str
-        The client ID.
+    client_id_and_admin : tuple[str, bool]
+        The client ID and admin status.
     session : AsyncSession
         The database session.
     storage : Storage
@@ -531,14 +544,15 @@ async def download_task(
     HTTPException
         If the task is not found or an error occurs.
     """
+    client_id, is_admin = client_id_and_admin
     task = await TaskService.get_task(
         session,
         task_id=task_id,
     )
-    if task is None or task.client_id != client_id:
+    if task is None or (not is_admin and task.client_id != client_id):
         raise HTTPException(status_code=404, detail="Task not found")
     response = await storage.download_archive(
-        client_id, str(task.id), background_tasks
+        task.client_id, str(task.id), background_tasks
     )
     return response
 
@@ -552,11 +566,14 @@ async def download_task(
     "/tasks/{task_id}/cancel",
     response_model=TaskResponse,
     summary="Cancel a task",
-    description="Cancel a task by ID for the current client",
+    description="Cancel a task by ID. Admins can cancel any task, "
+    "regular users can only cancel their own.",
 )
 async def cancel_task(
     task_id: str,
-    client_id: Annotated[str, Depends(validate_tasks_audience)],
+    client_info: Annotated[
+        tuple[str, bool], Depends(validate_client_with_admin)
+    ],
     session: Annotated[AsyncSession, Depends(get_db)],
 ) -> TaskResponse:
     """Cancel a task.
@@ -565,8 +582,8 @@ async def cancel_task(
     ----------
     task_id : str
         The task ID.
-    client_id : str
-        The client ID that triggered the task.
+    client_info : tuple[str, bool]
+        The client ID and whether the user is admin.
     session : AsyncSession
         The database session dependency.
 
@@ -580,12 +597,19 @@ async def cancel_task(
     HTTPException
         If the task is not found or an error occurs.
     """
+    client_id, is_admin = client_info
+
     task = await TaskService.get_task(
         session,
         task_id=task_id,
     )
-    if task is None or task.client_id != client_id:
+    if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    # If not admin, check if task belongs to the user
+    if not is_admin and task.client_id != client_id:
+        raise HTTPException(status_code=404, detail="Task not found")
+
     if task.is_inactive():
         raise HTTPException(
             status_code=400,
@@ -611,11 +635,14 @@ async def cancel_task(
     "/tasks/{task_id}",
     response_model=None,
     summary="Delete a task",
-    description="Delete a task by ID for the current client",
+    description="Delete a task by ID. Admins can delete any task, "
+    "regular users can only delete their own.",
 )
 async def delete_task(
     task_id: str,
-    client_id: Annotated[str, Depends(validate_tasks_audience)],
+    client_info: Annotated[
+        tuple[str, bool], Depends(validate_client_with_admin)
+    ],
     session: Annotated[AsyncSession, Depends(get_db)],
     storage: Annotated[Storage, Depends(get_storage)],
     force: Annotated[bool | None, False] = False,
@@ -626,8 +653,8 @@ async def delete_task(
     ----------
     task_id : str
         The task ID.
-    client_id : str
-        The client ID that triggered the task.
+    client_info : tuple[str, bool]
+        The client ID and whether the user is admin.
     session : AsyncSession
         The database session.
     storage : Storage
@@ -645,12 +672,19 @@ async def delete_task(
     HTTPException
         If the task is not found or an error occurs.
     """
+    client_id, is_admin = client_info
+
     task = await TaskService.get_task(
         session,
         task_id=task_id,
     )
-    if task is None or task.client_id != client_id:
+    if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    # If not admin, check if task belongs to the user
+    if not is_admin and task.client_id != client_id:
+        raise HTTPException(status_code=404, detail="Task not found")
+
     if task.is_active() and force is not True:
         raise HTTPException(
             status_code=400,
@@ -677,10 +711,13 @@ async def delete_task(
     "/tasks",
     response_model=None,
     summary="Delete multiple tasks",
-    description="Delete multiple tasks for the current client",
+    description="Delete multiple tasks. Admins can delete any tasks by ID, "
+    "regular users can only delete their own.",
 )
 async def delete_tasks(
-    client_id: Annotated[str, Depends(validate_tasks_audience)],
+    client_id_and_admin: Annotated[
+        tuple[str, bool], Depends(validate_client_with_admin)
+    ],
     session: Annotated[AsyncSession, Depends(get_db)],
     ids: Annotated[list[str] | None, Query()] = None,
     force: Annotated[bool | None, False] = False,
@@ -689,8 +726,8 @@ async def delete_tasks(
 
     Parameters
     ----------
-    client_id : str
-        The client ID.
+    client_id_and_admin : tuple[str, bool]
+        The client ID and admin status.
     session : AsyncSession
         The database session dependency.
     ids : list[str] | None, optional
@@ -709,12 +746,31 @@ async def delete_tasks(
     HTTPException
         If an error occurs.
     """
-    task_ids_to_delete = await TaskService.soft_delete_client_tasks(
-        session,
-        client_id=client_id,
-        ids=ids,
-        inactive_only=force is not True,
-    )
+    client_id, is_admin = client_id_and_admin
+
+    if not ids:
+        # Require specific task IDs to prevent accidental deletion of all tasks
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Task IDs must be specified for deletion",
+        )
+
+    # Delete specific tasks by ID
+    if is_admin:
+        # Admins can delete any tasks by ID
+        task_ids_to_delete = await TaskService.soft_delete_tasks_by_ids(
+            session,
+            task_ids=ids,
+            inactive_only=force is not True,
+        )
+    else:
+        # Regular users can only delete their own tasks by ID
+        task_ids_to_delete = await TaskService.soft_delete_client_tasks(
+            session,
+            client_id=client_id,
+            ids=ids,
+            inactive_only=force is not True,
+        )
 
     # Soft delete in DB
     if task_ids_to_delete:

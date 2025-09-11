@@ -3,6 +3,9 @@
 Waldiez Runner provides a set of HTTP endpoints to manage, run, and interact with tasks.
 All routes are under the **`/api/v1/tasks`** path and require a valid JWT token with a ***`tasks-api`*** audience.
 
+!!! info "Admin Capabilities"
+    Users with admin privileges can access and manage tasks from any client, not just their own. Regular users can only access their own tasks.
+
 ---
 
 ## 📄 List All Tasks
@@ -80,11 +83,33 @@ This feature allows integration with external authorization systems to control t
 
 ## 📄 Get Task by ID
 
-***GET /api/v1/tasks/{task_id}***
+**GET /api/v1/tasks/{task_id}**
 
 Returns metadata about the specified task.
 
+!!! info "Admin Access"
+    Admins can retrieve any task by ID. Regular users can only retrieve their own tasks.
+
 ***Response***: `TaskResponse`
+
+***Error***: `404` if task not found or access denied
+
+---
+
+## ✏️ Update Task
+
+**PATCH /api/v1/tasks/{task_id}**
+
+Updates task metadata such as schedule, status, or results.
+
+!!! info "Admin Access"
+    Admins can update any task. Regular users can only update their own tasks.
+
+***Request Body***: `TaskUpdate`
+
+***Response***: Updated `TaskResponse`
+
+***Error***: `404` if task not found or access denied
 
 ---
 
@@ -119,7 +144,12 @@ Send a response to an active input_request.
 
 Downloads a .zip archive with task outputs.
 
+!!! info "Admin Access"
+    Admins can download any task's results. Regular users can only download their own tasks.
+
 **Response:** `FileResponse`
+
+**Error:** `404` if task not found or access denied
 
 ---
 
@@ -129,9 +159,12 @@ Downloads a .zip archive with task outputs.
 
 Cancels a running or waiting task.
 
+!!! info "Admin Access"
+    Admins can cancel any task. Regular users can only cancel their own tasks.
+
 ***Response:*** Updated `TaskResponse`
 
-***Error:*** `400` if task is already finished or cannot be cancelled
+***Error:*** `400` if task is already finished or cannot be cancelled, `404` if task not found or access denied
 
 ---
 
@@ -141,11 +174,16 @@ Cancels a running or waiting task.
 
 Soft-deletes the task (schedules removal of files and DB records). Active tasks require `?force=true` to be deleted.
 
+!!! info "Admin Access"
+    Admins can delete any task. Regular users can only delete their own tasks.
+
 ***Query Parameters:***
 
 - `force`: set true to delete even active tasks
 
 **Response:** `204` No Content
+
+**Error:** `404` if task not found or access denied
 
 ---
 
@@ -154,24 +192,35 @@ Soft-deletes the task (schedules removal of files and DB records). Active tasks 
 <!-- markdownlint-disable MD036 -->
 ***DELETE /api/v1/tasks***
 
-Soft-deletes all tasks for the current client.
+Soft-deletes multiple tasks.
 By default, only completed/cancelled tasks are deleted.
 Use force=true to delete active ones.
 
+!!! info "Admin Access"
+    Admins can delete any tasks by specifying their IDs. Regular users can only delete their own tasks.
+
+!!! warning "Required Parameter"
+    Task IDs must be explicitly specified to prevent accidental deletion of all tasks.
+
 ***Query Parameters:***
 
-- `ids`: Ids of tasks to delete (optional, repeated)
+- `ids`: Ids of tasks to delete (required, can be repeated)
 - `force`: true to also delete active tasks
 
 ***Response:*** `204` No Content
 
+***Error:*** `400` if no task IDs specified, `404` if any task not found or access denied
+
 ---
 
-!!!Warning
+!!! warning
     - Clients can only have up to a limited (defaulting to 3) concurrent active tasks (pending, running, waiting_for_input).
     - Input timeout can be configured per task.
     - Input messages must match the expected request_id.
     - Deleted tasks are soft-deleted and hidden from future listings.
+    - **Admin users** have access to all tasks across all clients and can perform operations on any task.
+    - **Regular users** can only access and manage their own tasks.
+    - **Admin access** can be granted via `admin-api` audience JWT tokens **or external tokens with admin rights**.
 
 ---
 
@@ -182,3 +231,4 @@ Use force=true to delete active ones.
   - [Authentication](clients.md)
   - [Live Input/Output](websocket.md)
   - [Admin Operations](clients.md#admin-api)
+  - [Admin Task Management](clients.md#admin-api) - View all tasks across all clients

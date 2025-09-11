@@ -34,7 +34,7 @@ async def test_get_client_id_with_standard_jwt(
         Mock for the get_client_id_from_token function
     """
     # Setup
-    mock_get_client_id.return_value = ("client123", None)
+    mock_get_client_id.return_value = ("client123", "tasks-api", None)
     mock_client = MagicMock()
     mock_client.id = "client123"
     mock_client_service = AsyncMock()
@@ -84,7 +84,7 @@ async def test_get_client_id_with_external_token(
         Mock for the get_client_id_from_token function
     """
     # Setup - JWT validation fails
-    mock_get_client_id.return_value = (None, Exception("Invalid JWT"))
+    mock_get_client_id.return_value = (None, None, Exception("Invalid JWT"))
 
     # External validation succeeds
     mock_verify_external.return_value = (
@@ -168,7 +168,7 @@ async def test_get_client_id_both_auth_methods_fail(
     """
     # Setup - JWT validation fails
     jwt_exception = Exception("Invalid JWT")
-    mock_get_client_id.return_value = (None, jwt_exception)
+    mock_get_client_id.return_value = (None, None, jwt_exception)
 
     # External validation also fails
     ext_exception = HTTPException(
@@ -258,7 +258,7 @@ async def test_get_admin_client_id_with_standard_jwt(
         Mock for the get_client_id_from_token function
     """
     # Setup
-    mock_get_client_id.return_value = ("client123", None)
+    mock_get_client_id.return_value = ("client123", "admin-api", None)
     mock_client = MagicMock()
     mock_client.id = "client123"
     mock_client_service = AsyncMock()
@@ -311,7 +311,7 @@ async def test_get_admin_client_id_with_external_auth_admin(
         Mock for the get_client_id_from_token function
     """
     # Setup
-    mock_get_client_id.return_value = (None, Exception("Invalid token"))
+    mock_get_client_id.return_value = (None, None, Exception("Invalid token"))
     mock_token_response = MagicMock()
     mock_token_response.user_info = {"id": "user123", "isAdmin": True}
     mock_verify_external.return_value = (mock_token_response, None)
@@ -356,7 +356,7 @@ async def test_get_admin_client_id_with_external_auth_non_admin(
         Mock for the get_client_id_from_token function
     """
     # Setup
-    mock_get_client_id.return_value = (None, Exception("Invalid token"))
+    mock_get_client_id.return_value = (None, None, Exception("Invalid token"))
     mock_token_response = MagicMock()
     mock_token_response.user_info = {"id": "user123", "isAdmin": False}
     mock_verify_external.return_value = (mock_token_response, None)
@@ -403,7 +403,7 @@ async def test_get_admin_client_id_with_external_auth_admin_isadmin_field(
         Mock for the get_client_id_from_token function
     """
     # Setup
-    mock_get_client_id.return_value = (None, Exception("Invalid token"))
+    mock_get_client_id.return_value = (None, None, Exception("Invalid token"))
     mock_token_response = MagicMock()
     mock_token_response.user_info = {"id": "user123", "isAdmin": True}
     mock_verify_external.return_value = (mock_token_response, None)

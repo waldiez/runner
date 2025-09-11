@@ -441,6 +441,55 @@ async def soft_delete_client_tasks(
     return deleted_ids
 
 
+async def soft_delete_tasks_by_ids(
+    session: AsyncSession,
+    task_ids: list[str],
+    inactive_only: bool = True,
+) -> list[str]:
+    """Soft delete tasks by their IDs.
+
+    Parameters
+    ----------
+    session : AsyncSession
+        SQLAlchemy async session.
+    task_ids : list[str]
+        List of task IDs to delete.
+    inactive_only : bool
+        Delete only inactive tasks. Default is True.
+
+    Returns
+    -------
+    list[str]
+        List of task IDs that were soft-deleted.
+    """
+    filters: list[Any] = [
+        Task.id.in_(task_ids),
+        Task.deleted_at.is_(None),
+    ]
+
+    if inactive_only:
+        filters.append(
+            Task.status.in_(
+                [
+                    TaskStatus.COMPLETED,
+                    TaskStatus.CANCELLED,
+                    TaskStatus.FAILED,
+                ]
+            )
+        )
+
+    query = (
+        update(Task)
+        .where(*filters)
+        .values(deleted_at=datetime.now(timezone.utc))
+        .returning(Task.id)
+    )
+    result = await session.execute(query)
+    await session.commit()
+    deleted_ids = list(result.scalars())
+    return deleted_ids
+
+
 async def update_task_status(
     session: AsyncSession,
     task_id: str,

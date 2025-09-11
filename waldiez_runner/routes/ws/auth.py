@@ -77,7 +77,7 @@ async def get_ws_client_id(
         LOG.debug("Found token in %s", source["name"])
 
         # Try internal validation
-        client_id, exception = await get_client_id_from_token(
+        client_id, _, exception = await get_client_id_from_token(
             expected_audience=TASK_API_AUDIENCE,
             token=token,
             settings=settings,

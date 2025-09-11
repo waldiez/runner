@@ -17,6 +17,7 @@ from .database import DatabaseManager
 from .getters import (
     get_admin_client_id,
     get_client_id,
+    get_client_id_with_admin_check,
     get_db,
     get_external_user_info,
     get_jwks_cache,
@@ -45,6 +46,7 @@ __all__ = [
     "get_jwks_cache",
     "get_client_id",
     "get_admin_client_id",
+    "get_client_id_with_admin_check",
     "get_client_id_from_token",
     "get_storage",
     "get_storage_backend",
