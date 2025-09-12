@@ -10,7 +10,7 @@ from typing import Any, Sequence
 import sqlalchemy.sql.functions
 from fastapi_pagination import Page, Params
 from fastapi_pagination.ext.sqlalchemy import apaginate
-from sqlalchemy import asc, desc, or_
+from sqlalchemy import String, asc, cast, desc, or_
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.sql.expression import delete, update
@@ -81,7 +81,7 @@ async def get_client_tasks(
         query = query.where(
             or_(
                 Task.filename.ilike(f"%{search}%"),
-                Task.status.ilike(f"%{search}%"),
+                cast(Task.status, String).ilike(f"%{search}%"),
             )
         )
     if order_by:
@@ -145,7 +145,7 @@ async def get_all_tasks(
         query = query.where(
             or_(
                 Task.filename.ilike(f"%{search}%"),
-                Task.status.ilike(f"%{search}%"),
+                cast(Task.status, String).ilike(f"%{search}%"),
             )
         )
     if order_by:
