@@ -9,12 +9,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Generic, Optional, TypeVar, Union
 
-try:
-    from typing import Annotated, Literal
-except ImportError:
-    from typing_extensions import Annotated, Literal  # type: ignore
-
 from pydantic import BaseModel, ConfigDict, Field
+from typing_extensions import Annotated, Literal
 
 Items = TypeVar("Items")
 

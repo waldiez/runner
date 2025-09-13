@@ -187,6 +187,7 @@ def get_client_id_with_admin_check(
         The dependency that returns (client_id, is_admin).
     """
 
+    # pylint: disable=too-many-locals
     async def dependency(
         credentials: Annotated[
             HTTPAuthorizationCredentials, Security(bearer_scheme)

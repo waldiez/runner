@@ -51,6 +51,7 @@ repos:
           - "-rn"
           - "-sn"
           - "--rcfile=pyproject.toml"
+
       - id: mypy
         name: mypy
         entry: mypy
@@ -59,23 +60,27 @@ repos:
         args:
           - "--config"
           - "pyproject.toml"
+
       - id: header
         name: header
         language: system
         types: [python]
-        entry: python scripts/header.py
+        entry: python3 scripts/header.py
+
       - id: update-do-sh-hash
         name: Auto-update do.sh SHA256 hash
         entry: python3 scripts/check_hash.py
         language: system
         files: ^deploy/compose/do\.sh$
         pass_filenames: false
+
       - id: verify-do-sh-hash
         name: Verify do.sh SHA256 hash
         entry: python3 scripts/check_hash.py --check
         language: system
         files: ^deploy/compose/do\.sh$
         pass_filenames: false
+
       - id: update-openapi
         name: Ensure openapi.json is up-to-date
         entry: python3 scripts/openapi.py

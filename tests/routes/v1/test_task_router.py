@@ -3,7 +3,7 @@
 
 # pylint: disable=missing-return-doc,missing-yield-doc
 # pylint: disable=missing-param-doc,missing-raises-doc,unused-argument
-# pylint: disable=missing-module-docstring
+# pylint: disable=missing-module-docstring,too-many-lines
 """Test waldiez_runner.routes.task_router."""
 
 # Standard library imports

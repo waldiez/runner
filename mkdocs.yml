@@ -69,12 +69,11 @@ markdown_extensions:
       custom_fences:
         - name: mermaid
           class: mermaid
-          # fmt: off
           # yamllint disable
+          # fmt: off
           format: !!python/name:pymdownx.superfences.fence_code_format
-            # yamllint enable
-            # fmt: on
-
+          # fmt: on
+          # yamllint enable # fmt: skip
 
 extra_css:
   - static/css/main.css
