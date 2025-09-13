@@ -5,11 +5,11 @@ black[jupyter]==25.1.0
 flake8==7.3.0
 hatchling==1.27.0
 isort==6.0.1
-mypy==1.17.1
+mypy==1.18.1
 pre-commit==4.3.0
 pydocstyle==6.3.0
 pylint==3.3.8
-ruff==0.12.12
+ruff==0.13.0
 streamlit-autorefresh==1.0.1
 streamlit==1.49.1
 types-PyYAML==6.0.12.20250822

@@ -7,7 +7,7 @@ alembic==1.16.5
 anyio==4.10.0
 asyncssh==2.21.0
 bcrypt==4.3.0
-boto3==1.40.27
+boto3==1.40.30
 click<8.2
 fakeredis==2.31.1
 fastapi-pagination==0.14.1
@@ -39,7 +39,7 @@ taskiq-dependencies==1.5.7
 taskiq-redis==1.1.0
 taskiq==0.11.18
 tenacity<10.0.0
-trio==0.30.0
+trio==0.31.0
 typer<1
 uvicorn[standard]==0.35.0
 uvloop==0.21.0; sys_platform != 'win32'
