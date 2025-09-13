@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# SHA256: f91e41947dc0b433274d0b23f9ae09ae26f6100d0ed65dbad36b9fb695aa3ee0
+# SHA256: 87d863f80421b90922743c02eb8ea9cb5774d69edb3fe333a2da0c1e100f60e4
 # shellcheck disable=SC2129,SC1091,SC1090,SC2086
 #
 # example direct usage from git:

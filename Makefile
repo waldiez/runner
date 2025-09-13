@@ -40,6 +40,7 @@ help:
 	@echo " secrets              Make sure the secrets are set"
 	@echo " smoke                Run a smoke test"
 	@echo " toggle               Toggle between containerized and local development"
+	@echo " header               Check and update header in py files"
 	@echo " some                 Some (not all) of the above: requirements, forlint, test, toggle, smoke"
 	@echo ""
 
@@ -164,6 +165,10 @@ smoke: toggle drop
 .PHONY: smoke-debug
 smoke-debug: toggle drop
 	$(PYTHON) scripts/test.py --smoke --debug
+
+.PHONY: header
+header:
+	$(PYTHON) scripts/header.py
 
 .PHONY: some
 some: requirements forlint test smoke

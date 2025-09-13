@@ -15,10 +15,8 @@ from unittest.mock import patch
 import pytest
 from fastapi import BackgroundTasks, HTTPException, UploadFile
 
-from waldiez_runner.dependencies.storage.local import (
-    MAX_FILE_SIZE,
-    LocalStorage,
-)
+from waldiez_runner.dependencies.storage.local import LocalStorage
+from waldiez_runner.dependencies.storage.utils import MAX_FILE_SIZE
 
 FILE_EXTENSION = ".waldiez"
 
@@ -287,7 +285,7 @@ async def test_save_file_too_large(storage: LocalStorage) -> None:
     upload_file = UploadFile(
         file=BytesIO(large_json_like_content),
         filename="large_file.json",
-        headers={"content-type": "application/json"},  # pyright: ignore
+        headers={"content-type": "application/json"},  # type: ignore
     )
 
     with patch("puremagic.from_string", return_value="application/json"):
