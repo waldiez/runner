@@ -18,13 +18,13 @@ httpx<1
 nest-asyncio==1.6.0
 orjson==3.11.3
 psutil==7.0.0
-psycopg>=3.2.10; sys_platform == 'linux'
 psycopg>=3.2.10; sys_platform == 'win32' and platform_machine == 'AARCH64'
 psycopg>=3.2.10; sys_platform == 'win32' and platform_machine == 'ARM64'
 psycopg>=3.2.10; sys_platform == 'win32' and platform_machine == 'aarch64'
 psycopg>=3.2.10; sys_platform == 'win32' and platform_machine == 'arm64'
-psycopg[binary]>=3.2.10; sys_platform == 'darwin'
-psycopg[binary]>=3.2.10; sys_platform == 'win32' and platform_machine != 'arm64' and platform_machine != 'ARM64' and platform_machine != 'aarch64' and platform_machine != 'AARCH64'
+psycopg[binary,pool]>=3.2.10; sys_platform == 'darwin'
+psycopg[binary,pool]>=3.2.10; sys_platform == 'linux'
+psycopg[binary,pool]>=3.2.10; sys_platform == 'win32' and platform_machine != 'arm64' and platform_machine != 'ARM64' and platform_machine != 'aarch64' and platform_machine != 'AARCH64'
 puremagic==1.30
 pyJWT[crypto]==2.10.1
 pydantic-settings==2.10.1
