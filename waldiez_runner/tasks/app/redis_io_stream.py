@@ -278,12 +278,21 @@ class RedisIOStream(IOStream):
         message : BaseEvent
             The message to send.
         """
+        try:
+            message_dump = message.model_dump(mode="json")
+        except Exception:
+            try:
+                message_dump = message.model_dump(
+                    serialize_as_any=True, mode="json", fallback=str
+                )
+            except Exception as e:
+                message_dump = {
+                    "error": str(e),
+                    "type": message.__class__.__name__,
+                }
         payload: dict[str, Any] = {
             "type": "print",
-            "data": message.model_dump_json(
-                serialize_as_any=True,
-                fallback=str,
-            ),
+            "data": json.dumps(message_dump, default=str),
         }
         self._print(payload)
 

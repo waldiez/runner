@@ -9,6 +9,7 @@ import traceback
 from pathlib import Path
 from typing import Any
 
+from autogen.io.base import IOStream  # type: ignore
 from waldiez import Waldiez, WaldiezRunner
 
 from .redis_io_stream import RedisIOStream
@@ -74,7 +75,7 @@ class FlowRunner:
         """
         if not self.waldiez.is_async:
             return await asyncio.to_thread(self.run_sync)
-        with RedisIOStream.set_default(self.io_stream):
+        with IOStream.set_default(self.io_stream):
             try:
                 runner = WaldiezRunner(self.waldiez)
                 results = await runner.a_run(  # pyright: ignore
