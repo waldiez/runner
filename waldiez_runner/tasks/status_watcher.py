@@ -138,7 +138,7 @@ async def watch_status_and_cancel_if_needed(
     process: Process,
     redis: AsyncRedis,
     db_session: AsyncSession,
-) -> int:
+) -> int | None:
     """Watch the status of a task and update the database.
 
     Parameters
@@ -164,7 +164,7 @@ async def watch_status_and_cancel_if_needed(
     try:
         async for message in pubsub.listen():
             if process.returncode is not None:
-                break
+                return process.returncode
 
             LOG.debug("Received message: %s", message)
             if not isinstance(message, dict):
