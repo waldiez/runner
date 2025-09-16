@@ -15,7 +15,6 @@ from waldiez_runner.dependencies import (
     Storage,
     get_storage_backend,
 )
-from waldiez_runner.models import Base
 
 LOG = logging.getLogger(__name__)
 
@@ -43,10 +42,6 @@ async def get_db_session(
     if not context.state.db or not context.state.db.engine:  # pragma: no cover
         raise RuntimeError("Database not initialized")
     async with context.state.db.session() as session:
-        if context.state.db.is_sqlite:
-            # make sure the tables are created
-            async with context.state.db.engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
         yield session
 
 

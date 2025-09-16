@@ -13,6 +13,7 @@ from waldiez_runner.dependencies import (
     RedisManager,
     StorageBackend,
 )
+from waldiez_runner.models import Base
 
 from .__base__ import broker, scheduler
 from .schedule import (
@@ -44,6 +45,10 @@ async def on_worker_startup(state: TaskiqState) -> None:
     settings = SettingsManager.load_settings(force_reload=False)
     db_manager: DatabaseManager = DatabaseManager(settings)
     state.db = db_manager
+    if db_manager.is_sqlite and db_manager.engine is not None:
+        # make sure the tables are created
+        async with db_manager.engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
     if REDIS_MANAGER.is_using_fake_redis():
         LOG.warning("Using fake redis, redis url: %s", REDIS_MANAGER.redis_url)
         state.redis_manager = REDIS_MANAGER

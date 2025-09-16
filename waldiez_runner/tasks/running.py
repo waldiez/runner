@@ -65,7 +65,9 @@ async def run_task(
     debug = settings.log_level.upper() == "DEBUG"
     async with (
         # redis_manager.contextual_client(True) as redis_pub,
-        redis_manager.contextual_client(True) as redis_sub,
+        redis_manager.contextual_client(
+            use_single_connection=True
+        ) as redis_sub,
     ):
         status, results = await execute_task(
             task,
