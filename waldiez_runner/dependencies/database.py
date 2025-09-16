@@ -9,11 +9,10 @@ import logging
 from asyncio import Lock
 from typing import TYPE_CHECKING, Any, AsyncIterator
 
-from fastapi.exceptions import HTTPException
 from sqlalchemy.engine import Connection as ConnectionPoolEntry
 from sqlalchemy.engine.interfaces import DBAPIConnection
 from sqlalchemy.event import listen
-from sqlalchemy.exc import IntegrityError, InvalidRequestError, OperationalError
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -145,43 +144,30 @@ class DatabaseManager:
             raise RuntimeError("Database not initialized. Call setup() first.")
 
         attempt = 0
-        while attempt < retries:
-            async with (
-                self._db_lock
-            ):  # Prevent multiple failing connections simultaneously
-                session = self.session_maker()
-                try:
-                    yield session
-                    return  # Success, exit loop
-                except OperationalError as e:
-                    attempt += 1
-                    LOG.warning(
-                        "Database connection failed: %s. Retrying (%d/%d)...",
-                        e,
-                        attempt,
-                        retries,
-                    )
-                    if attempt < retries:
-                        await asyncio.sleep(
-                            backoff_factor**attempt
-                        )  # Exponential backoff
-                    else:
-                        LOG.error(
-                            "Database connection failed after %d retries.",
-                            retries,
-                        )
-                        raise
-                except (IntegrityError, InvalidRequestError) as e:
-                    LOG.error("Invalid db execution: %s", e)
-                    raise HTTPException(
-                        status_code=400, detail={"Invalid request"}
-                    ) from e
-
-                except BaseException as e:
-                    LOG.error("Unexpected error during session: %s", e)
-                    await session.rollback()
+        while True:
+            session = self.session_maker()
+            try:
+                # normal happy path: yield the session; no global lock
+                yield session
+                break
+            except OperationalError as e:
+                attempt += 1
+                LOG.warning(
+                    "DB op failed: %s. Retrying (%d/%d)...", e, attempt, retries
+                )
+                await session.close()
+                if attempt >= retries:
                     raise
-                finally:
+                await asyncio.sleep(backoff_factor**attempt)
+            except Exception:
+                # best-effort rollback if there was a tx
+                with contextlib.suppress(Exception):
+                    await session.rollback()
+                await session.close()
+                raise
+            finally:
+                # ensure closed after caller exits
+                with contextlib.suppress(Exception):
                     await session.close()
 
 
