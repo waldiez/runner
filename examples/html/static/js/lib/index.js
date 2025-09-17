@@ -6,9 +6,9 @@ import { WebSocketManager } from "./ws.js";
 
 export { AuthManager, Client, fetchWithTimeout, RestClient, WebSocketManager };
 export default {
-  AuthManager,
-  Client,
-  RestClient,
-  WebSocketManager,
-  fetchWithTimeout,
+    AuthManager,
+    Client,
+    RestClient,
+    WebSocketManager,
+    fetchWithTimeout,
 };
