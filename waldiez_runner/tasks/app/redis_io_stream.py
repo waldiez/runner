@@ -342,7 +342,7 @@ class RedisIOStream(IOStream):
             "type": "input_response",
             "data": user_input,
         }
-        LOG.debug("Sending input response: %s", payload)
+        LOG.debug("Sending input response: '%s'", payload)
         self._print(payload)
         return user_input
 
@@ -381,7 +381,7 @@ class RedisIOStream(IOStream):
                             continue
 
                         self._mark_request_processed(request_id)
-                        return user_input or "\n"
+                        return user_input or ""
                     finally:
                         self._release_lock(lock_key)
         except BaseException:  # pragma: no cover
@@ -394,7 +394,7 @@ class RedisIOStream(IOStream):
             self.input_timeout,
             self.task_id,
         )
-        return "\n"
+        return ""
 
     def _acquire_lock(self, lock_key: str, lock_expiry: int = 10) -> bool:
         """Try to acquire a lock, returns True if acquired, False otherwise."""
@@ -463,10 +463,8 @@ class RedisIOStream(IOStream):
             "''",
             '"/\\n"',
             "'/\\n'",
-            "none",
-            "null",
         ]:
-            user_input = "\n"
+            user_input = ""
         return message_dict["request_id"], user_input  # pyright: ignore
 
     @staticmethod
