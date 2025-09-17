@@ -6,6 +6,7 @@
 # pylint: disable=too-many-try-statements
 
 import asyncio
+import json
 import logging
 import time
 from typing import Any
@@ -95,7 +96,8 @@ class WsTaskManager:
         try:
             while True:
                 message = await queue.get()  # Wait for message
-                await websocket.send_json(message)  # Send message to WebSocket
+                parsed_message = self._try_parse_print_message(message)
+                await websocket.send_json(parsed_message)
         except asyncio.CancelledError:  # pragma: no cover
             LOG.debug(
                 "WebSocket writer task cancelled for client %s", websocket
@@ -148,14 +150,15 @@ class WsTaskManager:
         skip_queue : bool, optional
             Send message directly without adding to queue, by default False.
         """
+        parsed_message = self._try_parse_print_message(message)
         for client in self.clients[:]:
             try:
                 if skip_queue:
-                    await client.send_json(message)
+                    await client.send_json(parsed_message)
                 else:
                     queue = self.client_queues.get(client)
                     if queue:
-                        await queue.put(message)
+                        await queue.put(parsed_message)
             except asyncio.QueueFull:
                 LOG.warning(
                     "Queue full for client %s, dropping message.", client
@@ -174,3 +177,20 @@ class WsTaskManager:
     def update_usage(self) -> None:
         """Update the last used timestamp"""
         self.last_used = time.monotonic()
+
+    @staticmethod
+    def _try_parse_print_message(message: dict[str, Any]) -> dict[str, Any]:
+        """Check if the message double dumped, if so parse the inner."""
+        message_copy = message.copy()
+        if (
+            "type" in message
+            and message["type"] == "print"
+            and "data" in message
+        ):
+            try:
+                parsed = json.loads(message["data"])
+                if isinstance(parsed, (dict, list)):
+                    message_copy["data"] = parsed
+            except BaseException:  # pylint: disable=broad-exception-caught
+                pass
+        return message_copy
