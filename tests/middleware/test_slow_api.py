@@ -14,7 +14,6 @@ from fastapi.testclient import TestClient
 from waldiez_runner.middleware.slow_api import (
     add_rate_limiter,
     get_real_ip,
-    limiter,
 )
 
 
@@ -22,8 +21,8 @@ from waldiez_runner.middleware.slow_api import (
 def app_fixture() -> FastAPI:
     """Create a FastAPI app with rate limiting."""
     app = FastAPI()
-
-    add_rate_limiter(app)
+    to_exclude = r"^/api/v1/tasks/[^/]+/download/?$"
+    limiter = add_rate_limiter(app, exclude_patterns=[to_exclude])
 
     # pylint: disable=unused-argument
     # noinspection PyUnusedLocal
@@ -35,9 +34,15 @@ def app_fixture() -> FastAPI:
 
     # noinspection PyUnusedLocal
     @app.get("/unlimited")
+    @limiter.exempt  # type: ignore
     async def unlimited_endpoint(request: Request) -> dict[str, str]:
         """Unlimited endpoint."""
         return {"message": "No limit"}
+
+    @app.get("/api/v1/tasks/task12-34/download")
+    @app.get("/api/v1/tasks/task12-34/download/")
+    async def download_task(request: Request) -> dict[str, str]:
+        return {"here": "you are"}
 
     return app
 
@@ -96,6 +101,17 @@ def test_rate_limit_exceeded(client: TestClient) -> None:
 
 def test_unlimited_endpoint(client: TestClient) -> None:
     """Test unlimited endpoint."""
-    response = client.get("/unlimited")
-    assert response.status_code == 200
-    assert response.json() == {"message": "No limit"}
+    for _ in range(4):
+        response = client.get("/unlimited")
+        assert response.status_code == 200
+        assert response.json() == {"message": "No limit"}
+
+
+def test_excluded_endpoint(client: TestClient) -> None:
+    """Test excluding endpoint."""
+    for _ in range(4):
+        response = client.get("/api/v1/tasks/task12-34/download")
+        assert response.status_code == 200
+    for _ in range(4):
+        response = client.get("/api/v1/tasks/task12-34/download/")
+        assert response.status_code == 200

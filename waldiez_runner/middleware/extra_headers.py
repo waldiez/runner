@@ -115,7 +115,7 @@ class ExtraHeadersMiddleware:
         skip = scope_type != "http"
         # skip = scope.get("type", "") != "http"
         if not skip:
-            skip = any(p.search(scope_path) for p in self.exclude_patterns)
+            skip = any(p.match(scope_path) for p in self.exclude_patterns)
         if skip:
             await self.app(scope, receive, send)
         else:

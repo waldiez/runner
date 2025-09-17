@@ -40,7 +40,6 @@ from waldiez_runner.dependencies.context import (
     RequestContext,
     get_request_context,
 )
-from waldiez_runner.middleware.slow_api import limiter
 from waldiez_runner.models import TaskStatus
 from waldiez_runner.schemas.task import (
     InputResponse,
@@ -509,7 +508,6 @@ async def on_input_request(
     description="Download a task archive by ID. Admins can download any task, "
     "regular users can only download their own.",
 )
-@limiter.exempt  # type: ignore
 async def download_task(
     task_id: str,
     background_tasks: BackgroundTasks,

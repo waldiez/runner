@@ -57,7 +57,7 @@ class ConditionalGZipMiddleware:
         """
         path = scope.get("path", "")
         if scope["type"] == "http" and any(
-            p.search(path) for p in self.exclude_patterns
+            p.match(path) for p in self.exclude_patterns
         ):
             # bypass the GZip middleware
             # if the path matches any of the patterns
