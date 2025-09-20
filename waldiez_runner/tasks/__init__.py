@@ -9,7 +9,7 @@ from .lifecycle import on_worker_shutdown, on_worker_startup
 from .running import run_task
 from .schedule import (
     check_stuck_tasks,
-    cleanup_old_tasks,
+    cleanup_old_deleted_tasks,
     cleanup_processed_requests,
 )
 
@@ -25,7 +25,7 @@ __all__ = [
     "get_storage",
     "on_worker_shutdown",
     "on_worker_startup",
-    "cleanup_old_tasks",
+    "cleanup_old_deleted_tasks",
     "cleanup_processed_requests",
     "check_stuck_tasks",
 ]

@@ -71,7 +71,7 @@ from ._server import (
     get_trusted_origin_regex,
     get_trusted_origins,
 )
-from ._tasks import get_input_timeout
+from ._tasks import get_input_timeout, get_keep_task_for_days
 
 LOG = logging.getLogger(__name__)
 
@@ -160,6 +160,7 @@ class Settings(BaseSettings):
     task_permission_secret: str = get_task_permission_secret()
     # Task specific
     input_timeout: Annotated[int, Field(ge=1, le=3600)] = get_input_timeout()
+    keep_task_for_days: int = get_keep_task_for_days()
 
     model_config = SettingsConfigDict(
         alias_generator=to_kebab,

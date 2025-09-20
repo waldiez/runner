@@ -18,7 +18,7 @@ from waldiez_runner.models import Base
 from .__base__ import broker, scheduler
 from .schedule import (
     check_stuck_tasks,
-    cleanup_old_tasks,
+    cleanup_old_deleted_tasks,
     cleanup_processed_requests,
     heartbeat,
     trim_old_stream_entries,
@@ -60,13 +60,16 @@ async def on_worker_startup(state: TaskiqState) -> None:
     # and use the one from the settings
     storage_backend: StorageBackend = "local"
     state.storage = storage_backend
+    state.settings = settings
     redis_source = scheduler.sources[0]
     # schedule tasks:
     await cleanup_processed_requests.schedule_by_cron(  # type: ignore
         redis_source,
         EVERY_HOUR,
     )
-    await cleanup_old_tasks.schedule_by_cron(  # type: ignore
+    # if settings.keep_task_for_days > 0:
+
+    await cleanup_old_deleted_tasks.schedule_by_cron(  # type: ignore
         redis_source,
         EVERY_DAY,
     )

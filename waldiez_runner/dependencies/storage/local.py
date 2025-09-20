@@ -16,6 +16,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import aiofiles
+import anyio.to_thread
 import puremagic
 from aiofiles import os
 from fastapi import BackgroundTasks, HTTPException, UploadFile
@@ -55,6 +56,24 @@ class LocalStorage:
         if not resolved.is_absolute():
             resolved = self.root_dir / path.lstrip("/")
         return resolved.resolve().absolute()
+
+    @staticmethod
+    def _unlink(path: Path) -> None:
+        try:
+            path.unlink(missing_ok=True)
+        except BaseException:  # pylint: disable=broad-exception-caught
+            pass
+
+    @staticmethod
+    async def unlink(path: Path) -> None:
+        """Remove a file.
+
+        Parameters
+        ----------
+        path : Path
+            The path to remove.
+        """
+        await anyio.to_thread.run_sync(LocalStorage._unlink, path)
 
     # pylint: disable=unused-argument,no-self-use
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
@@ -128,11 +147,11 @@ class LocalStorage:
             return hash_md5.hexdigest(), str(temp_path)
 
         except HTTPException:
-            temp_path.unlink(missing_ok=True)
+            await self.unlink(temp_path)
             raise
 
         except Exception as error:  # pragma: no cover
-            temp_path.unlink(missing_ok=True)
+            await self.unlink(temp_path)
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to upload file: {str(error)}",
@@ -256,6 +275,10 @@ class LocalStorage:
         """
         full_parent_folder = self.root_dir / parent_folder
         parent_path = Path(full_parent_folder).resolve()
+        if not await os.path.isdir(parent_path):
+            raise HTTPException(
+                status_code=400, detail="Invalid archive directory"
+            )
         await os.makedirs(parent_path, exist_ok=True)
 
         async def cleanup(tmp_dir: str | None) -> None:
@@ -493,3 +516,49 @@ class LocalStorage:
             return files
 
         return await folder_tree(str(root))
+
+    async def exists(self, path: str) -> bool:
+        """Check if an item exists in the storage.
+
+        Parameters
+        ----------
+        path : str
+            The path to check.
+
+        Returns
+        -------
+        bool
+            True if the item exists, False otherwise.
+        """
+
+        return await os.path.exists(Path(path))
+
+    async def is_file(self, path: str) -> bool:
+        """Check if an item exists and is a file in the storage.
+
+        Parameters
+        ----------
+        path : str
+            The path to check.
+
+        Returns
+        -------
+        bool
+            True if the item exists and is a file, False otherwise.
+        """
+        return await os.path.isfile(self._resolve(path))
+
+    async def is_dir(self, path: str) -> bool:
+        """Check if an item exists and is a directory in the storage.
+
+        Parameters
+        ----------
+        path : str
+            The path to check.
+
+        Returns
+        -------
+        bool
+            True if the item exists and is a directory, False otherwise.
+        """
+        return await os.path.isdir(self._resolve(path))

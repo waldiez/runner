@@ -4,6 +4,7 @@
 # pylint: disable=broad-exception-caught
 """Task scheduled tasks."""
 
+import asyncio
 import logging
 import os
 from datetime import datetime, timedelta, timezone
@@ -13,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taskiq import TaskiqDepends
 from typing_extensions import Annotated
 
+from waldiez_runner.config import Settings
 from waldiez_runner.dependencies import RedisManager, Storage
 from waldiez_runner.models import Task, TaskStatus
 from waldiez_runner.services import TaskService
@@ -23,7 +25,7 @@ from .dependencies import get_db_session, get_redis_manager, get_storage
 
 LOG = logging.getLogger(__name__)
 
-OLD_TASKS_ARE_DELETED_AFTER = 30  # days
+OLD_DELETED_TASKS_ARE_DELETED_AFTER = 30  # days
 
 
 # @broker.task(schedule=EVERY_5_MINUTES)
@@ -62,11 +64,11 @@ async def cleanup_processed_requests(
 
 
 @broker.task
-async def cleanup_old_tasks(
+async def cleanup_old_deleted_tasks(
     db_session: Annotated[AsyncSession, TaskiqDepends(get_db_session)],
     storage: Annotated[Storage, TaskiqDepends(get_storage)],
 ) -> None:
-    """Periodic cleanup of old tasks.
+    """Periodic cleanup of old tasks marked for deletion.
 
     Parameters
     ----------
@@ -75,24 +77,82 @@ async def cleanup_old_tasks(
     db_session : AsyncSession
         Database session.
     """
-    page = 1
-    old_tasks: list[Task] = []
-    while page < 100:
-        params = Params(page=page, size=100)
-        tasks: Page[Task] = await TaskService.get_tasks_to_delete(
-            db_session,
-            older_than=datetime.now(timezone.utc)
-            - timedelta(days=OLD_TASKS_ARE_DELETED_AFTER),
-            params=params,
+    await _purge_tasks(
+        db_session=db_session,
+        storage=storage,
+        days_before=OLD_DELETED_TASKS_ARE_DELETED_AFTER,
+        deleted=False,
+    )
+
+
+@broker.task
+async def cleanup_old_tasks(
+    db_session: Annotated[AsyncSession, TaskiqDepends(get_db_session)],
+    storage: Annotated[Storage, TaskiqDepends(get_storage)],
+    settings: Annotated[Settings, TaskiqDepends(get_storage)],
+) -> None:
+    """Cleanup tasks created before the configured number of days.
+
+    Parameters
+    ----------
+    storage : Storage
+        Storage backend.
+    db_session : AsyncSession
+        Database session.
+    settings: Settings
+        The settings instance.
+    """
+    days_before = settings.keep_task_for_days
+    if days_before > 0:
+        await _purge_tasks(
+            db_session=db_session,
+            storage=storage,
+            deleted=False,
+            days_before=days_before,
         )
-        if not tasks.items:
+
+
+async def _purge_tasks(
+    db_session: AsyncSession,
+    storage: Storage,
+    deleted: bool,
+    days_before: int,
+    max_concurrency: int = 8,
+    batch_size: int = 100,
+) -> None:
+    """Purge tasks."""
+    sem = asyncio.Semaphore(max_concurrency)
+    total_deleted = 0
+    older_than = datetime.now(timezone.utc) - timedelta(days=days_before)
+    repeats = 0
+    max_loops = 10_000
+    while repeats < max_loops:
+        repeats += 1
+        rows = await TaskService.get_old_tasks(
+            db_session,
+            older_than=older_than,
+            deleted=deleted,
+            batch_size=batch_size,
+        )
+        if not rows:
             break
-        old_tasks.extend(tasks.items)
-        page += 1
-    for task in old_tasks:
-        await delete_old_task_from_db(db_session, task)
-        await delete_old_task_from_storage(storage, task)
-    LOG.info("Cleaned up old tasks.")
+
+        task_ids: list[str] = [r[0] for r in rows]
+        await TaskService.delete_tasks(db_session, task_ids=task_ids)
+
+        async def _rm(client_id: str, task_id: str) -> None:
+            async with sem:
+                try:
+                    await storage.delete_folder(
+                        os.path.join(client_id, str(task_id))
+                    )
+                except BaseException as e:  # pragma: no cover
+                    LOG.error("Error deleting task storage: %s", e)
+
+        # client_id (row[1]), task.id (row[0])
+        await asyncio.gather(*(_rm(row[1], row[0]) for row in rows))
+        total_deleted += len(rows)
+    LOG.info("Cleaned up %s old tasks.", total_deleted)
 
 
 @broker.task
@@ -157,44 +217,6 @@ async def trim_old_stream_entries(
             maxlen=maxlen,
             scan_count=scan_count,
         )
-
-
-async def delete_old_task_from_db(
-    db_session: AsyncSession,
-    task: Task,
-) -> None:
-    """Delete an old task from the database.
-
-    Parameters
-    ----------
-    db_session : AsyncSession
-        Database session dependency.
-    task : Task
-        The task to delete.
-    """
-    try:
-        await TaskService.delete_task(db_session, task_id=task.id)
-    except BaseException as e:  # pragma: no cover
-        LOG.error("Error deleting task: %s", e)
-
-
-async def delete_old_task_from_storage(
-    storage: Storage,
-    task: Task,
-) -> None:
-    """Delete an old task from the storage backend.
-
-    Parameters
-    ----------
-    storage : Storage
-        Storage backend dependency.
-    task : Task
-        The task to delete.
-    """
-    try:
-        await storage.delete_folder(os.path.join(task.client_id, str(task.id)))
-    except BaseException as e:  # pragma: no cover
-        LOG.error("Error deleting task storage: %s", e)
 
 
 async def check_stuck_task_status(task: Task, storage: Storage) -> TaskStatus:

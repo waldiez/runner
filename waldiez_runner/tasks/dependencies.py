@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from taskiq import Context, TaskiqDepends
 from typing_extensions import Annotated
 
+from waldiez_runner.config import Settings
 from waldiez_runner.dependencies import (
     RedisManager,
     Storage,
@@ -43,6 +44,24 @@ async def get_db_session(
         raise RuntimeError("Database not initialized")
     async with context.state.db.session() as session:
         yield session
+
+
+async def get_settings(
+    context: Annotated[Context, TaskiqDepends()],
+) -> Settings:
+    """Get the Redis client.
+
+    Parameters
+    ----------
+    context : Context
+        Taskiq context.
+
+    Returns
+    -------
+    Settings
+        The settings.
+    """
+    return context.state.settings
 
 
 async def get_redis_manager(

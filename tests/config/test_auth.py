@@ -36,9 +36,10 @@ def clear_env_and_args() -> Generator[None, None, None]:
     sys.argv = original_argv
 
 
-# def test_get_use_local_auth_no_env() -> None:
-#     """Test get_use_local_auth with no environment variables."""
-#     assert _auth.get_use_local_auth() is True
+def test_get_use_local_auth_no_env() -> None:
+    """Test get_use_local_auth with no environment variables."""
+    os.environ.pop(f"{ENV_PREFIX}USE_LOCAL_AUTH", None)
+    assert _auth.get_use_local_auth() is True
 
 
 def test_get_use_local_auth_with_env() -> None:

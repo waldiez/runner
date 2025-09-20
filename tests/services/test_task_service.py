@@ -471,14 +471,14 @@ async def test_delete_nonexistent_client_flow_task(
     )  # Should complete without error
 
 
+# noinspection DuplicatedCode
 @pytest.mark.anyio
-async def test_get_tasks_to_delete(
+async def test_get_old_deleted_tasks(
     async_session: AsyncSession,
     create_task: CreateTaskCallable,
-    pagination_params: Params,
 ) -> None:
-    """Test getting tasks to delete."""
-    client_id = "test_get_tasks_to_delete"
+    """Test getting old tasks to delete."""
+    client_id = "test_get_old_deleted_tasks"
     task1, _ = await create_task(
         async_session,
         client_id=client_id,
@@ -500,18 +500,58 @@ async def test_get_tasks_to_delete(
     for task in (task1, task2, task3):
         await async_session.refresh(task)
     cutoff_time = datetime.now(timezone.utc) + timedelta(seconds=1)
-    tasks_to_delete_page = await TaskService.get_tasks_to_delete(
+    rows = await TaskService.get_old_tasks(
         async_session,
         cutoff_time,
-        params=pagination_params,
+        deleted=True,
+        batch_size=100,
     )
-    tasks_to_delete = tasks_to_delete_page.items
-    all_ids = [task.id for task in tasks_to_delete]
+    all_ids = [row.id for row in rows]
     assert task1.id in all_ids
     assert task2.id in all_ids
     assert task3.id not in all_ids
+    await TaskService.delete_tasks(async_session, all_ids)
+
+
+# noinspection DuplicatedCode
+@pytest.mark.anyio
+async def test_get_old_created_tasks(
+    async_session: AsyncSession,
+    create_task: CreateTaskCallable,
+) -> None:
+    """Test getting tasks to delete."""
+    client_id = "test_get_old_created_tasks"
+    task1, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        filename="file1",
+    )
+    task2, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        filename="file2",
+    )
+    task3, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        filename="file3",
+    )
+    task3.created_at = datetime.now(timezone.utc) + timedelta(seconds=10)
+    await async_session.commit()
     for task in (task1, task2, task3):
-        await TaskService.delete_task(async_session, task.id)
+        await async_session.refresh(task)
+    cutoff_time = datetime.now(timezone.utc) + timedelta(seconds=1)
+    rows = await TaskService.get_old_tasks(
+        async_session,
+        cutoff_time,
+        deleted=False,
+        batch_size=100,
+    )
+    all_ids = [row.id for row in rows]
+    assert task1.id in all_ids
+    assert task2.id in all_ids
+    assert task3.id not in all_ids
+    await TaskService.delete_tasks(async_session, all_ids)
 
 
 @pytest.mark.anyio

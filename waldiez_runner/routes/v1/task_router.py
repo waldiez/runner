@@ -549,6 +549,11 @@ async def download_task(
     )
     if task is None or (not is_admin and task.client_id != client_id):
         raise HTTPException(status_code=404, detail="Task not found")
+    task_dir = os.path.join(task.client_id, str(task.id))
+    if not await storage.is_dir(task_dir):
+        raise HTTPException(
+            status_code=404, detail="Task archive does not exist"
+        )
     response = await storage.download_archive(
         task.client_id, str(task.id), background_tasks
     )

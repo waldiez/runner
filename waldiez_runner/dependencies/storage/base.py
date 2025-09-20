@@ -188,3 +188,45 @@ class Storage(Protocol):
         HTTPException
             If an error occurs.
         """
+
+    async def exists(self, path: str) -> bool:
+        """Check if an item exists in the storage.
+
+        Parameters
+        ----------
+        path : str
+            The path to check.
+
+        Returns
+        -------
+        bool
+            True if the item exists, False otherwise.
+        """
+
+    async def is_file(self, path: str) -> bool:
+        """Check if an item exists and is a file in the storage.
+
+        Parameters
+        ----------
+        path : str
+            The path to check.
+
+        Returns
+        -------
+        bool
+            True if the item exists and is a file, False otherwise.
+        """
+
+    async def is_dir(self, path: str) -> bool:
+        """Check if an item exists and is a directory in the storage.
+
+        Parameters
+        ----------
+        path : str
+            The path to check.
+
+        Returns
+        -------
+        bool
+            True if the item exists and is a directory, False otherwise.
+        """

@@ -15,6 +15,7 @@ import venv
 from pathlib import Path
 from typing import Any
 
+import aiofiles
 from aiofiles.os import wrap
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -243,7 +244,7 @@ async def run_app_in_venv(
         Exit code.
     """
     python_exec = get_venv_python_executable(venv_root)
-    write_dot_env(app_dir, env_vars)
+    await write_dot_env(app_dir, env_vars)
     args = [
         str(python_exec),
         "-m",
@@ -341,7 +342,7 @@ def interpret_exit_code(
     }
 
 
-def write_dot_env(app_dir: Path, env_vars: dict[str, str]) -> None:
+async def write_dot_env(app_dir: Path, env_vars: dict[str, str]) -> None:
     """Write environment variables to a .env file in the app directory.
 
     Parameters
@@ -352,7 +353,9 @@ def write_dot_env(app_dir: Path, env_vars: dict[str, str]) -> None:
         Environment variables to write.
     """
     dot_env_path = app_dir / ".env"
-    with open(dot_env_path, "w", encoding="utf-8") as f:
+    async with aiofiles.open(
+        dot_env_path, "w", encoding="utf-8", newline="\n"
+    ) as f_out:
         for key, value in env_vars.items():
-            f.write(f"{key}={value}\n")
+            await f_out.write(f"{key}={value}\n")
     LOG.debug("Wrote environment variables to %s", dot_env_path)

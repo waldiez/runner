@@ -18,7 +18,7 @@ from waldiez_runner.dependencies import AsyncRedis
 from waldiez_runner.models import Task, TaskStatus
 from waldiez_runner.tasks.schedule import (
     check_stuck_tasks,
-    cleanup_old_tasks,
+    cleanup_old_deleted_tasks,
     cleanup_processed_requests,
     heartbeat,
     trim_old_stream_entries,
@@ -38,61 +38,44 @@ def make_redis_manager_ctx(mock_redis: AsyncRedis) -> MagicMock:
 
 
 @pytest.mark.asyncio
-@patch(f"{SCHEDULE_MODULE}.TaskService.delete_task", new_callable=AsyncMock)
-@patch(
-    f"{SCHEDULE_MODULE}.TaskService.get_tasks_to_delete", new_callable=AsyncMock
-)
-async def test_cleanup_old_tasks(
-    mock_get_tasks_to_delete: AsyncMock,
-    mock_delete_task: AsyncMock,
+@patch(f"{SCHEDULE_MODULE}.TaskService.delete_tasks", new_callable=AsyncMock)
+@patch(f"{SCHEDULE_MODULE}.TaskService.get_old_tasks", new_callable=AsyncMock)
+async def test_cleanup_old_deleted_tasks(
+    mock_get_old_tasks: AsyncMock,
+    mock_delete_tasks: AsyncMock,
 ) -> None:
     """Test cleaning up old tasks."""
     mock_storage = MagicMock()
     mock_db_session = AsyncMock()
+    get_tasks_called = False
 
     # noinspection PyUnusedLocal
-    async def get_tasks_to_delete(*args: Any, **kwargs: Any) -> Page[Task]:
+    async def get_old_tasks(*args: Any, **kwargs: Any) -> list[tuple[str, str]]:
         """Return tasks to delete."""
-        default_params = Params(page=1, size=100)
-        params = kwargs.get("params", default_params)
-        if not isinstance(params, Params):
-            params = default_params
-        if params.page == 1:
-            return Page(
-                items=[
-                    Task(
-                        id="get_tasks_to_delete1",
-                        client_id="client1",
-                        created_at=datetime.now(tz=timezone.utc),
-                        updated_at=datetime.now(tz=timezone.utc),
-                    ),
-                    Task(
-                        id="get_tasks_to_delete2",
-                        client_id="client2",
-                        created_at=datetime.now(tz=timezone.utc),
-                        updated_at=datetime.now(tz=timezone.utc),
-                    ),
-                ],
-                page=1,
-                size=100,
-                total=2,
-                pages=2,
-            )
-        return Page(items=[], page=1, size=100, total=0, pages=1)
+        nonlocal get_tasks_called
+        if get_tasks_called:
+            return []
+        get_tasks_called = True
+        return [
+            ("get_old_tasks1", "client1"),
+            ("get_old_tasks2", "client2"),
+        ]
 
-    mock_get_tasks_to_delete.side_effect = get_tasks_to_delete
+    mock_get_old_tasks.side_effect = get_old_tasks
 
     mock_delete_folder = AsyncMock()
     mock_storage.delete_folder = mock_delete_folder
 
     # noinspection PyTypeChecker
-    await cleanup_old_tasks(db_session=mock_db_session, storage=mock_storage)
-
-    assert mock_get_tasks_to_delete.await_count == 2
-
-    assert mock_delete_task.await_count == 2
-    task1_path = os.path.join("client1", "get_tasks_to_delete1")
-    task2_path = os.path.join("client2", "get_tasks_to_delete2")
+    await cleanup_old_deleted_tasks(
+        db_session=mock_db_session,
+        storage=mock_storage,
+    )
+    assert mock_get_old_tasks.await_count == 2
+    assert mock_delete_tasks.await_count == 1
+    assert mock_delete_folder.await_count == 2
+    task1_path = os.path.join("client1", "get_old_tasks1")
+    task2_path = os.path.join("client2", "get_old_tasks2")
     mock_delete_folder.assert_any_await(task1_path)
     mock_delete_folder.assert_any_await(task2_path)
 

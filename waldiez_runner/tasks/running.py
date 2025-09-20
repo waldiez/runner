@@ -10,7 +10,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from aiofiles.os import wrap
+from aiofiles.os import path, unlink, wrap
 from sqlalchemy.ext.asyncio import AsyncSession
 from taskiq import TaskiqDepends
 
@@ -91,13 +91,22 @@ async def run_task(
                     results=results,
                 )
             except BaseException as e:
+                await remove_tmp_dir(temp_dir=temp_dir)
                 raise RuntimeError(
                     "Failed to update task status in the database"
                 ) from e
-        await move_results_to_storage(temp_dir, task, storage)
+
+        if settings.keep_task_for_days > 0:
+            await copy_results_to_storage(
+                temp_dir,
+                task=task,
+                storage=storage,
+            )
+        await remove_tmp_dir(temp_dir=temp_dir)
+        await remove_dot_env(app_dir)
 
 
-async def move_results_to_storage(
+async def copy_results_to_storage(
     temp_dir: Path,
     task: TaskResponse,
     storage: Storage,
@@ -118,7 +127,6 @@ async def move_results_to_storage(
     RuntimeError
         If the results could not be copied to the storage.
     """
-    # results_dir = os.path.join(temp_dir, task_dir, "app")
     results_dir = temp_dir / task.client_id / task.id / "app" / "waldiez_out"
     if not results_dir.exists():
         LOG.warning("No results directory found for task %s", task.id)
@@ -130,7 +138,21 @@ async def move_results_to_storage(
     except BaseException as e:
         LOG.error("Failed to copy results to storage: %s", e)
         raise RuntimeError("Failed to copy results to storage") from e
-    # Remove temporary directory
+    dst_dot_env = os.path.join(task.client_id, task.id, "app", ".env")
+    if await storage.is_file(dst_dot_env):
+        await storage.delete_file(dst_dot_env)
+
+
+async def remove_tmp_dir(temp_dir: Path) -> None:
+    """Remove task's temporary directory.
+
+    Parameters
+    ----------
+    temp_dir : Path
+        The temp dir to remove.
+    """
+    if not temp_dir.is_dir():
+        return
     rmtree = wrap(shutil.rmtree)
     try:
         await rmtree(str(temp_dir), ignore_errors=True)
@@ -140,3 +162,19 @@ async def move_results_to_storage(
         LOG.warning(
             "Permission denied to remove temporary directory %s", temp_dir
         )
+
+
+async def remove_dot_env(parent_dir: Path) -> None:
+    """Remove .env if it exists.
+
+    Parameters
+    ----------
+    parent_dir : Path
+        The parent dir to check for the .env file.
+    """
+    dot_env = parent_dir / ".env"
+    if await path.exists(dot_env):
+        try:
+            await unlink(dot_env)
+        except BaseException as err:  # pragma: no cover
+            LOG.warning("Failed to remove .env : %s", err)

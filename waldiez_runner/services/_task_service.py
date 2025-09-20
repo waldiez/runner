@@ -10,7 +10,7 @@ from typing import Any, Sequence
 import sqlalchemy.sql.functions
 from fastapi_pagination import Page, Params
 from fastapi_pagination.ext.sqlalchemy import apaginate
-from sqlalchemy import String, asc, cast, desc, or_
+from sqlalchemy import Row, String, asc, cast, desc, or_
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.sql.expression import delete, update
@@ -37,6 +37,7 @@ def task_transformer(items: Sequence[Task]) -> Sequence[TaskResponse]:
     return [TaskResponse.model_validate(task) for task in items]
 
 
+# noinspection DuplicatedCode
 async def get_client_tasks(
     session: AsyncSession,
     client_id: str,
@@ -106,6 +107,7 @@ async def get_client_tasks(
     return page
 
 
+# noinspection DuplicatedCode
 async def get_all_tasks(
     session: AsyncSession,
     params: Params,
@@ -293,36 +295,46 @@ async def get_active_client_tasks(
     return page
 
 
-async def get_tasks_to_delete(
-    session: AsyncSession,
+async def get_old_tasks(
+    async_session: AsyncSession,
     older_than: datetime,
-    params: Params,
-) -> Page[Task]:
-    """Get tasks marked for deletion older than a given date.
+    deleted: bool,
+    batch_size: int,
+) -> Sequence[Row[tuple[str, str]]]:
+    """Get tasks older than a given date.
 
     Parameters
     ----------
-    session : AsyncSession
+    async_session : AsyncSession
         SQLAlchemy async session.
     older_than : DateTime
         Date to compare.
-    params : Params
-        Pagination parameters.
+    deleted : bool
+        Get the tasks marked for deletion only.
+    batch_size : int
+        The batch size for the operation.
+
     Returns
     -------
-    List[Task]
-        List of tasks older than the given date.
+    Sequence[Row[tuple[str, str]]]
+        The rows with the task id and the task's client_id.
     """
-    page = await apaginate(
-        session,
-        select(Task)
-        .where(
-            Task.deleted_at < older_than,
+    if deleted:
+        select_ids = (
+            select(Task.id.label("id"), Task.client_id.label("client_id"))
+            .where(Task.deleted_at < older_than)
+            .order_by(Task.created_at.asc(), Task.id.asc())
+            .limit(batch_size)
         )
-        .order_by(Task.created_at),
-        params,
-    )
-    return page
+    else:
+        select_ids = (
+            select(Task.id.label("id"), Task.client_id.label("client_id"))
+            .where(Task.created_at < older_than)
+            .order_by(Task.created_at.asc(), Task.id.asc())
+            .limit(batch_size)
+        )
+    results = await async_session.execute(select_ids)
+    return results.all()
 
 
 async def get_pending_tasks(
@@ -387,6 +399,7 @@ async def get_active_tasks(session: AsyncSession, params: Params) -> Page[Task]:
     return page
 
 
+# noinspection DuplicatedCode
 async def soft_delete_client_tasks(
     session: AsyncSession,
     client_id: str,
@@ -441,6 +454,7 @@ async def soft_delete_client_tasks(
     return deleted_ids
 
 
+# noinspection DuplicatedCode
 async def soft_delete_tasks_by_ids(
     session: AsyncSession,
     task_ids: list[str],
@@ -572,6 +586,21 @@ async def delete_task(session: AsyncSession, task_id: str) -> None:
         Task ID.
     """
     query = delete(Task).where(Task.id == task_id)
+    await session.execute(query)
+    await session.commit()
+
+
+async def delete_tasks(session: AsyncSession, task_ids: list[str]) -> None:
+    """Delete tasks by their ids.
+
+    Parameters
+    ----------
+    session : AsyncSession
+        SQLAlchemy async session.
+    task_ids : list[str]
+        The task ids.
+    """
+    query = delete(Task).where(Task.id.in_(task_ids))
     await session.execute(query)
     await session.commit()
 

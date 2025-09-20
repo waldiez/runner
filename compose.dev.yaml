@@ -120,6 +120,7 @@ services:
       - WALDIEZ_RUNNER_OIDC_JWKS_URL=
       - WALDIEZ_RUNNER_OIDC_JWKS_CACHE_TTL=900
       - WALDIEZ_RUNNER_INPUT_TIMEOUT=180
+      - WALDIEZ_RUNNER_KEEP_TASKS_FOR_DAYS=0
     depends_on:
       db:
         condition: service_healthy
