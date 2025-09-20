@@ -81,7 +81,7 @@ async def cleanup_old_deleted_tasks(
         db_session=db_session,
         storage=storage,
         days_before=OLD_DELETED_TASKS_ARE_DELETED_AFTER,
-        deleted=False,
+        deleted=True,
     )
 
 
