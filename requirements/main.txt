@@ -7,17 +7,17 @@ alembic==1.16.5
 anyio==4.10.0
 asyncssh==2.21.0
 bcrypt==4.3.0
-boto3==1.40.30
+boto3==1.40.36
 click<8.2
-fakeredis==2.31.1
+fakeredis==2.31.3
 fastapi-pagination==0.14.1
-fastapi[all]==0.116.1
+fastapi[all]==0.117.1
 faststream[redis,cli]==0.5.48
 hiredis==3.2.1
 httpx<1
 nest-asyncio==1.6.0
 orjson==3.11.3
-psutil==7.0.0
+psutil>=7.0.0
 psycopg>=3.2.10; sys_platform == 'win32' and platform_machine == 'AARCH64'
 psycopg>=3.2.10; sys_platform == 'win32' and platform_machine == 'ARM64'
 psycopg>=3.2.10; sys_platform == 'win32' and platform_machine == 'aarch64'
@@ -41,7 +41,7 @@ taskiq==0.11.18
 tenacity<10.0.0
 trio==0.31.0
 typer<1
-uvicorn[standard]==0.35.0
+uvicorn[standard]==0.36.0
 uvloop==0.21.0; sys_platform != 'win32'
 virtualenv==20.34.0
 waldiez==0.6.0
