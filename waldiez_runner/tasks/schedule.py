@@ -21,7 +21,12 @@ from waldiez_runner.services import TaskService
 
 from .__base__ import broker
 from .app.redis_io_stream import RedisIOStream
-from .dependencies import get_db_session, get_redis_manager, get_storage
+from .dependencies import (
+    get_db_session,
+    get_redis_manager,
+    get_settings,
+    get_storage,
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -89,7 +94,7 @@ async def cleanup_old_deleted_tasks(
 async def cleanup_old_tasks(
     db_session: Annotated[AsyncSession, TaskiqDepends(get_db_session)],
     storage: Annotated[Storage, TaskiqDepends(get_storage)],
-    settings: Annotated[Settings, TaskiqDepends(get_storage)],
+    settings: Annotated[Settings, TaskiqDepends(get_settings)],
 ) -> None:
     """Cleanup tasks created before the configured number of days.
 
