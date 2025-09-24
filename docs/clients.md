@@ -17,7 +17,7 @@ There are three types of clients, each associated with a specific **audience**:
 
 ---
 
-### 🔑 Admin Audience
+### 🔑 Admin Audience {: #admin-audience }
 
 The `admin-api` audience provides elevated privileges for system administration:
 
@@ -30,14 +30,16 @@ The `admin-api` audience provides elevated privileges for system administration:
 
 ---
 
-## 🔧 Admin Task Operations
+## 🔧 Admin Task Operations {: #admin-task-operations }
 
 Users with `admin-api` audience tokens or external admin tokens have elevated privileges for task management across all clients:
 
 ### 📊 View All Tasks
+
 - **`GET /api/v1/admin/tasks`** — View all tasks from all clients with pagination and filtering
 
 ### 🎯 Individual Task Operations
+
 Admins can perform operations on any task regardless of which client owns it:
 
 - **`GET /api/v1/tasks/{task_id}`** — View any task's details
@@ -48,6 +50,7 @@ Admins can perform operations on any task regardless of which client owns it:
 - **`DELETE /api/v1/tasks?ids=...`** — Delete multiple tasks from any clients
 
 ### 🔒 Security Notes
+
 - All admin endpoints require JWT tokens with `admin-api` audience **or external tokens with admin rights**
 - Regular users can only access their own tasks
 - Admin access provides cross-client visibility and control
@@ -88,9 +91,9 @@ It contains initial client credentials for both audiences.
 
 !!! note
     You’ll need the tasks-api credentials to:
-    - Use the example UI at http://localhost
+    - Use the example UI at <http://localhost>
     - Submit or manage tasks via Swagger or scripts
-    
+
     Admin credentials (admin-api audience) are required for:
     - Cross-client task visibility and monitoring
     - Administrative task operations across all clients

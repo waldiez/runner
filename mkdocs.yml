@@ -133,18 +133,13 @@ nav:
       - Clients & Authentication: clients.md
       - Tasks: tasks.md
       - WebSocket: websocket.md
+      - Configuration: config.md
       - Examples:
           - Overview: examples/index.md
           # - React + TS Demo: examples/react.md
           - HTML + JS (Vanilla): examples/html.md
           - Task Demo (Jupyter Notebook): examples/task_demo.ipynb
           - Streamlit Demo: examples/streamlit.md
-        # - CLI Usage: examples/cli/README.md
-
-  # - Configuration:
-  #     - Environment Variables: config/env.md
-  #     - Settings Overview: config/settings.md
-  #     - Storage Options (Local/S3/...): config/storage.md
 
   # - Deployment:
   #     - Docker / Compose: deployment/docker.md
