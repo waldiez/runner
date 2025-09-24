@@ -11,7 +11,7 @@ pydocstyle==6.3.0
 pylint==3.3.8
 ruff==0.13.1
 streamlit-autorefresh==1.0.1
-streamlit==1.49.1
+streamlit==1.50.0
 types-PyYAML==6.0.12.20250915
 types-aiofiles==24.1.0.20250822
 types-psutil==7.0.0.20250822
