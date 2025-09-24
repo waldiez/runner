@@ -175,6 +175,7 @@
         "hiredis",
         "HISTFILE",
         "HISTSIZE",
+        "HMAC",
         "hsts",
         "httpx",
         "HTTPXWS",
