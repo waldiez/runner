@@ -5,11 +5,13 @@
 Environment variables (with prefix WALDIEZ_RUNNER_)
 ---------------------------------------------------
 INPUT_TIMEOUT (int) # default: 180
+MAX_TASK_DURATION (int) # default: 60 * 60
 KEEP_TASKS_FOR_DAYS (int) # default: 0
 
 Command line arguments (no prefix)
 --------------------------------------------------
 --input-timeout (int) # default: 180
+--max-task-duration (int)  # default: 3600
 --keep-tasks-for-days (int)  # default: 0
 """
 
@@ -17,6 +19,7 @@ from ._common import get_value
 
 DEFAULT_INPUT_TIMEOUT = 180
 DEFAULT_DAYS_TO_KEEP_TASKS = 0
+DEFAULT_MAX_DURATION_SECS = 3600
 
 
 def get_input_timeout() -> int:
@@ -45,4 +48,21 @@ def get_keep_task_for_days() -> int:
         "KEEP_TASKS_FOR_DAYS",
         int,
         DEFAULT_DAYS_TO_KEEP_TASKS,
+    )
+
+
+def get_max_task_duration() -> int:
+    """Get the max allowed task duration in seconds.
+
+    Returns
+    -------
+    int
+        The max task duration.
+
+    """
+    return get_value(
+        "--max-task-duration",
+        "MAX_TASK_DURATION",
+        int,
+        DEFAULT_MAX_DURATION_SECS,
     )

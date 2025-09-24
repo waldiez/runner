@@ -121,6 +121,7 @@ services:
       - WALDIEZ_RUNNER_OIDC_JWKS_CACHE_TTL=900
       - WALDIEZ_RUNNER_INPUT_TIMEOUT=180
       - WALDIEZ_RUNNER_KEEP_TASKS_FOR_DAYS=0
+      - WALDIEZ_RUNNER_MAX_TASK_DURATION=3600
     depends_on:
       db:
         condition: service_healthy

@@ -68,7 +68,19 @@ def test_get_keep_task_for_days_with_env() -> None:
     assert _tasks.get_keep_task_for_days() == 31
 
 
-def test_get_keep_task_for_days_from_cli() -> None:
-    """Test get_keep_task_for_days from cli arg."""
-    sys.argv.extend(["--keep-tasks-for-days", "61"])
-    assert _tasks.get_keep_task_for_days() == 61
+def test_get_max_task_duration_no_env() -> None:
+    """Test get_max_task_duration with no environment variables."""
+    os.environ.pop(f"{ENV_PREFIX}MAX_TASK_DURATION", None)
+    assert _tasks.get_max_task_duration() == _tasks.DEFAULT_MAX_DURATION_SECS
+
+
+def test_get_max_task_duration_with_env() -> None:
+    """Test get_max_task_duration with environment variables."""
+    os.environ[f"{ENV_PREFIX}MAX_TASK_DURATION"] = "1000"
+    assert _tasks.get_max_task_duration() == 1000
+
+
+def test_get_max_task_duration_from_cli() -> None:
+    """Test get_max_task_duration from cli arg."""
+    sys.argv.extend(["--max-task-duration", "1001"])
+    assert _tasks.get_max_task_duration() == 1001
