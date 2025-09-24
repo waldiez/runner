@@ -79,6 +79,7 @@ async def run_task(
             redis_sub=redis_sub,
             db_session=db_session,
             debug=debug,
+            max_duration=settings.max_task_duration,
         )
         LOG.info("Task %s finished with status %s", task.id, status.value)
         LOG.debug("Task %s finished with results %s", task.id, results)

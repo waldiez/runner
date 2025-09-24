@@ -24,7 +24,7 @@ from waldiez_runner.models.task_status import TaskStatus
 from waldiez_runner.schemas.task import TaskResponse
 
 from .__base__ import APP_DIR
-from .status_watcher import watch_status_and_cancel_if_needed
+from .status_watcher import terminate_process, watch_status_and_cancel_if_needed
 
 LOG = logging.getLogger(__name__)
 
@@ -39,6 +39,7 @@ async def execute_task(
     redis_sub: AsyncRedis,
     db_session: AsyncSession,
     debug: bool,
+    max_duration: int,
 ) -> tuple[TaskStatus, dict[str, Any] | list[dict[str, Any]] | None]:
     """Execute the task in a virtual environment.
 
@@ -62,6 +63,8 @@ async def execute_task(
         Database session dependency.
     debug : bool
         Whether to run in debug mode.
+    max_duration : int
+        The task's max duration.
 
     Returns
     -------
@@ -81,6 +84,7 @@ async def execute_task(
             redis_sub=redis_sub,
             db_session=db_session,
             debug=debug,
+            max_duration=max_duration,
         )
         LOG.info("Task %s exited with code %s", task.id, exit_code)
         return interpret_exit_code(exit_code)
@@ -212,6 +216,7 @@ async def run_app_in_venv(
     redis_sub: AsyncRedis,
     db_session: AsyncSession,
     debug: bool,
+    max_duration: int,
 ) -> int:
     """Run the app in the venv.
 
@@ -237,6 +242,8 @@ async def run_app_in_venv(
         Database session dependency.
     debug : bool
         Whether to run in debug mode.
+    max_duration : int
+        The task's max duration.
 
     Returns
     -------
@@ -277,7 +284,12 @@ async def run_app_in_venv(
     )
     # pylint: disable=too-many-try-statements
     try:
-        return_code = await process.wait()
+        if max_duration > 0:
+            return_code = await asyncio.wait_for(
+                process.wait(), timeout=max_duration
+            )
+        else:
+            return_code = await process.wait()
 
         if watcher_task.done():
             try:
@@ -290,8 +302,13 @@ async def run_app_in_venv(
             except Exception as e:
                 LOG.warning("Watcher task error: %s", e)
                 return_code = -1
-
         return return_code
+    except asyncio.TimeoutError:
+        LOG.warning(
+            "Task %s exceeded max duration of %s seconds", task_id, max_duration
+        )
+        await terminate_process(process)
+        return -99
     finally:
         if not watcher_task.done():
             watcher_task.cancel()
@@ -299,10 +316,11 @@ async def run_app_in_venv(
                 await watcher_task
 
 
+# pylint: disable=too-many-return-statements
 def interpret_exit_code(
     exit_code: int,
 ) -> tuple[TaskStatus, dict[str, Any] | None]:
-    """Interpret subprocess exit code in a cross-platform way.
+    """Interpret subprocess exit code.
 
     Parameters
     ----------
@@ -316,6 +334,8 @@ def interpret_exit_code(
     """
     if exit_code == 0:
         return TaskStatus.COMPLETED, None
+    if exit_code == -99:
+        return TaskStatus.FAILED, {"error": "Task duration exceeded its limit."}
     if exit_code == -signal.SIGTERM:
         return TaskStatus.CANCELLED, {"error": "Task was terminated by signal"}
     # Unix: process terminated by signal (Python reports it as -N)
