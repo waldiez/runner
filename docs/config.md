@@ -40,7 +40,7 @@ WALDIEZ_RUNNER_TRUSTED_ORIGINS=http://localhost:3000,https://example.com
 
 | Setting | Environment Variable | Default | Description |
 |---------|---------------------|---------|-------------|
-| `postgres` | `WALDIEZ_RUNNER_POSTGRES` | `false` | Enable PostgreSQL |
+| `postgres` | `WALDIEZ_RUNNER_POSTGRES` | `true` | Enable PostgreSQL |
 | `db_host` | `WALDIEZ_RUNNER_DB_HOST` | `localhost` | Database host |
 | `db_port` | `WALDIEZ_RUNNER_DB_PORT` | `5432` | Database port |
 | `db_user` | `WALDIEZ_RUNNER_DB_USER` | `db_user` | Database user |
@@ -61,10 +61,7 @@ WALDIEZ_RUNNER_DB_NAME=waldiez_prod
 
 ### SQLite (Development)
 
-When `WALDIEZ_RUNNER_POSTGRES=false`, the application uses SQLite:
-
-- **Production**: `waldiez_database.sqlite3`
-- **Testing**: `waldiez_test.db`
+When `WALDIEZ_RUNNER_POSTGRES=false`, the application uses SQLite: `waldiez_runner_database.sqlite3`
 
 ## Redis Configuration
 
