@@ -2,15 +2,8 @@
 
 Waldiez Runner provides extensive configuration options through environment variables, allowing you to customize server behavior, database connections, authentication, and task management settings.
 
-## Configuration Sources
-
-The application loads configuration from multiple sources in the following order of precedence:
-
-1. **Environment variables** (highest priority)
-2. **`.env` file** in the project root
-3. **Default values** (lowest priority)
-
-All environment variables use the prefix `WALDIEZ_RUNNER_` followed by the setting name in uppercase.
+!!! info
+    All environment variables use the prefix `WALDIEZ_RUNNER_` followed by the setting name in uppercase.
 
 ## Server Settings
 
@@ -21,8 +14,8 @@ All environment variables use the prefix `WALDIEZ_RUNNER_` followed by the setti
 | `host` | `WALDIEZ_RUNNER_HOST` | `127.0.0.1` | Server host address |
 | `port` | `WALDIEZ_RUNNER_PORT` | `8000` | Server port (1-65535) |
 | `domain_name` | `WALDIEZ_RUNNER_DOMAIN_NAME` | `localhost` | Domain name for the server |
-| `max_jobs` | `WALDIEZ_RUNNER_MAX_JOBS` | `10` | Maximum concurrent jobs (1-100) |
-| `force_ssl` | `WALDIEZ_RUNNER_FORCE_SSL` | `false` | Force HTTPS connections |
+| `max_jobs` | `WALDIEZ_RUNNER_MAX_JOBS` | `3` | Maximum concurrent jobs (1-100) |
+| `force_ssl` | `WALDIEZ_RUNNER_FORCE_SSL` | `true` | Force HTTPS connections |
 | `secret_key` | `WALDIEZ_RUNNER_SECRET_KEY` | *auto-generated* | Secret key for session management |
 | `log_level` | `WALDIEZ_RUNNER_LOG_LEVEL` | `INFO` | Logging level |
 
@@ -50,9 +43,9 @@ WALDIEZ_RUNNER_TRUSTED_ORIGINS=http://localhost:3000,https://example.com
 | `postgres` | `WALDIEZ_RUNNER_POSTGRES` | `false` | Enable PostgreSQL |
 | `db_host` | `WALDIEZ_RUNNER_DB_HOST` | `localhost` | Database host |
 | `db_port` | `WALDIEZ_RUNNER_DB_PORT` | `5432` | Database port |
-| `db_user` | `WALDIEZ_RUNNER_DB_USER` | `postgres` | Database user |
-| `db_password` | `WALDIEZ_RUNNER_DB_PASSWORD` | `password` | Database password |
-| `db_name` | `WALDIEZ_RUNNER_DB_NAME` | `waldiez` | Database name |
+| `db_user` | `WALDIEZ_RUNNER_DB_USER` | `db_user` | Database user |
+| `db_password` | `WALDIEZ_RUNNER_DB_PASSWORD` | `db_password` | Database password |
+| `db_name` | `WALDIEZ_RUNNER_DB_NAME` | `db_name` | Database name |
 | `db_url` | `WALDIEZ_RUNNER_DB_URL` | *auto-generated* | Complete database URL |
 
 **Example PostgreSQL configuration:**
@@ -84,7 +77,7 @@ Redis is used for task queuing and real-time communication.
 | `redis_port` | `WALDIEZ_RUNNER_REDIS_PORT` | `6379` | Redis port |
 | `redis_db` | `WALDIEZ_RUNNER_REDIS_DB` | `0` | Redis database index (0-15) |
 | `redis_scheme` | `WALDIEZ_RUNNER_REDIS_SCHEME` | `redis` | Redis scheme (`redis`, `rediss`, `unix`) |
-| `redis_password` | `WALDIEZ_RUNNER_REDIS_PASSWORD` | *none* | Redis password |
+| `redis_password` | `WALDIEZ_RUNNER_REDIS_PASSWORD` | `redis_password` | Redis password |
 | `redis_url` | `WALDIEZ_RUNNER_REDIS_URL` | *auto-generated* | Complete Redis URL |
 
 **Example Redis configurations:**
@@ -168,14 +161,14 @@ Fine-grained permission control for task operations.
 
 | Setting | Environment Variable | Default | Description |
 |---------|---------------------|---------|-------------|
-| `input_timeout` | `WALDIEZ_RUNNER_INPUT_TIMEOUT` | `300` | Input timeout in seconds (1-3600) |
-| `max_task_duration` | `WALDIEZ_RUNNER_MAX_TASK_DURATION` | `0` | Maximum task duration in seconds (0 = no limit) |
-| `keep_task_for_days` | `WALDIEZ_RUNNER_KEEP_TASK_FOR_DAYS` | `7` | Days to keep completed tasks (0 = delete immediately) |
+| `input_timeout` | `WALDIEZ_RUNNER_INPUT_TIMEOUT` | `180` | Input timeout in seconds (1-3600) |
+| `max_task_duration` | `WALDIEZ_RUNNER_MAX_TASK_DURATION` | `3600` | Maximum task duration in seconds (<=0: no limit) |
+| `keep_task_for_days` | `WALDIEZ_RUNNER_KEEP_TASK_FOR_DAYS` | `0` | Days to keep completed tasks (<=0: delete immediately) |
 
 **Task Duration Behavior:**
 
 - When `max_task_duration > 0`: Tasks exceeding this duration are automatically terminated
-- When `max_task_duration = 0`: No time limit is enforced
+- When `max_task_duration <= 0`: No time limit is enforced
 - Terminated tasks receive a `SIGTERM` signal and return code `-1`
 
 ## Environment File Example
