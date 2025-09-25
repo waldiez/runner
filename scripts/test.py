@@ -58,10 +58,11 @@ def ensure_test_requirements() -> None:
 
 def run_pytest() -> None:
     """Run pytest."""
-    coverage_dir = ROOT_DIR / "coverage" / "backend"
+    coverage_dir = ROOT_DIR / "coverage"
     if coverage_dir.exists():
         shutil.rmtree(coverage_dir)
     coverage_dir.mkdir(parents=True, exist_ok=True)
+    n = "0" if sys.platform == "win32" else "auto"
     args = [
         sys.executable,
         "-m",
@@ -69,7 +70,7 @@ def run_pytest() -> None:
         "-c",
         "pyproject.toml",
         "-n",
-        "auto",
+        f"{n}",
         "--cov=waldiez_runner",
         "--cov-branch",
         "--cov-context=test",
