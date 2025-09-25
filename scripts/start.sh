@@ -68,21 +68,35 @@ start_uvicorn() {
     fi
 }
 
+install_extras() {
+  if [ -n "${WALDIEZ_RUNNER_EXTRA_PACKAGES:-}" ]; then
+    echo "Installing extra packages: ${WALDIEZ_RUNNER_EXTRA_PACKAGES}"
+    # Optional pip flags (indexes, trusted hosts, etc.)
+    PIP_FLAGS=${EXTRA_PIP_FLAGS:-}
+    # If we have /opt/base-locked.txt at build time, let's use it as a constraint
+    CONS_FLAG=""
+    if [ -f /opt/base-locked.txt ]; then
+      CONS_FLAG="-c /opt/base-locked.txt"
+      echo "Using constraints from /opt/base-locked.txt"
+    fi
+    # shellcheck disable=SC2086
+    python -m pip install --no-cache-dir --upgrade-strategy only-if-needed ${PIP_FLAGS} ${CONS_FLAG} ${WALDIEZ_RUNNER_EXTRA_PACKAGES}
+  else
+    echo "No WALDIEZ_RUNNER_EXTRA_PACKAGES set. Skipping extras."
+  fi
+}
+
 start_broker() {
-    # pre_start_checks
-    # initial_data_setup
+    install_extras
     echo "Starting broker..."
     # --no-configure-logging
     #   Use this parameter if your application configures custom logging. (default: True)
     # --log-level {INFO,WARNING,DEBUG,ERROR,FATAL}
     #       worker log level (default: INFO)
-    LOG_LEVEL="$(get_log_level)"
     taskiq worker waldiez_runner.worker:broker --workers 1 --log-level "$LOG_LEVEL"
 }
 
 start_scheduler() {
-    # pre_start_checks
-    # initial_data_setup
     # --no-configure-logging
     #   Use this parameter if your application configures custom logging. (default: True)
     # --log-level {INFO,WARNING,DEBUG,ERROR,FATAL}

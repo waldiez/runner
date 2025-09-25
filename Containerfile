@@ -75,11 +75,9 @@ RUN ARCH=$(uname -m) && \
     LATEST_VERSION=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" | \
     jq -r '.channels.Stable.version') && \
     echo "Installing Chrome and ChromeDriver version: $LATEST_VERSION for $CHROME_ARCH" && \
-    # Install Chrome
     curl -Lo /tmp/chrome.zip "https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/${LATEST_VERSION}/${CHROME_ARCH}/chrome-linux64.zip" && \
     unzip /tmp/chrome.zip -d /opt && \
     ln -sf /opt/chrome-linux64/chrome /usr/bin/google-chrome && \
-    # Install ChromeDriver
     curl -Lo /tmp/chromedriver.zip "https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/${LATEST_VERSION}/${CHROME_ARCH}/chromedriver-linux64.zip" && \
     unzip /tmp/chromedriver.zip -d /usr/local/bin && \
     mv /usr/local/bin/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver && \
@@ -132,6 +130,13 @@ ENV LANG=en_US.UTF-8 \
     LC_CTYPE=en_US.UTF-8 \
     TZ=Etc/UTC
 
+RUN pip install --upgrade pip
+
+COPY requirements/main.txt /tmp/requirements.txt
+RUN pip install --root-user-action ignore -r /tmp/requirements.txt \
+    && rm /tmp/requirements.txt \
+    && pip freeze > /opt/base-locked.txt
+
 # let's hope this will not be needed (e.g. no need to open a shell)
 # if it does, I like colors
 RUN sed -i 's/^#force_color_prompt=yes/force_color_prompt=yes/' /etc/skel/.bashrc
@@ -148,11 +153,6 @@ RUN mkdir -p /home/waldiez/.local/bin /home/waldiez/app /home/waldiez/app/waldie
 ENV PATH=/home/waldiez/.local/bin:${PATH}
 
 USER waldiez
-
-RUN pip install --upgrade pip
-
-COPY --chown=waldiez:waldiez requirements/main.txt /home/waldiez/requirements.txt
-RUN pip install -r /home/waldiez/requirements.txt && rm /home/waldiez/requirements.txt
 
 COPY --chown=waldiez:waldiez . /home/waldiez/app
 RUN chmod +x /home/waldiez/app/scripts/start.sh

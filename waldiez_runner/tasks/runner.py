@@ -169,13 +169,34 @@ async def prepare_app_env(
     await storage.copy_file(task_file_src, str(app_dir / task.filename))
     # Install dependencies
     python_exec = get_venv_python_executable(venv_dir)
-    await run_pip(python_exec, app_dir, ["install", "--upgrade", "pip"])
-    await run_pip(python_exec, app_dir, ["install", "-r", "requirements.txt"])
-
+    pip_args = [
+        "install",
+        "--upgrade-strategy",
+        "only-if-needed",
+        "-r",
+        "requirements.txt",
+    ]
+    await run_pip(python_exec, app_dir, pip_args)
     return venv_dir
 
 
-async def run_pip(python_exec: Path, cwd: Path, args: list[str]) -> None:
+def _pip_env() -> dict[str, str]:
+    return {
+        **os.environ,
+        "PYTHONUNBUFFERED": "1",
+        "PIP_NO_INPUT": "1",
+        "PIP_DISABLE_PIP_VERSION_CHECK": "1",
+    }
+
+
+async def run_pip(
+    python_exec: Path,
+    cwd: Path,
+    args: list[str],
+    *,
+    timeout: float | None = None,
+    extra_env: dict[str, str] | None = None,
+) -> None:
     """Run pip in the venv.
 
     Parameters
@@ -186,22 +207,39 @@ async def run_pip(python_exec: Path, cwd: Path, args: list[str]) -> None:
         Current working directory.
     args : list[str]
         Arguments to pass to pip.
+    timeout : float | None
+        Optional timeout for the operation.
+    extra_env : dict[str, str] | None
+        Optional additional environment variables.
 
     Raises
     ------
     RuntimeError
         If pip installation fails.
     """
+    env = _pip_env()
+    if extra_env:
+        env.update(extra_env)
     proc = await asyncio.create_subprocess_exec(
         str(python_exec),
         "-m",
         "pip",
         *args,
         cwd=cwd,
-        env={**os.environ, "PYTHONUNBUFFERED": "1"},
+        env=env,
     )
-    if await proc.wait() != 0:
-        raise RuntimeError(f"Failed to run pip with args: {args}")
+    try:
+        if timeout and timeout > 0:
+            rc = await asyncio.wait_for(proc.wait(), timeout=timeout)
+        else:
+            rc = await proc.wait()
+    except asyncio.TimeoutError:
+        with contextlib.suppress(ProcessLookupError):
+            proc.kill()
+        raise RuntimeError(f"pip timed out with args: {args}") from None
+
+    if rc != 0:
+        raise RuntimeError(f"pip failed (exit {rc}) with args: {args}")
 
 
 # pylint: disable=too-many-locals
