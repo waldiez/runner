@@ -93,6 +93,7 @@ start_broker() {
     #   Use this parameter if your application configures custom logging. (default: True)
     # --log-level {INFO,WARNING,DEBUG,ERROR,FATAL}
     #       worker log level (default: INFO)
+    LOG_LEVEL="$(get_log_level)"
     taskiq worker waldiez_runner.worker:broker --workers 1 --log-level "$LOG_LEVEL"
 }
 
