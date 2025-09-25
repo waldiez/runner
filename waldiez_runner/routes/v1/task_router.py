@@ -294,7 +294,7 @@ async def create_task(
     except ValidationError as error:
         await storage.delete_file(save_path)
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             detail=error.json(),
         ) from error
     try:

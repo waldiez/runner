@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import HTTPException, UploadFile
-from starlette import status
 from typing_extensions import Literal
 from waldiez import Waldiez
 
@@ -215,6 +214,6 @@ async def validate_waldiez_flow(flow_path: str) -> None:
         await asyncio.to_thread(Waldiez.load, flow_path)
     except BaseException as error:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             detail=str(error),
         ) from error
