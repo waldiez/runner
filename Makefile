@@ -171,4 +171,4 @@ header:
 	$(PYTHON) scripts/header.py
 
 .PHONY: some
-some: requirements forlint test smoke
+some: requirements clean forlint test smoke
