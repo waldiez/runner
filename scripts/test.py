@@ -81,7 +81,7 @@ def run_pytest() -> None:
         "-c",
         "pyproject.toml",
         "-n",
-        "0",
+        "auto",
         "--cov=waldiez_runner",
         "--cov-branch",
         "--cov-context=test",

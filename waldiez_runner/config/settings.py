@@ -5,6 +5,7 @@
 
 import logging
 import os
+from pathlib import Path
 from typing import Any, Optional
 
 from dotenv import load_dotenv
@@ -281,6 +282,8 @@ class Settings(BaseSettings):
             name_prefix = ENV_PREFIX.lower()
             db_name = f"{name_prefix}database.sqlite3"
             if self.is_testing() and not skip_test_check:
+                if self.db_url and self.db_url.endswith("test.db"):
+                    return self.db_url
                 db_name = f"{name_prefix}test.db"
             return f"sqlite+aiosqlite:///{ROOT_DIR}/{db_name}"
         if self.db_url:
@@ -351,9 +354,13 @@ class Settings(BaseSettings):
                 user_spec = f"{user}@"
         return f"{scheme}://{user_spec}{host}:{port}/{db}"
 
-    def save(self) -> None:
+    def save(self, to: Path | None = None) -> None:
         """Save the environment variables.
 
+        Parameters
+        ----------
+        to : Path | None, optional
+            Where to save the settings
         Raises
         ------
         RuntimeError
@@ -379,7 +386,9 @@ class Settings(BaseSettings):
             self._handle_special_key_value(key, env_value)
             os.environ[env_key] = env_value
             env_items.append((env_key, env_value))
-        with open(DOT_ENV_PATH, "w", encoding="utf-8") as file:
+        dst = to or DOT_ENV_PATH
+        dst.parent.mkdir(exist_ok=True)
+        with open(dst, "w", encoding="utf-8") as file:
             for env_key, env_value in env_items:
                 file.write(f"{env_key}={env_value}\n")
 

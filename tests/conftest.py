@@ -17,6 +17,7 @@ import pytest
 from pytest_httpx import HTTPXMock
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import (
+    AsyncConnection,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
@@ -35,12 +36,76 @@ DOT_ENV_PATH_DOTTED = "waldiez_runner.config.settings.DOT_ENV_PATH"
 ENV_KEY_PREFIX = "WALDIEZ_RUNNER_"
 HERE = Path(__file__).parent
 ROOT_DIR = HERE.parent
-DB_PATH = ROOT_DIR / f"{ENV_KEY_PREFIX.lower()}test.db"
-DB_PATH.unlink(missing_ok=True)
-DATABASE_URL = f"sqlite+aiosqlite:///{DB_PATH}"
+# DB_PATH = ROOT_DIR / f"{ENV_KEY_PREFIX.lower()}test.db"
+# DB_PATH.unlink(missing_ok=True)
+# DATABASE_URL = f"sqlite+aiosqlite:///{DB_PATH}"
 
 
-@pytest.fixture(scope="function")
+def _get_work_dir(worker_id: str) -> Path:
+    """Get the working directory for a given worker ID.
+
+    Parameters
+    ----------
+    worker_id : str
+        The ID of the worker process.
+
+    Returns
+    -------
+    Path
+        The working directory path.
+    """
+    if worker_id == "master":
+        # Single process or master - work in project root
+        return ROOT_DIR
+    # else:
+    # xdist worker - create isolated directory
+    work_dir = ROOT_DIR / f"test_worker_{worker_id}"
+    work_dir.mkdir(exist_ok=True)
+    return work_dir
+
+
+def _get_backup_file(worker_id: str) -> Path:
+    """Get the backup file path for a given worker ID."""
+    work_dir = _get_work_dir(worker_id)
+    return work_dir / ".env.test_backup"
+
+
+def _env_file_backup(worker_id: str) -> bool:
+    """Backup .env before tests, restore after tests."""
+    # SETUP: Backup existing .env if it exists
+    work_dir = _get_work_dir(worker_id)
+    backup_file = _get_backup_file(worker_id)
+    env_file = work_dir / ".env"
+    if env_file.exists():
+        shutil.copy2(env_file, backup_file)
+        backed_up = True
+    else:
+        backed_up = False
+    return backed_up
+
+
+def _env_file_restore(worker_id: str, backed_up: bool) -> None:
+    """Restore .env from backup after tests."""
+    # TEARDOWN: Restore or clean up
+    # Determine working directory
+    work_dir = _get_work_dir(worker_id)
+    backup_file = _get_backup_file(worker_id)
+    env_file = work_dir / ".env"
+    if backed_up and backup_file.exists():
+        # Restore original .env
+        shutil.copy2(backup_file, env_file)
+        backup_file.unlink()
+    elif not backed_up and env_file.exists():
+        # No original .env existed, remove any test-created one
+        env_file.unlink()
+
+    # Clean up worker directory if we created it
+    if worker_id != "master" and work_dir.exists():
+        # Remove the worker directory and its contents
+        shutil.rmtree(work_dir, ignore_errors=True)
+
+
+@pytest.fixture(scope="session")
 def anyio_backend() -> str:
     """Return the backend to use for anyio tests."""
     return "asyncio"
@@ -51,6 +116,7 @@ def reset_settings_and_env() -> Generator[None, None, None]:
     """Automatically reset SettingsManager before each test."""
     SettingsManager.reset_settings()
     os.environ[f"{ENV_KEY_PREFIX}TESTING"] = "1"
+
     for key in os.environ:
         if key.startswith(ENV_KEY_PREFIX) and key != f"{ENV_KEY_PREFIX}TESTING":
             os.environ.pop(key, "")
@@ -74,32 +140,34 @@ def _ensure_keys() -> None:
             os.environ[env_key] = secrets.token_hex(length)
 
 
+@pytest.fixture(name="database_url", scope="session")
+def database_url_fixture(worker_id: str) -> str:
+    """Get the db url."""
+    work_dir = _get_work_dir(worker_id)
+    db_path = work_dir / f"{ENV_KEY_PREFIX.lower()}test.db"
+    return f"sqlite+aiosqlite:///{db_path}"
+
+
 @pytest.fixture(autouse=True, scope="session", name="dot_env_path")
-def dot_env_path_fixture() -> Generator[Path, None, None]:
+def dot_env_path_fixture(
+    worker_id: str, database_url: str
+) -> Generator[Path, None, None]:
     """Backup and restore the .env file before and after the test session."""
-    # make sure a .env file exists
+    backed_up = _env_file_backup(worker_id)
     os.environ[f"{ENV_KEY_PREFIX}TESTING"] = "1"
-    dot_env_path = HERE.parent / ".env"
-    if not dot_env_path.exists():
-        _ensure_keys()
-        settings = SettingsManager.load_settings(force_reload=True)
-        settings.save()
-    dot_env_path = HERE.parent / ".env"
-    shutil.move(dot_env_path, dot_env_path.with_suffix(".bak"))
+    _ensure_keys()
+    settings = SettingsManager.load_settings(force_reload=True)
+    settings.db_url = database_url
+    settings.save(to=TEST_DOT_ENV_PATH)
     with patch(DOT_ENV_PATH_DOTTED, TEST_DOT_ENV_PATH):
         yield TEST_DOT_ENV_PATH
-        dot_env_path = HERE.parent / ".env"
-        if dot_env_path.exists():
-            dot_env_path.unlink()
-        dot_env_bak = dot_env_path.with_suffix(".bak")
-        if dot_env_bak.exists():
-            shutil.move(dot_env_bak, dot_env_path)
         if TEST_DOT_ENV_PATH.exists():
             TEST_DOT_ENV_PATH.unlink()
+    _env_file_restore(worker_id, backed_up)
 
 
-@pytest.fixture(name="settings")
-def settings_fixture() -> Settings:
+@pytest.fixture(name="settings", scope="session")
+def settings_fixture(database_url: str) -> Settings:
     """Fixture to create a Settings instance."""
     settings = Settings(
         redis=False,
@@ -107,27 +175,32 @@ def settings_fixture() -> Settings:
         postgres=False,
         trusted_hosts=["test"],
         trusted_origins=["http://test"],
-        db_url=DATABASE_URL,
+        db_url=database_url,
     )
     return settings
 
 
 @pytest.fixture(name="db_tables", scope="session", autouse=True)
-async def db_tables_fixture() -> AsyncGenerator[None, None]:
+async def db_tables_fixture(
+    database_url: str,
+) -> AsyncGenerator[AsyncConnection, None]:
     """Create the database tables before the test session."""
-    engine = create_async_engine(DATABASE_URL, echo=False)
+    engine = create_async_engine(database_url, echo=False)
     async with engine.begin() as conn:
         try:
             await conn.run_sync(Base.metadata.create_all)
         except OperationalError:  # tables already exist
             pass
-    yield
+    yield conn
 
 
-@pytest.fixture(name="async_session")
-async def async_session_fixture() -> AsyncGenerator[AsyncSession, None]:
+@pytest.fixture(name="async_session", scope="session")
+async def async_session_fixture(
+    database_url: str,
+    db_tables: AsyncConnection,
+) -> AsyncGenerator[AsyncSession, None]:
     """Fixture for an async session."""
-    engine = create_async_engine(DATABASE_URL, echo=False)
+    engine = create_async_engine(database_url, echo=False)
     async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
     async with async_session_maker() as session:
         yield session
@@ -215,7 +288,7 @@ async def _delete_client(
         await async_session.commit()
 
 
-@pytest.fixture(name="create_client")
+@pytest.fixture(name="create_client", scope="session")
 def client_factory() -> CreateClientCallable:
     """Fixture to create a client.
 
@@ -254,7 +327,7 @@ def client_factory() -> CreateClientCallable:
     return _create
 
 
-@pytest.fixture(name="tasks_api_client")
+@pytest.fixture(name="tasks_api_client", scope="session")
 async def tasks_api_client_fixture(
     async_session: AsyncSession,
 ) -> AsyncGenerator[ClientCreateResponse, None]:
@@ -264,7 +337,7 @@ async def tasks_api_client_fixture(
     await _delete_client(async_session, client)
 
 
-@pytest.fixture(name="clients_api_client")
+@pytest.fixture(name="clients_api_client", scope="session")
 async def clients_api_client_fixture(
     async_session: AsyncSession,
 ) -> AsyncGenerator[ClientCreateResponse, None]:
@@ -300,7 +373,7 @@ async def _create_task(
     return task, TaskResponse.model_validate(task)
 
 
-@pytest.fixture(name="create_task")
+@pytest.fixture(name="create_task", scope="session")
 def create_task_fixture() -> CreateTaskCallable:
     """Fixture to create a task.
 

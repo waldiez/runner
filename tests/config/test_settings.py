@@ -106,12 +106,11 @@ def test_get_redis_url(
 def test_get_database_url_testing(
     settings: Settings,
 ) -> None:
-    """Test Redis URL generation logic in testing mode."""
+    """Test database URL generation logic in testing mode."""
     os.environ[f"{ENV_PREFIX}TESTING"] = "1"
-    assert (
-        settings.get_database_url()
-        == f"sqlite+aiosqlite:///{ROOT_DIR}/{ENV_PREFIX.lower()}test.db"
-    )
+    db_url = settings.get_database_url()
+    assert "sqlite+aiosqlite:///" in db_url
+    assert db_url.endswith("test.db")
 
 
 @patch.dict(
@@ -123,7 +122,7 @@ def test_get_database_url_testing(
 def test_get_database_url_not_testing(
     settings: Settings,
 ) -> None:
-    """Test Redis URL generation logic in testing mode."""
+    """Test database URL generation logic in testing mode."""
     os.environ[f"{ENV_PREFIX}TESTING"] = "0"
     os.environ[f"{ENV_PREFIX}NO_POSTGRES"] = "1"
     db_path = (
