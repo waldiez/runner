@@ -7,7 +7,7 @@
 """Tests for the cleanup functions in the tasks module."""
 
 import os
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -29,7 +29,7 @@ async def test_delete_task(mock_delete_task: AsyncMock) -> None:
     await delete_task(
         task_id="task1",
         client_id="client1",
-        db_session=AsyncMock(),
+        db_manager=MagicMock(),
         storage=mock_storage,
     )
 

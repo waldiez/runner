@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 
 from waldiez_runner.dependencies.context import RequestContext
+from waldiez_runner.dependencies.database import DatabaseManager
 from waldiez_runner.dependencies.getters import (
     get_admin_client_id,
     get_client_id,
@@ -60,7 +61,7 @@ async def test_get_client_id_with_standard_jwt(
             "waldiez_runner.dependencies.getters.app_state", mock_app_state
         ):
             # Test
-            result = await dependency_fn(credentials)
+            result = await dependency_fn(credentials, MagicMock(), MagicMock())
 
             # Assertions
             assert result == "client123"
@@ -123,6 +124,8 @@ async def test_get_client_id_with_external_token(
             # mypy: disable-error-code="call-arg"
             async def patched_dependency(
                 creds: HTTPAuthorizationCredentials,
+                db_manager: DatabaseManager,
+                context: RequestContext,
             ) -> str:
                 """Call the original dependency with credentials.
 
@@ -131,19 +134,27 @@ async def test_get_client_id_with_external_token(
                 creds : HTTPAuthorizationCredentials
                     The authorization credentials to pass
                     to the original dependency
+                db_manager : DatabaseManager
+                    The database session manager
+                context : RequestContext
+                    The request context.
 
                 Returns
                 -------
                 str
                     The client ID returned by the original dependency
                 """
-                return await original_dependency(creds)
+                return await original_dependency(
+                    creds,
+                    db_manager,
+                    context,
+                )
 
             # Replace the function temporarily
             dependency_fn = patched_dependency
 
             # Test
-            result = await dependency_fn(credentials)
+            result = await dependency_fn(credentials, MagicMock(), MagicMock())
 
             # Assertions
             assert result
@@ -198,7 +209,7 @@ async def test_get_client_id_both_auth_methods_fail(
         ):
             # Test - Should raise exception
             with pytest.raises(HTTPException) as excinfo:
-                await dependency_fn(credentials)
+                await dependency_fn(credentials, MagicMock(), MagicMock())
 
             # Assertions
             assert excinfo.value.status_code == 401
@@ -287,7 +298,7 @@ async def test_get_admin_client_id_with_standard_jwt(
             "waldiez_runner.dependencies.getters.app_state", mock_app_state
         ):
             # Test
-            result = await dependency_fn(credentials)
+            result = await dependency_fn(credentials, MagicMock(), MagicMock())
 
             # Assertions
             assert result == "client123"
@@ -332,7 +343,7 @@ async def test_get_admin_client_id_with_external_auth_admin(
 
     with patch("waldiez_runner.dependencies.getters.app_state", mock_app_state):
         # Test
-        result = await dependency_fn(credentials)
+        result = await dependency_fn(credentials, MagicMock(), MagicMock())
 
         # Assertions
         assert result == "user123"
@@ -378,7 +389,7 @@ async def test_get_admin_client_id_with_external_auth_non_admin(
     with patch("waldiez_runner.dependencies.getters.app_state", mock_app_state):
         # Test - Should raise exception for non-admin
         with pytest.raises(HTTPException) as excinfo:
-            await dependency_fn(credentials)
+            await dependency_fn(credentials, MagicMock(), MagicMock())
 
         # Assertions
         assert excinfo.value.status_code == 403
@@ -424,7 +435,7 @@ async def test_get_admin_client_id_with_external_auth_admin_isadmin_field(
 
     with patch("waldiez_runner.dependencies.getters.app_state", mock_app_state):
         # Test
-        result = await dependency_fn(credentials)
+        result = await dependency_fn(credentials, MagicMock(), MagicMock())
 
         # Assertions
         assert result == "user123"

@@ -15,14 +15,14 @@ from taskiq import TaskiqDepends
 from typing_extensions import Annotated
 
 from waldiez_runner.config import Settings
-from waldiez_runner.dependencies import RedisManager, Storage
+from waldiez_runner.dependencies import DatabaseManager, RedisManager, Storage
 from waldiez_runner.models import Task, TaskStatus
 from waldiez_runner.services import TaskService
 
 from .__base__ import broker
 from .app.redis_io_stream import RedisIOStream
 from .dependencies import (
-    get_db_session,
+    get_db_manager,
     get_redis_manager,
     get_settings,
     get_storage,
@@ -70,7 +70,7 @@ async def cleanup_processed_requests(
 
 @broker.task
 async def cleanup_old_deleted_tasks(
-    db_session: Annotated[AsyncSession, TaskiqDepends(get_db_session)],
+    db_manager: Annotated[DatabaseManager, TaskiqDepends(get_db_manager)],
     storage: Annotated[Storage, TaskiqDepends(get_storage)],
 ) -> None:
     """Periodic cleanup of old tasks marked for deletion.
@@ -79,20 +79,21 @@ async def cleanup_old_deleted_tasks(
     ----------
     storage : Storage
         Storage backend.
-    db_session : AsyncSession
-        Database session.
+    db_manager : DatabaseManager
+        Database session manager.
     """
-    await _purge_tasks(
-        db_session=db_session,
-        storage=storage,
-        days_before=OLD_DELETED_TASKS_ARE_DELETED_AFTER,
-        deleted=True,
-    )
+    async with db_manager.session() as session:
+        await _purge_tasks(
+            db_session=session,
+            storage=storage,
+            days_before=OLD_DELETED_TASKS_ARE_DELETED_AFTER,
+            deleted=True,
+        )
 
 
 @broker.task
 async def cleanup_old_tasks(
-    db_session: Annotated[AsyncSession, TaskiqDepends(get_db_session)],
+    db_manager: Annotated[DatabaseManager, TaskiqDepends(get_db_manager)],
     storage: Annotated[Storage, TaskiqDepends(get_storage)],
     settings: Annotated[Settings, TaskiqDepends(get_settings)],
 ) -> None:
@@ -102,19 +103,20 @@ async def cleanup_old_tasks(
     ----------
     storage : Storage
         Storage backend.
-    db_session : AsyncSession
-        Database session.
+    db_manager : DatabaseManager
+        Database session manager.
     settings: Settings
         The settings instance.
     """
     days_before = settings.keep_task_for_days
     if days_before > 0:
-        await _purge_tasks(
-            db_session=db_session,
-            storage=storage,
-            deleted=False,
-            days_before=days_before,
-        )
+        async with db_manager.session() as session:
+            await _purge_tasks(
+                db_session=session,
+                storage=storage,
+                deleted=False,
+                days_before=days_before,
+            )
 
 
 async def _purge_tasks(
@@ -162,15 +164,15 @@ async def _purge_tasks(
 
 @broker.task
 async def check_stuck_tasks(
-    db_session: Annotated[AsyncSession, TaskiqDepends(get_db_session)],
+    db_manager: Annotated[DatabaseManager, TaskiqDepends(get_db_manager)],
     storage: Annotated[Storage, TaskiqDepends(get_storage)],
 ) -> None:
     """Task to check tasks that are marked as active but have results.
 
     Parameters
     ----------
-    db_session : AsyncSession
-        Database session dependency.
+    db_manager : DatabaseManager
+        Database session manager dependency.
     storage : Storage
         Storage implementation dependency.
     """
@@ -178,22 +180,24 @@ async def check_stuck_tasks(
     page = 1
     while page < 50:
         params = Params(page=page, size=100)
-        tasks: Page[Task] = await TaskService.get_stuck_tasks(
-            db_session,
-            params=params,
-        )
+        async with db_manager.session() as db_session:
+            tasks: Page[Task] = await TaskService.get_stuck_tasks(
+                db_session,
+                params=params,
+            )
         if not tasks.items:
             break
         stuck_tasks.extend(tasks.items)
         page += 1
     for task in stuck_tasks:
         new_status = await check_stuck_task_status(task, storage)
-        await TaskService.update_task_status(
-            db_session,
-            task_id=task.id,
-            status=new_status,
-            skip_results=True,
-        )
+        async with db_manager.session() as db_session:
+            await TaskService.update_task_status(
+                db_session,
+                task_id=task.id,
+                status=new_status,
+                skip_results=True,
+            )
     LOG.info("Checked stuck tasks.")
 
 

@@ -256,12 +256,18 @@ async def delete_task(task_id: str, access_token: str) -> None:
     ------
     AssertionError
         If the task is not deleted.
+    HTTPStatusError
+        If the request fails.
     """
     response = await HTTPX_CLIENT.delete(
         f"{TASKS_URL}/{task_id}?force=true",
         headers={"Authorization": f"Bearer {access_token}"},
     )
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except httpx.HTTPStatusError:
+        print(response.content)
+        raise
     if response.status_code != 204:
         raise AssertionError("The task should be deleted.")
     return

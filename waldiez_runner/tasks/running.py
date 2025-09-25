@@ -11,17 +11,16 @@ import tempfile
 from pathlib import Path
 
 from aiofiles.os import path, unlink, wrap
-from sqlalchemy.ext.asyncio import AsyncSession
 from taskiq import TaskiqDepends
 
 from waldiez_runner.config import SettingsManager
-from waldiez_runner.dependencies import RedisManager, Storage
+from waldiez_runner.dependencies import DatabaseManager, RedisManager, Storage
 from waldiez_runner.models.task_status import TaskStatus
 from waldiez_runner.schemas.task import TaskResponse
 from waldiez_runner.services import TaskService
 
 from .__base__ import broker
-from .dependencies import get_db_session, get_redis_manager, get_storage
+from .dependencies import get_db_manager, get_redis_manager, get_storage
 from .runner import execute_task, prepare_app_env
 
 LOG = logging.getLogger(__name__)
@@ -29,11 +28,12 @@ HERE = Path(__file__).parent
 APP_DIR = HERE / "app"
 
 
+# pylint: disable=too-many-locals
 @broker.task
 async def run_task(
     task: TaskResponse,
     env_vars: dict[str, str],
-    db_session: AsyncSession = TaskiqDepends(get_db_session),
+    db_manager: DatabaseManager = TaskiqDepends(get_db_manager),
     storage: Storage = TaskiqDepends(get_storage),
     redis_manager: RedisManager = TaskiqDepends(get_redis_manager),
 ) -> None:
@@ -45,8 +45,8 @@ async def run_task(
         Task object.
     env_vars: dict[str, str]
         Environment variables for the task.
-    db_session : AsyncSession
-        Database session dependency.
+    db_manager : DatabaseManager
+        Database session manager dependency.
     storage : Storage
         Storage backend dependency.
     redis_manager : RedisManager
@@ -77,7 +77,7 @@ async def run_task(
             file_path,
             redis_url=redis_manager.redis_url,
             redis_sub=redis_sub,
-            db_session=db_session,
+            db_manager=db_manager,
             debug=debug,
             max_duration=settings.max_task_duration,
         )
@@ -85,12 +85,13 @@ async def run_task(
         LOG.debug("Task %s finished with results %s", task.id, results)
         if status != TaskStatus.COMPLETED and results is not None:
             try:
-                await TaskService.update_task_status(
-                    session=db_session,
-                    task_id=task.id,
-                    status=status,
-                    results=results,
-                )
+                async with db_manager.session() as db_session:
+                    await TaskService.update_task_status(
+                        session=db_session,
+                        task_id=task.id,
+                        status=status,
+                        results=results,
+                    )
             except BaseException as e:
                 await remove_tmp_dir(temp_dir=temp_dir)
                 raise RuntimeError(

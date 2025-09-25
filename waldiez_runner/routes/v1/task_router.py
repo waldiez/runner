@@ -23,18 +23,18 @@ from fastapi import (
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi_pagination import Page
 from pydantic import ValidationError
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 from typing_extensions import Literal
 
 from waldiez_runner.dependencies import (
     ADMIN_API_AUDIENCE,
     TASK_API_AUDIENCE,
+    DatabaseManager,
     Storage,
     get_admin_client_id,
     get_client_id,
     get_client_id_with_admin_check,
-    get_db,
+    get_db_manager,
     get_storage,
 )
 from waldiez_runner.dependencies.context import (
@@ -85,7 +85,7 @@ task_router = APIRouter()
 )
 async def get_client_tasks(
     client_id: Annotated[str, Depends(validate_tasks_audience)],
-    session: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[DatabaseManager, Depends(get_db_manager)],
     search: Annotated[str | None, Query(description="A term to search")] = None,
     order_by: Annotated[
         TaskSort | None,
@@ -102,8 +102,8 @@ async def get_client_tasks(
     ----------
     client_id : str
         The client ID.
-    session : AsyncSession
-        The database session.
+    db : DatabaseManager
+        The database session manager.
     search : str | None
         A search term to filter the tasks.
     order_by : str | None
@@ -117,14 +117,15 @@ async def get_client_tasks(
         The tasks.
     """
     params = get_pagination_params()
-    return await TaskService.get_client_tasks(
-        session,
-        client_id,
-        params=params,
-        search=search,
-        order_by=order_by,
-        descending=order_type == "desc",
-    )
+    async with db.session() as session:
+        return await TaskService.get_client_tasks(
+            session,
+            client_id,
+            params=params,
+            search=search,
+            order_by=order_by,
+            descending=order_type == "desc",
+        )
 
 
 @task_router.get(
@@ -135,7 +136,7 @@ async def get_client_tasks(
 )
 async def get_all_tasks(
     _: Annotated[str, Depends(validate_admin_audience)],
-    session: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[DatabaseManager, Depends(get_db_manager)],
     search: Annotated[str | None, Query(description="A term to search")] = None,
     order_by: Annotated[
         TaskSort | None,
@@ -150,8 +151,8 @@ async def get_all_tasks(
 
     Parameters
     ----------
-    session : AsyncSession
-        The database session.
+    db : DatabaseManager
+        The database session manager.
     search : str | None
         A search term to filter the tasks.
     order_by : str | None
@@ -165,17 +166,18 @@ async def get_all_tasks(
         All tasks from all users.
     """
     params = get_pagination_params()
-    return await TaskService.get_all_tasks(
-        session,
-        params=params,
-        search=search,
-        order_by=order_by,
-        descending=order_type == "desc",
-    )
+    async with db.session() as session:
+        return await TaskService.get_all_tasks(
+            session,
+            params=params,
+            search=search,
+            order_by=order_by,
+            descending=order_type == "desc",
+        )
 
 
 # pylint: disable=too-many-locals,too-many-arguments
-# pylint: disable=too-many-positional-arguments
+# pylint: disable=too-many-positional-arguments,too-many-try-statements
 @task_router.post("/tasks/", include_in_schema=False)
 @task_router.post(
     "/tasks",
@@ -185,7 +187,7 @@ async def get_all_tasks(
 )
 async def create_task(
     client_id: Annotated[str, Depends(validate_tasks_audience)],
-    session: Annotated[AsyncSession, Depends(get_db)],
+    db_manager: Annotated[DatabaseManager, Depends(get_db_manager)],
     storage: Annotated[Storage, Depends(get_storage)],
     context: Annotated[RequestContext, Depends(get_request_context)],
     file: Optional[UploadFile] = None,
@@ -207,8 +209,8 @@ async def create_task(
     ----------
     client_id : str
         The client ID.
-    session : AsyncSession
-        The database session dependency.
+    db_manager : DatabaseManager
+        The database session manager dependency.
     storage : Storage
         The storage service dependency.
     context : RequestContext
@@ -269,7 +271,7 @@ async def create_task(
         save_path,
         environment_vars,
     ) = await validate_task_input(
-        session=session,
+        db=db_manager,
         file=file,
         file_url=file_url,
         file_path=filename,
@@ -296,20 +298,22 @@ async def create_task(
             detail=error.json(),
         ) from error
     try:
-        task = await TaskService.create_task(
-            session,
-            task_create=task_create,
-        )
+        async with db_manager.session() as session:
+            task = await TaskService.create_task(
+                session,
+                task_create=task_create,
+            )
         # relative to root if local, or "bucket" if other (e.g. S3, GCS)
         dst = os.path.join(client_id, str(task.id), file_name)
         await storage.move_file(save_path, dst)
     except BaseException as error:  # pragma: no cover
         await storage.delete_file(save_path)
-        await TaskService.delete_client_flow_task(
-            session,
-            client_id=client_id,
-            flow_id=file_hash,
-        )
+        async with db_manager.session() as session:
+            await TaskService.delete_client_flow_task(
+                session,
+                client_id=client_id,
+                flow_id=file_hash,
+            )
         if isinstance(error, HTTPException):
             raise HTTPException(
                 status_code=error.status_code, detail=error.detail
@@ -323,13 +327,13 @@ async def create_task(
         await trigger_run_task(
             task=task_response,
             env_vars=environment_vars,
-            session=session,
+            db_manager=db_manager,
             storage=storage,
         )
     if task.schedule_type is not None:
         await schedule_task(
             task=task_response,
-            session=session,
+            db_manager=db_manager,
             storage=storage,
             env_vars=environment_vars,
         )
@@ -398,7 +402,7 @@ async def get_task(
     client_id_and_admin: Annotated[
         tuple[str, bool], Depends(validate_client_with_admin)
     ],
-    session: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[DatabaseManager, Depends(get_db_manager)],
 ) -> TaskResponse:
     """Get a task by ID.
 
@@ -408,8 +412,8 @@ async def get_task(
         The task ID.
     client_id_and_admin : tuple[str, bool]
         The client ID and admin status.
-    session : AsyncSession
-        The database session.
+    db : DatabaseManager
+        The database session manager.
 
     Returns
     -------
@@ -422,7 +426,8 @@ async def get_task(
         If the task is not found.
     """
     client_id, is_admin = client_id_and_admin
-    task = await TaskService.get_task(session, task_id=task_id)
+    async with db.session() as session:
+        task = await TaskService.get_task(session, task_id=task_id)
     if task is None or (not is_admin and task.client_id != client_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
@@ -448,7 +453,7 @@ async def update_task(
     client_id_and_admin: Annotated[
         tuple[str, bool], Depends(validate_client_with_admin)
     ],
-    session: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[DatabaseManager, Depends(get_db_manager)],
 ) -> TaskResponse:
     """Update a task.
 
@@ -460,8 +465,8 @@ async def update_task(
         The task update data.
     client_id_and_admin : tuple[str, bool]
         The client ID and admin status.
-    session : AsyncSession
-        The database session.
+    db : DatabaseManager
+        The database session manager.
 
     Returns
     -------
@@ -474,7 +479,8 @@ async def update_task(
         If the task is not found or an error occurs.
     """
     client_id, is_admin = client_id_and_admin
-    task = await TaskService.get_task(session, task_id=task_id)
+    async with db.session() as session:
+        task = await TaskService.get_task(session, task_id=task_id)
     if task is None or (not is_admin and task.client_id != client_id):
         raise HTTPException(status_code=404, detail="Task not found")
     if task.is_inactive():
@@ -482,9 +488,10 @@ async def update_task(
             status_code=400,
             detail=f"Cannot update task with status {task.get_status()}",
         )
-    updated = await TaskService.update_task(
-        session, task_id=task_id, task_update=task_update
-    )
+    async with db.session() as session:
+        updated = await TaskService.update_task(
+            session, task_id=task_id, task_update=task_update
+        )
     return TaskResponse.model_validate(updated, from_attributes=True)
 
 
@@ -494,7 +501,7 @@ async def on_input_request(
     task_id: str,
     message: InputResponse,
     background_tasks: BackgroundTasks,
-    db_session: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[DatabaseManager, Depends(get_db_manager)],
     client_id: Annotated[str, Depends(validate_tasks_audience)],
 ) -> Response:
     """Task input
@@ -507,8 +514,8 @@ async def on_input_request(
         The input response message.
     background_tasks : BackgroundTasks
         The background tasks.
-    db_session : AsyncSession
-        The database session.
+    db : DatabaseManager
+        The database session manager.
     client_id : str
         The client ID.
 
@@ -525,7 +532,8 @@ async def on_input_request(
     """
     LOG.debug("Received input request: %s", message)
     try:
-        task = await TaskService.get_task(db_session, task_id=task_id)
+        async with db.session() as session:
+            task = await TaskService.get_task(session, task_id=task_id)
     except BaseException as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -577,7 +585,7 @@ async def download_task(
     client_id_and_admin: Annotated[
         tuple[str, bool], Depends(validate_client_with_admin)
     ],
-    session: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[DatabaseManager, Depends(get_db_manager)],
     storage: Annotated[Storage, Depends(get_storage)],
 ) -> FileResponse | StreamingResponse:
     """Download a task.
@@ -590,8 +598,8 @@ async def download_task(
         Background tasks.
     client_id_and_admin : tuple[str, bool]
         The client ID and admin status.
-    session : AsyncSession
-        The database session.
+    db : DatabaseManager
+        The database session manager.
     storage : Storage
         The storage service.
 
@@ -606,10 +614,11 @@ async def download_task(
         If the task is not found or an error occurs.
     """
     client_id, is_admin = client_id_and_admin
-    task = await TaskService.get_task(
-        session,
-        task_id=task_id,
-    )
+    async with db.session() as session:
+        task = await TaskService.get_task(
+            session,
+            task_id=task_id,
+        )
     if task is None or (not is_admin and task.client_id != client_id):
         raise HTTPException(status_code=404, detail="Task not found")
     task_dir = os.path.join(task.client_id, str(task.id))
@@ -640,7 +649,7 @@ async def cancel_task(
     client_info: Annotated[
         tuple[str, bool], Depends(validate_client_with_admin)
     ],
-    session: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[DatabaseManager, Depends(get_db_manager)],
 ) -> TaskResponse:
     """Cancel a task.
 
@@ -650,8 +659,8 @@ async def cancel_task(
         The task ID.
     client_info : tuple[str, bool]
         The client ID and whether the user is admin.
-    session : AsyncSession
-        The database session dependency.
+    db : DatabaseManager
+        The database session manager.
 
     Returns
     -------
@@ -665,10 +674,11 @@ async def cancel_task(
     """
     client_id, is_admin = client_info
 
-    task = await TaskService.get_task(
-        session,
-        task_id=task_id,
-    )
+    async with db.session() as session:
+        task = await TaskService.get_task(
+            session,
+            task_id=task_id,
+        )
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
 
@@ -682,12 +692,13 @@ async def cancel_task(
             detail=f"Cannot cancel task with status {task.get_status()}",
         )
     task.status = TaskStatus.CANCELLED
-    await TaskService.update_task_status(
-        session,
-        task_id=task_id,
-        status=TaskStatus.CANCELLED,
-        results={"detail": "Task cancelled"},
-    )
+    async with db.session() as session:
+        await TaskService.update_task_status(
+            session,
+            task_id=task_id,
+            status=TaskStatus.CANCELLED,
+            results={"detail": "Task cancelled"},
+        )
     await publish_task_cancellation(task_id=task_id)
     return TaskResponse.model_validate(task, from_attributes=True)
 
@@ -709,7 +720,7 @@ async def delete_task(
     client_info: Annotated[
         tuple[str, bool], Depends(validate_client_with_admin)
     ],
-    session: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[DatabaseManager, Depends(get_db_manager)],
     storage: Annotated[Storage, Depends(get_storage)],
     force: Annotated[bool | None, False] = False,
 ) -> Response:
@@ -721,8 +732,8 @@ async def delete_task(
         The task ID.
     client_info : tuple[str, bool]
         The client ID and whether the user is admin.
-    session : AsyncSession
-        The database session.
+    db : DatabaseManager
+        The database session manager.
     storage : Storage
         The storage service.
     force : bool, optional
@@ -740,29 +751,30 @@ async def delete_task(
     """
     client_id, is_admin = client_info
 
-    task = await TaskService.get_task(
-        session,
-        task_id=task_id,
-    )
-    if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    # If not admin, check if task belongs to the user
-    if not is_admin and task.client_id != client_id:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    if task.is_active() and force is not True:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot delete task with status {task.get_status()}",
+    async with db.session() as session:
+        task = await TaskService.get_task(
+            session,
+            task_id=task_id,
         )
-    task.mark_deleted()
-    await session.commit()
-    await session.refresh(task)
+        if task is None:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        # If not admin, check if task belongs to the user
+        if not is_admin and task.client_id != client_id:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        if task.is_active() and force is not True:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot delete task with status {task.get_status()}",
+            )
+        task.mark_deleted()
+        await session.commit()
+        await session.refresh(task)
     await trigger_delete_task(
         task_id=task_id,
         client_id=client_id,
-        session=session,
+        db_manager=db,
         storage=storage,
     )
     return Response(status_code=204)
@@ -784,7 +796,7 @@ async def delete_tasks(
     client_id_and_admin: Annotated[
         tuple[str, bool], Depends(validate_client_with_admin)
     ],
-    session: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[DatabaseManager, Depends(get_db_manager)],
     ids: Annotated[list[str] | None, Query()] = None,
     force: Annotated[bool | None, False] = False,
 ) -> Response:
@@ -794,8 +806,8 @@ async def delete_tasks(
     ----------
     client_id_and_admin : tuple[str, bool]
         The client ID and admin status.
-    session : AsyncSession
-        The database session dependency.
+    db : DatabaseManager
+        The database session manager.
     ids : list[str] | None, optional
         The list of task IDs to delete, by default None
         (delete all tasks if None).
@@ -821,24 +833,25 @@ async def delete_tasks(
             detail="Task IDs must be specified for deletion",
         )
 
-    # Delete specific tasks by ID
-    if is_admin:
-        # Admins can delete any tasks by ID
-        task_ids_to_delete = await TaskService.soft_delete_tasks_by_ids(
-            session,
-            task_ids=ids,
-            inactive_only=force is not True,
-        )
-    else:
-        # Regular users can only delete their own tasks by ID
-        task_ids_to_delete = await TaskService.soft_delete_client_tasks(
-            session,
-            client_id=client_id,
-            ids=ids,
-            inactive_only=force is not True,
-        )
+    async with db.session() as session:
+        # Delete specific tasks by ID
+        if is_admin:
+            # Admins can delete any tasks by ID
+            task_ids_to_delete = await TaskService.soft_delete_tasks_by_ids(
+                session,
+                task_ids=ids,
+                inactive_only=force is not True,
+            )
+        else:
+            # Regular users can only delete their own tasks by ID
+            task_ids_to_delete = await TaskService.soft_delete_client_tasks(
+                session,
+                client_id=client_id,
+                ids=ids,
+                inactive_only=force is not True,
+            )
 
-    # Soft delete in DB
-    if task_ids_to_delete:
-        await session.commit()
+        # Soft delete in DB
+        if task_ids_to_delete:
+            await session.commit()
     return Response(status_code=204)

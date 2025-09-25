@@ -6,10 +6,14 @@
 
 import psutil
 from fastapi import APIRouter, Depends, FastAPI, Response
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from waldiez_runner.config import ServerStatus
-from waldiez_runner.dependencies import VALID_AUDIENCES, get_client_id, get_db
+from waldiez_runner.dependencies import (
+    VALID_AUDIENCES,
+    DatabaseManager,
+    get_client_id,
+    get_db_manager,
+)
 from waldiez_runner.services import TaskService
 
 router = APIRouter()
@@ -69,23 +73,24 @@ def add_status_route(app: FastAPI, max_jobs: int) -> None:
     )
     @app.get("/status/", include_in_schema=False)
     async def get_status(
-        session: AsyncSession = Depends(get_db),
+        db: DatabaseManager = Depends(get_db_manager),
         _: str = Depends(validate_clients_audience),
     ) -> ServerStatus:
         """Status route.
 
         Parameters
         ----------
-        session : AsyncSession
-            The database session
+        db : DatabaseManager
+            The database session manager
 
         Returns
         -------
         ServerStatus
             The status
         """
-        active_tasks_count = await TaskService.count_active_tasks(session)
-        pending_tasks_count = await TaskService.count_pending_tasks(session)
+        async with db.session() as session:
+            active_tasks_count = await TaskService.count_active_tasks(session)
+            pending_tasks_count = await TaskService.count_pending_tasks(session)
         return {
             "healthy": True,
             "active_tasks": active_tasks_count,

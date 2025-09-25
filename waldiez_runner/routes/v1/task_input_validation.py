@@ -11,13 +11,13 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import HTTPException, UploadFile
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 from typing_extensions import Literal
 from waldiez import Waldiez
 
 from waldiez_runner.dependencies import (
     ALLOWED_EXTENSIONS,
+    DatabaseManager,
     Storage,
     get_filename_from_url,
 )
@@ -104,8 +104,9 @@ async def _validate_file_path(
     return filename, file_hash, saved_path
 
 
+# pylint: disable=too-many-locals
 async def validate_task_input(
-    session: AsyncSession,
+    db: DatabaseManager,
     file: Optional[UploadFile],
     file_url: Optional[str],
     file_path: Optional[str],
@@ -118,8 +119,8 @@ async def validate_task_input(
 
     Parameters
     ----------
-    session : AsyncSession
-        The database session.
+    db : DatabaseManager
+        The database session manager.
     file : Optional[UploadFile]
         The file to validate.
     file_url : Optional[str]
@@ -148,10 +149,12 @@ async def validate_task_input(
     """
     if schedule_type is not None:
         raise HTTPException(500, detail="Scheduling not supported yet")
-    active_tasks = await TaskService.get_active_client_tasks(
-        session,
-        client_id=client_id,
-    )
+
+    async with db.session() as session:
+        active_tasks = await TaskService.get_active_client_tasks(
+            session,
+            client_id=client_id,
+        )
     if len(active_tasks.items) >= MAX_TASKS_PER_CLIENT:
         raise HTTPException(status_code=400, detail=MAX_TASKS_ERROR)
     saved_path: str = ""

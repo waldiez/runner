@@ -6,12 +6,12 @@
 import logging
 from typing import AsyncGenerator
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from taskiq import Context, TaskiqDepends
 from typing_extensions import Annotated
 
 from waldiez_runner.config import Settings
 from waldiez_runner.dependencies import (
+    DatabaseManager,
     RedisManager,
     Storage,
     get_storage_backend,
@@ -20,9 +20,9 @@ from waldiez_runner.dependencies import (
 LOG = logging.getLogger(__name__)
 
 
-async def get_db_session(
+async def get_db_manager(
     context: Annotated[Context, TaskiqDepends()],
-) -> AsyncGenerator[AsyncSession, None]:
+) -> AsyncGenerator[DatabaseManager, None]:
     """Get the database session.
 
     Parameters
@@ -42,8 +42,7 @@ async def get_db_session(
     """
     if not context.state.db or not context.state.db.engine:  # pragma: no cover
         raise RuntimeError("Database not initialized")
-    async with context.state.db.session() as session:
-        yield session
+    yield context.state.db
 
 
 async def get_settings(

@@ -17,9 +17,8 @@ from typing import Any
 
 import aiofiles
 from aiofiles.os import wrap
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from waldiez_runner.dependencies import AsyncRedis, Storage
+from waldiez_runner.dependencies import AsyncRedis, DatabaseManager, Storage
 from waldiez_runner.models.task_status import TaskStatus
 from waldiez_runner.schemas.task import TaskResponse
 from waldiez_runner.services import TaskService
@@ -38,7 +37,7 @@ async def execute_task(
     file_path: Path,
     redis_url: str,
     redis_sub: AsyncRedis,
-    db_session: AsyncSession,
+    db_manager: DatabaseManager,
     debug: bool,
     max_duration: int,
 ) -> tuple[TaskStatus, dict[str, Any] | list[dict[str, Any]] | None]:
@@ -60,8 +59,8 @@ async def execute_task(
         Redis URL.
     redis_sub : AsyncRedis
         Dedicated Redis client for subscribing to task status.
-    db_session : AsyncSession
-        Database session dependency.
+    db_manager : DatabaseManager
+        Database session manager dependency.
     debug : bool
         Whether to run in debug mode.
     max_duration : int
@@ -83,7 +82,7 @@ async def execute_task(
             redis_url=redis_url,
             input_timeout=task.input_timeout,
             redis_sub=redis_sub,
-            db_session=db_session,
+            db_manager=db_manager,
             debug=debug,
             max_duration=max_duration,
         )
@@ -253,7 +252,7 @@ async def run_app_in_venv(
     redis_url: str,
     input_timeout: int,
     redis_sub: AsyncRedis,
-    db_session: AsyncSession,
+    db_manager: DatabaseManager,
     debug: bool,
     max_duration: int,
 ) -> int:
@@ -277,8 +276,8 @@ async def run_app_in_venv(
         Input timeout.
     redis_sub : AsyncRedis
         Dedicated Redis client for subscribing to task status.
-    db_session : AsyncSession
-        Database session dependency.
+    db_manager : DatabaseManager
+        Database session manager dependency.
     debug : bool
         Whether to run in debug mode.
     max_duration : int
@@ -312,16 +311,17 @@ async def run_app_in_venv(
         env={**os.environ, "PYTHONUNBUFFERED": "1"},
         start_new_session=True,
     )
-    await TaskService.trigger(
-        db_session,
-        task_id=task_id,
-    )
+    async with db_manager.session() as db_session:
+        await TaskService.trigger(
+            db_session,
+            task_id=task_id,
+        )
     watcher_task = asyncio.create_task(
         watch_status_and_cancel_if_needed(
             task_id=task_id,
             process=process,
             redis=redis_sub,
-            db_session=db_session,
+            db_manager=db_manager,
         )
     )
     # pylint: disable=too-many-try-statements

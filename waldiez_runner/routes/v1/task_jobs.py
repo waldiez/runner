@@ -8,9 +8,7 @@
 import asyncio
 import logging
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from waldiez_runner.dependencies import Storage, app_state
+from waldiez_runner.dependencies import DatabaseManager, Storage, app_state
 from waldiez_runner.schemas.task import TaskResponse
 from waldiez_runner.tasks import broker
 from waldiez_runner.tasks import delete_task as delete_task_job
@@ -21,7 +19,7 @@ LOG = logging.getLogger(__name__)
 
 async def trigger_run_task(
     task: TaskResponse,
-    session: AsyncSession,
+    db_manager: DatabaseManager,
     storage: Storage,
     env_vars: dict[str, str],
 ) -> None:
@@ -31,8 +29,8 @@ async def trigger_run_task(
     ----------
     task : TaskResponse
         The task to trigger.
-    session : AsyncSession
-        The db session dependency.
+    db_manager : DatabaseManager
+        The db session manager dependency.
     storage : Storage
         The storage dependency.
     env_vars : dict[str,str]
@@ -51,7 +49,7 @@ async def trigger_run_task(
             run_task_job(
                 task=task,
                 env_vars=env_vars,
-                db_session=session,
+                db_manager=db_manager,
                 storage=storage,
                 redis_manager=app_state.redis,
             )
@@ -70,7 +68,7 @@ async def trigger_run_task(
 async def trigger_delete_task(
     task_id: str,
     client_id: str,
-    session: AsyncSession,
+    db_manager: DatabaseManager,
     storage: Storage,
 ) -> None:
     """Trigger a task deletion.
@@ -81,8 +79,8 @@ async def trigger_delete_task(
         The task's id
     client_id : str
         The client id that triggered the action.
-    session : AsyncSession
-        The db session dependency.
+    db_manager : DatabaseManager
+        The db session manager dependency.
     storage : Storage
         The storage dependency.
     """
@@ -92,7 +90,7 @@ async def trigger_delete_task(
             delete_task_job(
                 task_id=task_id,
                 client_id=client_id,
-                db_session=session,
+                db_manager=db_manager,
                 storage=storage,
             )
         )
@@ -113,7 +111,7 @@ async def trigger_delete_task(
 # pylint: disable=unused-argument
 async def schedule_task(
     task: TaskResponse,
-    session: AsyncSession,
+    db_manager: DatabaseManager,
     storage: Storage,
     env_vars: dict[str, str],
 ) -> None:
@@ -123,8 +121,8 @@ async def schedule_task(
     ----------
     task : TaskResponse
         The task to schedule.
-    session : AsyncSession
-        The database session.
+    db_manager : DatabaseManager
+        The database session manager.
     storage : Storage
         The storage service.
     env_vars : dict[str, str]

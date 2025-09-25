@@ -121,7 +121,7 @@ async def test__validate_ws_connection_success(
     )
 
     task, _manager = await _validate_ws_connection(
-        websocket, AsyncMock(), "taskX"
+        websocket, MagicMock(), "taskX"
     )
     assert task is fake_task
     fake_manager.add_client.assert_called_once_with(websocket)
@@ -134,7 +134,7 @@ async def test__validate_ws_connection_task_not_found(
     """Test _validate_ws_connection with task not found."""
     monkeypatch.setattr(TaskService, "get_task", AsyncMock(return_value=None))
     with pytest.raises(WebSocketException) as err:
-        await _validate_ws_connection(AsyncMock(), AsyncMock(), "missing-task")
+        await _validate_ws_connection(AsyncMock(), MagicMock(), "missing-task")
     assert "Task not found" in err.value.reason
 
 
@@ -152,7 +152,7 @@ async def test__validate_ws_connection_too_many_tasks(
         MagicMock(side_effect=TooManyTasksException("Too many tasks")),
     )
     with pytest.raises(WebSocketException) as err:
-        await _validate_ws_connection(AsyncMock(), AsyncMock(), "taskY")
+        await _validate_ws_connection(AsyncMock(), MagicMock(), "taskY")
     assert "Too many tasks" in err.value.reason
 
 
@@ -176,5 +176,5 @@ async def test__validate_ws_connection_too_many_clients(
     )
 
     with pytest.raises(WebSocketException) as err:
-        await _validate_ws_connection(AsyncMock(), AsyncMock(), "taskZ")
+        await _validate_ws_connection(AsyncMock(), MagicMock(), "taskZ")
     assert "Too many clients" in err.value.reason

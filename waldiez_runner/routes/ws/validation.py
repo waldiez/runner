@@ -6,7 +6,6 @@
 import logging
 
 from fastapi import Depends, HTTPException, WebSocket, WebSocketException
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 from typing_extensions import Annotated
 
@@ -15,7 +14,11 @@ from waldiez_runner.config import (
     MAX_CLIENTS_PER_TASK,
     Settings,
 )
-from waldiez_runner.dependencies import get_db, get_settings
+from waldiez_runner.dependencies import (
+    DatabaseManager,
+    get_db_manager,
+    get_settings,
+)
 from waldiez_runner.models import Task
 from waldiez_runner.services import TaskService
 
@@ -34,7 +37,7 @@ LOG = logging.getLogger(__name__)
 async def validate_websocket_connection(
     task_id: str,
     websocket: WebSocket,
-    session: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[DatabaseManager, Depends(get_db_manager)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> tuple[Task, WsTaskManager, str | None]:
     """Dependency to validate WebSocket before accepting the connection.
@@ -45,8 +48,8 @@ async def validate_websocket_connection(
         The task ID.
     websocket : WebSocket
         The WebSocket connection.
-    session : AsyncSession, optional
-        The database session, by default Depends(get_db_session).
+    db : DatabaseManager, optional
+        The database session manager, by default Depends(get_db_manager).
     settings : Settings, optional
         The application settings, by default Depends(get_app_settings).
 
@@ -73,7 +76,7 @@ async def validate_websocket_connection(
 
     try:
         task, task_manager = await _validate_ws_connection(
-            websocket, session, task_id
+            websocket, db, task_id
         )
     except HTTPException as err:
         LOG.debug("Task not found: %s", err)
@@ -93,7 +96,7 @@ async def validate_websocket_connection(
 
 async def _validate_ws_connection(
     websocket: WebSocket,
-    session: AsyncSession,
+    db: DatabaseManager,
     task_id: str,
 ) -> tuple[Task, WsTaskManager]:
     """Validate the WebSocket connection.
@@ -102,8 +105,8 @@ async def _validate_ws_connection(
     ----------
     websocket : WebSocket
         The WebSocket connection.
-    session : AsyncSession
-        The database session.
+    db : DatabaseManager
+        The database session manager.
     task_id : str
         The task ID.
 
@@ -118,7 +121,8 @@ async def _validate_ws_connection(
         Raised when the task is not found or
         there are too many tasks or clients.
     """
-    task = await TaskService.get_task(session, task_id)
+    async with db.session() as session:
+        task = await TaskService.get_task(session, task_id)
     if not task:
         raise WebSocketException(
             code=status.WS_1008_POLICY_VIOLATION, reason="Task not found"

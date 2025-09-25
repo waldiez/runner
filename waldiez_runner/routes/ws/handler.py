@@ -101,17 +101,16 @@ class TaskWebSocketHandler:
                 reason="Database not available",
             )
         try:
-            async with app_state.db.session() as session:  # pragma: no cover
-                (
-                    self.task,
-                    self.task_manager,
-                    self.subprotocol,
-                ) = await validate_websocket_connection(
-                    websocket=self.websocket,
-                    session=session,
-                    settings=self.settings,
-                    task_id=self.task_id,
-                )
+            (
+                self.task,
+                self.task_manager,
+                self.subprotocol,
+            ) = await validate_websocket_connection(
+                websocket=self.websocket,
+                db=app_state.db,
+                settings=self.settings,
+                task_id=self.task_id,
+            )
         except Exception as err:
             LOG.error("WebSocket validation failed: %s", err)
             manager = ws_task_registry.get_or_create_task_manager(self.task_id)

@@ -4,14 +4,14 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi_pagination import Page
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import Annotated, Literal
 
 from waldiez_runner.dependencies import (
     CLIENT_API_AUDIENCE,
     VALID_AUDIENCES,
+    DatabaseManager,
     get_client_id,
-    get_db,
+    get_db_manager,
 )
 from waldiez_runner.schemas.client import (
     ClientCreate,
@@ -48,7 +48,7 @@ client_router = APIRouter()
 )
 async def get_clients(
     _: Annotated[str, Depends(validate_clients_audience)],
-    session: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[DatabaseManager, Depends(get_db_manager)],
     search: Annotated[str | None, Query()] = None,
     order_by: Annotated[CLientSort | None, Query()] = None,
     order_type: Annotated[Order | None, Query()] = None,
@@ -57,8 +57,8 @@ async def get_clients(
 
     Parameters
     ----------
-    session : AsyncSession
-        The database session.
+    db : DatabaseManager
+        The database session manager.
     search : str | None
         A search term to filter the clients.
     order_by : CLientSort | None
@@ -72,13 +72,14 @@ async def get_clients(
         The clients.
     """
     params = get_pagination_params()
-    return await ClientService.get_clients(
-        session,
-        params=params,
-        search=search,
-        order_by=order_by,
-        descending=order_type == "desc",
-    )
+    async with db.session() as session:
+        return await ClientService.get_clients(
+            session,
+            params=params,
+            search=search,
+            order_by=order_by,
+            descending=order_type == "desc",
+        )
 
 
 @client_router.post("/clients/", include_in_schema=False)
@@ -91,7 +92,7 @@ async def get_clients(
 async def create_client(
     client: ClientCreate,
     _: Annotated[str, Depends(validate_clients_audience)],
-    session: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[DatabaseManager, Depends(get_db_manager)],
 ) -> ClientCreateResponse:
     """Create a client.
 
@@ -99,8 +100,8 @@ async def create_client(
     ----------
     client : ClientCreate
         The client data.
-    session : AsyncSession
-        The database session.
+    db : DatabaseManager
+        The database session manager.
 
     Returns
     -------
@@ -113,7 +114,8 @@ async def create_client(
         If the client cannot be created.
     """
     try:
-        return await ClientService.create_client(session, client)
+        async with db.session() as session:
+            return await ClientService.create_client(session, client)
     except BaseException as e:  # pragma: no cover
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -128,7 +130,7 @@ async def create_client(
 async def get_client(
     client_id: str,
     _: Annotated[str, Depends(validate_clients_audience)],
-    session: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[DatabaseManager, Depends(get_db_manager)],
 ) -> ClientResponse:
     """Get a client.
 
@@ -136,8 +138,8 @@ async def get_client(
     ----------
     client_id : str
         The client ID.
-    session : AsyncSession
-        The database session.
+    db : DatabaseManager
+        The database session manager.
 
     Returns
     -------
@@ -149,7 +151,8 @@ async def get_client(
     HTTPException
         If the client is not found.
     """
-    client = await ClientService.get_client(session, client_id)
+    async with db.session() as session:
+        client = await ClientService.get_client(session, client_id)
     if not client:
         raise HTTPException(status_code=404, detail="Client not found.")
     return client
@@ -166,7 +169,7 @@ async def update_client(
     client_id: str,
     client_update: ClientUpdate,
     _: Annotated[str, Depends(validate_clients_audience)],
-    session: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[DatabaseManager, Depends(get_db_manager)],
 ) -> ClientResponse:
     """Update a client.
 
@@ -176,8 +179,8 @@ async def update_client(
         The client ID.
     client_update : ClientUpdate
         The client data.
-    session : AsyncSession
-        The database session.
+    db : DatabaseManager
+        The database session manager.
 
     Returns
     -------
@@ -189,9 +192,10 @@ async def update_client(
     HTTPException
         If the client is not found.
     """
-    client = await ClientService.update_client(
-        session, client_id, client_update
-    )
+    async with db.session() as session:
+        client = await ClientService.update_client(
+            session, client_id, client_update
+        )
     if not client:
         raise HTTPException(status_code=404, detail="Client not found.")
     return client
@@ -207,7 +211,7 @@ async def update_client(
 async def delete_client(
     client_id: str,
     request_client_id: Annotated[str, Depends(validate_clients_audience)],
-    session: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[DatabaseManager, Depends(get_db_manager)],
 ) -> Response:
     """Delete a client.
 
@@ -217,8 +221,8 @@ async def delete_client(
         The client ID.
     request_client_id : str
         The client ID from the request.
-    session : AsyncSession
-        The database session.
+    db : DatabaseManager
+        The database session manager.
 
     Returns
     -------
@@ -235,7 +239,8 @@ async def delete_client(
             status_code=403,
             detail="You are not allowed to delete this client.",
         )
-    await ClientService.delete_client(session, client_id)
+    async with db.session() as session:
+        await ClientService.delete_client(session, client_id)
     return Response(status_code=204)
 
 
@@ -249,7 +254,7 @@ async def delete_client(
 )
 async def delete_clients(
     client_id: Annotated[str, Depends(validate_clients_audience)],
-    session: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[DatabaseManager, Depends(get_db_manager)],
     ids: Annotated[list[str] | None, Query()] = None,
     audiences: Annotated[list[str] | None, Query()] = None,
     excluded: Annotated[list[str] | None, Query()] = None,
@@ -264,8 +269,8 @@ async def delete_clients(
     ----------
     client_id : str
         The current client ID.
-    session : AsyncSession
-        The database session.
+    db : DatabaseManager
+        The database session manager.
     ids: list[str] | None
         An optional list of client IDs to include in the deletion.
     audiences : list[str] | None
@@ -298,7 +303,8 @@ async def delete_clients(
     if excluded:
         excluded = [client_id] + excluded
     excluded = list(set(excluded))
-    await ClientService.delete_clients(
-        session, audiences=audience_filter, excluded=[client_id], ids=ids
-    )
+    async with db.session() as session:
+        await ClientService.delete_clients(
+            session, audiences=audience_filter, excluded=[client_id], ids=ids
+        )
     return Response(status_code=204)

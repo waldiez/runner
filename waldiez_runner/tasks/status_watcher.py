@@ -22,9 +22,7 @@ import signal
 from asyncio.subprocess import Process
 from typing import Any, TypedDict
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from waldiez_runner.dependencies import AsyncRedis
+from waldiez_runner.dependencies import AsyncRedis, DatabaseManager
 from waldiez_runner.models import TaskStatus
 from waldiez_runner.services import TaskService
 
@@ -137,7 +135,7 @@ async def watch_status_and_cancel_if_needed(
     task_id: str,
     process: Process,
     redis: AsyncRedis,
-    db_session: AsyncSession,
+    db_manager: DatabaseManager,
 ) -> int | None:
     """Watch the status of a task and update the database.
 
@@ -149,8 +147,8 @@ async def watch_status_and_cancel_if_needed(
         The subprocess running the task.
     redis : AsyncRedis
         The Redis client.
-    db_session : AsyncSession
-        The database session.
+    db_manager : DatabaseManager
+        The database session manager.
 
     Returns
     -------
@@ -175,13 +173,14 @@ async def watch_status_and_cancel_if_needed(
                 continue
 
             try:
-                await TaskService.update_task_status(
-                    session=db_session,
-                    task_id=task_id,
-                    status=parsed["status"],
-                    input_request_id=parsed.get("input_request_id"),
-                    results=parsed.get("results"),
-                )
+                async with db_manager.session() as db_session:
+                    await TaskService.update_task_status(
+                        session=db_session,
+                        task_id=task_id,
+                        status=parsed["status"],
+                        input_request_id=parsed.get("input_request_id"),
+                        results=parsed.get("results"),
+                    )
             except Exception as e:
                 LOG.warning("Failed to update task %s in DB: %s", task_id, e)
 

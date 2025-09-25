@@ -6,11 +6,9 @@ from typing import Any, AsyncGenerator, Callable, Coroutine
 
 from fastapi import Depends, HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import Annotated
 
 from waldiez_runner.config import Settings
-from waldiez_runner.models import Base
 from waldiez_runner.services.client_service import ClientService
 
 from .auth import (
@@ -20,6 +18,7 @@ from .auth import (
     verify_external_auth_token,
 )
 from .context import RequestContext, get_request_context
+from .database import DatabaseManager
 from .jwks import JWKSCache
 from .lifecycle import app_state
 from .storage import Storage, get_storage_backend
@@ -27,13 +26,13 @@ from .storage import Storage, get_storage_backend
 bearer_scheme = HTTPBearer()
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db_manager() -> AsyncGenerator[DatabaseManager, None]:
     """Get the database session.
 
     Yields
     ------
-    AsyncSession
-        The database session.
+    DatabaseManager
+        The database manager.
 
     Raises
     ------
@@ -42,18 +41,14 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     if not app_state.db or not app_state.db.engine:
         raise RuntimeError("Database not initialized")
-    async with app_state.db.session() as session:
-        if app_state.db.is_sqlite:
-            # make sure the tables are created
-            async with app_state.db.engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-        yield session
+    yield app_state.db
 
 
+# pylint: disable=line-too-long
 def get_client_id(
     *expected_audiences: str, allow_external_auth: bool = True
 ) -> Callable[
-    [HTTPAuthorizationCredentials],
+    [HTTPAuthorizationCredentials, DatabaseManager, RequestContext],
     Coroutine[Any, Any, str],
 ]:
     """Require a specific audience for the request.
@@ -67,7 +62,8 @@ def get_client_id(
 
     Returns
     -------
-    Callable[[HTTPAuthorizationCredentials],Coroutine[Any, Any, str]]
+    Callable[[HTTPAuthorizationCredentials, DatabaseManager, RequestContext],
+    Coroutine[Any, Any, str]]
         The dependency.
     """
 
@@ -75,8 +71,8 @@ def get_client_id(
         credentials: Annotated[
             HTTPAuthorizationCredentials, Security(bearer_scheme)
         ],
-        session: AsyncSession = Depends(get_db),
-        context: RequestContext = Depends(get_request_context),
+        db_manager: Annotated[DatabaseManager, Depends(get_db_manager)],
+        context: Annotated[RequestContext, Depends(get_request_context)],
     ) -> str:
         """Check the audience of the JWT payload.
 
@@ -84,8 +80,8 @@ def get_client_id(
         ----------
         credentials : HTTPAuthorizationCredentials
             The authorization credentials.
-        session : AsyncSession
-            The database session.
+        db_manager : DatabaseManager
+            The database session manager.
         context : RequestContext
             The request context.
 
@@ -129,9 +125,10 @@ def get_client_id(
 
         # If successful, verify the client exists in the database
         if client_id and not exception:
-            client = await ClientService.get_client_in_db(
-                session, None, client_id
-            )
+            async with db_manager.session() as session:
+                client = await ClientService.get_client_in_db(
+                    session, None, client_id
+                )
             if not client:
                 raise HTTPException(
                     status_code=401, detail="Invalid credentials."
@@ -168,7 +165,7 @@ def get_client_id(
 def get_client_id_with_admin_check(
     allow_external_auth: bool = True,
 ) -> Callable[
-    [HTTPAuthorizationCredentials],
+    [HTTPAuthorizationCredentials, DatabaseManager, RequestContext],
     Coroutine[Any, Any, tuple[str, bool]],
 ]:
     """Require a client ID and return whether the user is admin.
@@ -182,8 +179,8 @@ def get_client_id_with_admin_check(
 
     Returns
     -------
-    Callable[[HTTPAuthorizationCredentials],Coroutine[Any, Any,
-    tuple[str, bool]]]
+    Callable[[HTTPAuthorizationCredentials, DatabaseManager, RequestContext],
+    Coroutine[Any, Any,tuple[str, bool]]]
         The dependency that returns (client_id, is_admin).
     """
 
@@ -192,8 +189,8 @@ def get_client_id_with_admin_check(
         credentials: Annotated[
             HTTPAuthorizationCredentials, Security(bearer_scheme)
         ],
-        session: AsyncSession = Depends(get_db),
-        context: RequestContext = Depends(get_request_context),
+        db_manager: Annotated[DatabaseManager, Depends(get_db_manager)],
+        context: Annotated[RequestContext, Depends(get_request_context)],
     ) -> tuple[str, bool]:
         """Check the audience and return client_id with admin status.
 
@@ -201,8 +198,8 @@ def get_client_id_with_admin_check(
         ----------
         credentials : HTTPAuthorizationCredentials
             The authorization credentials.
-        session : AsyncSession
-            The database session.
+        db_manager : DatabaseManager
+            The database session manager.
         context : RequestContext
             The request context.
 
@@ -238,9 +235,10 @@ def get_client_id_with_admin_check(
 
         # If successful, verify the client exists in the database
         if client_id and not exception:
-            client = await ClientService.get_client_in_db(
-                session, None, client_id
-            )
+            async with db_manager.session() as session:
+                client = await ClientService.get_client_in_db(
+                    session, None, client_id
+                )
             if not client:
                 raise HTTPException(
                     status_code=401, detail="Invalid credentials."
@@ -285,7 +283,7 @@ get_client_id_with_admin = get_client_id_with_admin_check()
 def get_admin_client_id(
     *expected_audiences: str, allow_external_auth: bool = True
 ) -> Callable[
-    [HTTPAuthorizationCredentials],
+    [HTTPAuthorizationCredentials, DatabaseManager, RequestContext],
     Coroutine[Any, Any, str],
 ]:
     """Require a specific audience for the request and check admin role
@@ -300,7 +298,8 @@ def get_admin_client_id(
 
     Returns
     -------
-    Callable[[HTTPAuthorizationCredentials],Coroutine[Any, Any, str]]
+    Callable[[HTTPAuthorizationCredentials, DatabaseManager, RequestContext],
+    Coroutine[Any, Any, str]]
         The dependency.
     """
 
@@ -309,8 +308,8 @@ def get_admin_client_id(
         credentials: Annotated[
             HTTPAuthorizationCredentials, Security(bearer_scheme)
         ],
-        session: AsyncSession = Depends(get_db),
-        context: RequestContext = Depends(get_request_context),
+        db_manager: Annotated[DatabaseManager, Depends(get_db_manager)],
+        context: Annotated[RequestContext, Depends(get_request_context)],
     ) -> str:
         """Check the audience of the JWT payload and admin role
         for external auth.
@@ -319,8 +318,8 @@ def get_admin_client_id(
         ----------
         credentials : HTTPAuthorizationCredentials
             The authorization credentials.
-        session : AsyncSession
-            The database session.
+        db_manager : DatabaseManager
+            The database session manager.
         context : RequestContext
             The request context.
 
@@ -365,14 +364,15 @@ def get_admin_client_id(
 
         # If successful, verify the client exists in the database
         if client_id and not exception:
-            client = await ClientService.get_client_in_db(
-                session, None, client_id
-            )
-            if not client:
-                raise HTTPException(
-                    status_code=401, detail="Invalid credentials."
+            async with db_manager.session() as session:
+                client = await ClientService.get_client_in_db(
+                    session, None, client_id
                 )
-            return client.id
+                if not client:
+                    raise HTTPException(
+                        status_code=401, detail="Invalid credentials."
+                    )
+                return client.id
 
         # If standard auth failed and external auth is allowed, try that next
         if allow_external_auth and settings.enable_external_auth:
@@ -410,14 +410,14 @@ def get_admin_client_id(
 
 
 def get_external_user_info() -> Callable[
-    [HTTPAuthorizationCredentials],
+    [HTTPAuthorizationCredentials, RequestContext, Settings],
     Coroutine[Any, Any, dict[str, Any]],
 ]:
     """Verify an external token and return user info.
 
     Returns
     -------
-    Callable[[HTTPAuthorizationCredentials],
+    Callable[[HTTPAuthorizationCredentials, RequestContext, Settings],
     Coroutine[Any, Any, Dict[str, Any]]]
         The dependency.
     """
@@ -426,8 +426,8 @@ def get_external_user_info() -> Callable[
         credentials: Annotated[
             HTTPAuthorizationCredentials, Security(bearer_scheme)
         ],
-        context: RequestContext = Depends(get_request_context),
-        settings: Settings = Depends(get_settings),
+        context: Annotated[RequestContext, Depends(get_request_context)],
+        settings: Annotated[Settings, Depends(get_settings)],
     ) -> dict[str, Any]:
         """Verify an external token and return user info.
 
@@ -491,7 +491,7 @@ def get_user_info() -> Callable[
     """
 
     async def dependency(
-        context: RequestContext = Depends(get_request_context),
+        context: Annotated[RequestContext, Depends(get_request_context)],
     ) -> dict[str, Any]:
         """Get user info from the request context.
 

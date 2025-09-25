@@ -9,10 +9,13 @@ from typing import Any, List
 import jwt
 from fastapi import APIRouter, Depends, Form, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from waldiez_runner.config import Settings
-from waldiez_runner.dependencies import get_db, get_settings
+from waldiez_runner.dependencies import (
+    DatabaseManager,
+    get_db_manager,
+    get_settings,
+)
 from waldiez_runner.services import ClientService
 
 router = APIRouter()
@@ -56,7 +59,7 @@ async def get_token(
         examples=[""],  # just to avoid the default in swagger
     ),
     client_secret: str = Form(..., examples=[""]),
-    session: AsyncSession = Depends(get_db),
+    db: DatabaseManager = Depends(get_db_manager),
     settings: Settings = Depends(get_settings),
 ) -> TokensResponse:
     """Get a token for local authentication.
@@ -67,8 +70,8 @@ async def get_token(
         The client ID.
     client_secret : str
         The client secret.
-    session: AsyncSession
-        The database session.
+    db: DatabaseManager
+        The database session manager.
     settings : Settings
         The settings instance.
 
@@ -86,9 +89,10 @@ async def get_token(
         raise HTTPException(
             status_code=400, detail="Token issuance is disabled in OIDC mode."
         )
-    client = await ClientService.verify_client(
-        session, client_id, client_secret
-    )
+    async with db.session() as session:
+        client = await ClientService.verify_client(
+            session, client_id, client_secret
+        )
 
     if not client:
         raise HTTPException(status_code=401, detail="Invalid credentials.")
@@ -104,7 +108,7 @@ async def get_token(
 )
 async def refresh_a_token(
     data: RefreshTokenRequest,
-    session: AsyncSession = Depends(get_db),
+    db: DatabaseManager = Depends(get_db_manager),
     settings: Settings = Depends(get_settings),
 ) -> TokensResponse:
     """Refresh a token.
@@ -113,8 +117,8 @@ async def refresh_a_token(
     ----------
     data : RefreshTokenRequest
         The refresh token request.
-    session: AsyncSession
-        The database session.
+    db: DatabaseManager
+        The database session manager.
     settings : Settings
         The settings instance.
     Returns
@@ -167,19 +171,19 @@ async def refresh_a_token(
         raise HTTPException(
             status_code=500, detail="Internal server error"
         ) from exc
-    await validate_client(session, client_id, audience)
+    await validate_client(db, client_id, audience)
     return generate_tokens(client_id, audience, settings)
 
 
 async def validate_client(
-    session: AsyncSession, client_id: str, audience: str
+    db: DatabaseManager, client_id: str, audience: str
 ) -> None:
     """Validate the client.
 
     Parameters
     ----------
-    session : AsyncSession
-        The database session.
+    db : DatabaseManager
+        The database session manager.
     client_id : str
         The client ID.
     audience : str
@@ -190,7 +194,8 @@ async def validate_client(
     HTTPException
         If the client is invalid, deleted, or has the token has wrong audience.
     """
-    client = await ClientService.get_client_in_db(session, None, client_id)
+    async with db.session() as session:
+        client = await ClientService.get_client_in_db(session, None, client_id)
     if not client:
         raise HTTPException(status_code=401, detail="Invalid client")
     if client.deleted_at:

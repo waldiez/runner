@@ -5,6 +5,7 @@
 import logging
 
 from waldiez_runner.config import Settings, SettingsManager
+from waldiez_runner.models import Base
 from waldiez_runner.services import TaskService
 
 from .database import DatabaseManager
@@ -40,6 +41,10 @@ async def on_startup() -> None:
     # if we add more backends, we can add a setting for this
     # and use the one from the settings
     app_state.storage_backend = "local"
+    if app_state.db.is_sqlite and app_state.db.engine:
+        # make sure the tables are created
+        async with app_state.db.engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
 
 
 async def on_shutdown() -> None:

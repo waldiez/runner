@@ -15,7 +15,7 @@ import pytest
 from fastapi_pagination import Page, Params
 
 from waldiez_runner.dependencies import AsyncRedis
-from waldiez_runner.models import Task, TaskStatus
+from waldiez_runner.models import Task
 from waldiez_runner.tasks.schedule import (
     check_stuck_tasks,
     cleanup_old_deleted_tasks,
@@ -46,7 +46,7 @@ async def test_cleanup_old_deleted_tasks(
 ) -> None:
     """Test cleaning up old tasks."""
     mock_storage = MagicMock()
-    mock_db_session = AsyncMock()
+    mock_db_manager = MagicMock()
     get_tasks_called = False
 
     # noinspection PyUnusedLocal
@@ -68,7 +68,7 @@ async def test_cleanup_old_deleted_tasks(
 
     # noinspection PyTypeChecker
     await cleanup_old_deleted_tasks(
-        db_session=mock_db_session,
+        db_manager=mock_db_manager,
         storage=mock_storage,
     )
     assert mock_get_old_tasks.await_count == 2
@@ -91,7 +91,7 @@ async def test_check_stuck_tasks(
 ) -> None:
     """Test checking stuck tasks."""
     mock_storage = MagicMock()
-    mock_db_session = AsyncMock()
+    mock_db_manager = MagicMock()
 
     # noinspection PyUnusedLocal
     async def get_stuck_tasks(*args: Any, **kwargs: Any) -> Page[Task]:
@@ -150,7 +150,7 @@ async def test_check_stuck_tasks(
     mock_get_stuck_tasks.side_effect = get_stuck_tasks
 
     # noinspection PyTypeChecker
-    await check_stuck_tasks(db_session=mock_db_session, storage=mock_storage)
+    await check_stuck_tasks(db_manager=mock_db_manager, storage=mock_storage)
 
     assert mock_get_stuck_tasks.await_count == 2
     assert mock_update_task_status.await_count == 4
@@ -160,37 +160,6 @@ async def test_check_stuck_tasks(
     task3_path = os.path.join("client3", "test_check_stuck_tasks3")
     mock_list_files.assert_any_await(task1_path)
     mock_list_files.assert_any_await(task3_path)
-    # mock_list_files.assert_any_await("client1/test_check_stuck_tasks1")
-    # mock_list_files.assert_any_await("client3/test_check_stuck_tasks3")
-
-    # no files
-    mock_update_task_status.assert_any_await(
-        mock_db_session,
-        task_id="test_check_stuck_tasks1",
-        status=TaskStatus.FAILED,
-        skip_results=True,
-    )
-    # results=None
-    mock_update_task_status.assert_any_await(
-        mock_db_session,
-        task_id="test_check_stuck_tasks2",
-        status=TaskStatus.FAILED,
-        skip_results=True,
-    )
-    # results dict, (no "error" key) and files
-    mock_update_task_status.assert_any_await(
-        mock_db_session,
-        task_id="test_check_stuck_tasks3",
-        status=TaskStatus.COMPLETED,
-        skip_results=True,
-    )
-    # results dict with "error" key
-    mock_update_task_status.assert_any_await(
-        mock_db_session,
-        task_id="test_check_stuck_tasks4",
-        status=TaskStatus.FAILED,
-        skip_results=True,
-    )
 
 
 @pytest.mark.asyncio

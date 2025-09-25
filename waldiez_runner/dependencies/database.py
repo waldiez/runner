@@ -2,7 +2,6 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 """Database connection manager."""
 
-import asyncio
 import contextlib
 import json
 import logging
@@ -12,7 +11,6 @@ from typing import TYPE_CHECKING, Any, AsyncIterator
 from sqlalchemy.engine import Connection as ConnectionPoolEntry
 from sqlalchemy.engine.interfaces import DBAPIConnection
 from sqlalchemy.event import listen
-from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -73,7 +71,10 @@ class DatabaseManager:
                 }
             )
         else:
-            engine_creation_args["connect_args"] = {"check_same_thread": False}
+            engine_creation_args["connect_args"] = {
+                "check_same_thread": False,
+                "timeout": 60,
+            }
 
         self.engine = create_async_engine(
             self._db_url,
@@ -112,17 +113,8 @@ class DatabaseManager:
         self.session_maker = None
 
     @contextlib.asynccontextmanager
-    async def session(
-        self, retries: int = 3, backoff_factor: int = 2
-    ) -> AsyncIterator[AsyncSession]:
+    async def session(self) -> AsyncIterator[AsyncSession]:
         """Get a database session with retries.
-
-        Parameters
-        ----------
-        retries : int, optional
-            Number of retries in case of failure, by default 3.
-        backoff_factor : int, optional
-            Factor for exponential backoff, by default 2.
 
         Yields
         ------
@@ -143,32 +135,18 @@ class DatabaseManager:
         if self.session_maker is None:  # pragma: no cover
             raise RuntimeError("Database not initialized. Call setup() first.")
 
-        attempt = 0
-        while True:
-            session = self.session_maker()
-            try:
-                # normal happy path: yield the session; no global lock
-                yield session
-                break
-            except OperationalError as e:
-                attempt += 1
-                LOG.warning(
-                    "DB op failed: %s. Retrying (%d/%d)...", e, attempt, retries
-                )
+        session = self.session_maker()
+        try:
+            yield session
+        except Exception:
+            # Rollback on error
+            with contextlib.suppress(Exception):
+                await session.rollback()
+            raise
+        finally:
+            # Always close
+            with contextlib.suppress(Exception):
                 await session.close()
-                if attempt >= retries:
-                    raise
-                await asyncio.sleep(backoff_factor**attempt)
-            except Exception:
-                # best-effort rollback if there was a tx
-                with contextlib.suppress(Exception):
-                    await session.rollback()
-                await session.close()
-                raise
-            finally:
-                # ensure closed after caller exits
-                with contextlib.suppress(Exception):
-                    await session.close()
 
 
 # noinspection PyUnusedLocal
@@ -187,4 +165,8 @@ def _set_sqlite_pragma(
     """
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute("PRAGMA cache_size=1000")
+    cursor.execute("PRAGMA temp_store=MEMORY")
     cursor.close()

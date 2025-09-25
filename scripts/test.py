@@ -56,18 +56,6 @@ def ensure_test_requirements() -> None:
     )
 
 
-def before_tests() -> None:
-    """Run before the tests."""
-    ensure_test_requirements()
-    db_path = ROOT_DIR / "waldiez_runner_test.db"
-    if db_path.exists():
-        db_path.unlink()
-    # let's also back any .env file if it exists
-    env_file = ROOT_DIR / ".env"
-    if env_file.exists():
-        shutil.copy(env_file, ROOT_DIR / ".env.before_tests")
-
-
 def run_pytest() -> None:
     """Run pytest."""
     coverage_dir = ROOT_DIR / "coverage" / "backend"
@@ -102,21 +90,6 @@ def run_pytest() -> None:
         check=True,
         cwd=ROOT_DIR,
     )
-
-
-def after_tests() -> None:
-    """Run after the tests."""
-    db_path = ROOT_DIR / "waldiez_runner_test.db"
-    if db_path.exists():
-        db_path.unlink()
-    # let's restore the .env file if it was backed up
-    env_file = ROOT_DIR / ".env"
-    env_file_before_tests = ROOT_DIR / ".env.before_tests"
-    if env_file.exists():
-        env_file.unlink()
-    if env_file_before_tests.exists():
-        shutil.copy(env_file_before_tests, env_file)
-        env_file_before_tests.unlink()
 
 
 def run_smoke_tests() -> None:
@@ -163,9 +136,7 @@ def main() -> None:
             ensure_not_running("uvicorn")
             os.environ.pop("WALDIEZ_RUNNER_SMOKE_TESTING", None)
         return
-    before_tests()
     run_pytest()
-    after_tests()
 
 
 if __name__ == "__main__":
