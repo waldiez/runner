@@ -546,6 +546,23 @@ async def update_task_status(
     await session.refresh(task)
 
 
+async def trigger(session: AsyncSession, task_id: str) -> None:
+    """Update the task's triggered_at.
+
+    Parameters
+    ----------
+    session : AsyncSession
+        SQLAlchemy async session.
+    task_id : str
+        The task's ID.
+    """
+    await session.execute(
+        update(Task)
+        .where(Task.id == task_id)
+        .values(triggered_at=datetime.now(timezone.utc))
+    )
+
+
 async def update_waiting_for_input_tasks(
     session: AsyncSession,
     older_than: datetime | None = None,

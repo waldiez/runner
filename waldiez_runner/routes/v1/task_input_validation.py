@@ -4,12 +4,17 @@
 
 """Task routes."""
 
+import asyncio
 import hashlib
+import os
+from pathlib import Path
 from typing import Optional
 
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette import status
 from typing_extensions import Literal
+from waldiez import Waldiez
 
 from waldiez_runner.dependencies import (
     ALLOWED_EXTENSIONS,
@@ -36,19 +41,74 @@ ALLOWED_REMOTE_URL_SCHEMES = (
 )
 
 
-def _validate_uploaded_file(file: UploadFile) -> str:
-    """Validate an uploaded file."""
+async def validate_uploaded_file(
+    file: UploadFile, client_id: str, storage: Storage
+) -> tuple[str, str, str]:
+    """Validate an uploaded file.
+
+    Parameters
+    ----------
+    file : UploadFile
+        The uploaded file.
+    client_id : str
+        The client id
+    storage : Storage
+        The storage engine dependency.
+
+    Returns
+    -------
+    tuple[str, str, str]
+        The filename, the file's md5 and the path where the file was saved.
+
+    Raises
+    ------
+    HTTPException
+        If an invalid file was uploaded.
+    """
     if not file.filename:  # pragma: no cover
         raise HTTPException(status_code=400, detail="Invalid file")
     if not file.filename.endswith(ALLOWED_EXTENSIONS):
         raise HTTPException(status_code=400, detail="Invalid file type")
-    return file.filename
+    file_hash, saved_path = await storage.save_file(client_id, file)
+    return file.filename, file_hash, saved_path
+
+
+async def _validate_file_from_url(
+    file_url: str, storage: Storage
+) -> tuple[str, str, str]:
+    if not file_url.startswith(ALLOWED_REMOTE_URL_SCHEMES):
+        raise HTTPException(status_code=400, detail="Invalid file URL")
+    filename = get_filename_from_url(
+        file_url,
+        allowed_extensions=ALLOWED_EXTENSIONS,
+        default_extension=ALLOWED_EXTENSIONS[0],
+        strict_validation=True,
+    )
+    file_hash, saved_path = await storage.get_file_from_url(
+        file_url=file_url,
+    )
+    return filename, file_hash, saved_path
+
+
+async def _validate_file_path(
+    client_id: str,
+    file_path: str,
+    storage: Storage,
+) -> tuple[str, str, str]:
+    resolved = await storage.resolve(os.path.join(client_id, file_path))
+    if not resolved:
+        raise HTTPException(status_code=400, detail="Invalid file path")
+    saved_path = resolved
+    filename = Path(resolved).name
+    file_hash = await storage.hash(resolved)
+    return filename, file_hash, saved_path
 
 
 async def validate_task_input(
     session: AsyncSession,
     file: Optional[UploadFile],
     file_url: Optional[str],
+    file_path: Optional[str],
     env_vars: Optional[str],
     client_id: str,
     storage: Storage,
@@ -64,6 +124,8 @@ async def validate_task_input(
         The file to validate.
     file_url : Optional[str]
         The URL of the file to validate, by default None
+    file_path : Optional[str], optional
+        The local path of a previously uploaded file to use.
     env_vars : Optional[str]
         A JSON string of environment variables, by default None
     client_id : str
@@ -96,19 +158,16 @@ async def validate_task_input(
     file_hash: str = ""
     filename: str = ""
     if file:
-        filename = _validate_uploaded_file(file)
-        file_hash, saved_path = await storage.save_file(client_id, file)
-    if file_url:
-        if not file_url.startswith(ALLOWED_REMOTE_URL_SCHEMES):
-            raise HTTPException(status_code=400, detail="Invalid file URL")
-        filename = get_filename_from_url(
-            file_url,
-            allowed_extensions=ALLOWED_EXTENSIONS,
-            default_extension=ALLOWED_EXTENSIONS[0],
-            strict_validation=True,
+        filename, file_hash, saved_path = await validate_uploaded_file(
+            file, client_id=client_id, storage=storage
         )
-        file_hash, saved_path = await storage.get_file_from_url(
-            file_url=file_url,
+    elif file_url:
+        filename, file_hash, saved_path = await _validate_file_from_url(
+            file_url, storage=storage
+        )
+    elif file_path:
+        filename, file_hash, saved_path = await _validate_file_path(
+            client_id=client_id, file_path=file_path, storage=storage
         )
     if not file_hash or not filename or not saved_path:
         raise HTTPException(
@@ -134,3 +193,25 @@ async def validate_task_input(
         )
     environment_vars = get_env_vars(env_vars)
     return file_hash, filename, saved_path, environment_vars
+
+
+async def validate_waldiez_flow(flow_path: str) -> None:
+    """Validate a waldiez file/flow.
+
+    Parameters
+    ----------
+    flow_path : str
+        The path of the flow.
+
+    Raises
+    ------
+    HTTPException
+        If the workflow is invalid.
+    """
+    try:
+        await asyncio.to_thread(Waldiez.load, flow_path)
+    except BaseException as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        ) from error

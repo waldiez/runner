@@ -15,6 +15,23 @@ from fastapi.responses import FileResponse, StreamingResponse
 class Storage(Protocol):
     """Base file service."""
 
+    async def resolve(
+        self,
+        path: str,
+    ) -> str | None:
+        """Resolve a file path.
+
+        Parameters
+        ----------
+        path : str
+            The path to resolve.
+
+        Returns
+        -------
+        str | None
+            The resolved path if resolved, else None
+        """
+
     async def save_file(
         self,
         parent_name: str,
@@ -229,4 +246,18 @@ class Storage(Protocol):
         -------
         bool
             True if the item exists and is a directory, False otherwise.
+        """
+
+    async def hash(self, path: str) -> str:
+        """Get the file's md5 hash.
+
+        Parameters
+        ----------
+        path : str
+            The path to the file.
+
+        Returns
+        -------
+        str
+            The file's md5 hash.
         """

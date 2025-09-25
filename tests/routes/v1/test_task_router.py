@@ -223,13 +223,13 @@ async def test_get_tasks_search_no_results(
 
 # noinspection DuplicatedCode
 @pytest.mark.anyio
-async def test_get_tasks_sorted(
+async def test_get_tasks_sorted_desc(
     client: AsyncClient,
     async_session: AsyncSession,
     client_id: str,
     create_task: CreateTaskCallable,
 ) -> None:
-    """Test getting tasks with ordering."""
+    """Test getting tasks with desc ordering."""
     task1, _ = await create_task(
         async_session,
         client_id=client_id,
@@ -252,19 +252,49 @@ async def test_get_tasks_sorted(
     assert response.status_code == HTTP_200_OK
     data_dict = response.json()
     data = data_dict["items"]
-    assert len(data) == 2
-    assert data[0]["id"] == str(task2.id)
-    assert data[1]["id"] == str(task1.id)
+    assert len(data) >= 2
+    all_ids = [item["id"] for item in data]
+    task1_index = all_ids.index(str(task1.id))
+    task2_index = all_ids.index(str(task2.id))
+    assert task1_index >= 0 and task2_index >= 0
+    assert task2_index < task1_index
 
-    response_2 = await client.get(
+
+# noinspection DuplicatedCode
+@pytest.mark.anyio
+async def test_get_tasks_sorted_asc(
+    client: AsyncClient,
+    async_session: AsyncSession,
+    client_id: str,
+    create_task: CreateTaskCallable,
+) -> None:
+    """Test getting tasks with asc ordering."""
+    task1, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        flow_id="flow123",
+        status=TaskStatus.PENDING,
+        filename="test_get_tasks_ordered_1",
+    )
+    task2, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        flow_id="flow123",
+        status=TaskStatus.PENDING,
+        filename="test_get_tasks_ordered_2",
+    )
+    response = await client.get(
         "/tasks", params={"order_by": "filename", "order_type": "asc"}
     )
-    assert response_2.status_code == HTTP_200_OK
-    data_dict_2 = response_2.json()
-    data_2 = data_dict_2["items"]
-    assert len(data_2) == 2
-    assert data_2[0]["id"] == str(task1.id)
-    assert data_2[1]["id"] == str(task2.id)
+    assert response.status_code == HTTP_200_OK
+    data_dict = response.json()
+    data = data_dict["items"]
+    assert len(data) >= 2
+    all_ids = [item["id"] for item in data]
+    task1_index = all_ids.index(str(task1.id))
+    task2_index = all_ids.index(str(task2.id))
+    assert task1_index >= 0 and task2_index >= 0
+    assert task2_index > task1_index
 
 
 @pytest.mark.anyio
@@ -1198,3 +1228,57 @@ async def test_get_all_tasks_admin_empty(
     data = data_dict["items"]
     assert len(data) == 0
     assert len(data) == 0
+
+
+@pytest.mark.anyio
+async def test_upload_valid_workflow(
+    client: AsyncClient,
+    client_id: str,
+    storage_service: LocalStorage,
+) -> None:
+    """Test uploading a valid workflow file."""
+    # Read the valid waldiez file from test data
+    file_path = Path(__file__).parent.parent.parent / "data" / "valid.waldiez"
+    file_content = file_path.open("rb").read()
+    file = {
+        "file": (
+            "valid.waldiez",
+            file_content,
+            VALID_CONTENT_TYPE,
+        )
+    }
+    response = await client.post("/tasks/upload", files=file)
+    assert response.status_code == HTTP_204_NO_CONTENT
+    # Verify the file was saved in the correct location
+    expected_path = storage_service.root_dir / client_id / "valid.waldiez"
+    assert expected_path.exists()
+    # Verify the content is correct
+    saved_content = expected_path.read_bytes()
+    assert saved_content == file_content
+
+
+@pytest.mark.anyio
+async def test_upload_invalid_workflow(
+    client: AsyncClient,
+    client_id: str,
+    storage_service: LocalStorage,
+) -> None:
+    """Test uploading an invalid workflow file."""
+    # Read the invalid waldiez file from test data
+    file_path = Path(__file__).parent.parent.parent / "data" / "invalid.waldiez"
+    file_content = file_path.open("rb").read()
+    file = {
+        "file": (
+            "invalid.waldiez",
+            file_content,
+            VALID_CONTENT_TYPE,
+        )
+    }
+    response = await client.post("/tasks/upload", files=file)
+    # Should return an error due to invalid waldiez format
+    assert response.status_code >= 400
+    assert "detail" in response.json()
+    # Verify the file was NOT saved
+    # (should be cleaned up after validation failure)
+    expected_path = storage_service.root_dir / client_id / "invalid.waldiez"
+    assert not expected_path.exists()

@@ -13,6 +13,7 @@ from fastapi import (
     APIRouter,
     BackgroundTasks,
     Depends,
+    File,
     Form,
     HTTPException,
     Query,
@@ -50,7 +51,11 @@ from waldiez_runner.schemas.task import (
 from waldiez_runner.services.task_service import TaskService
 
 from .pagination import Order, get_pagination_params
-from .task_input_validation import validate_task_input
+from .task_input_validation import (
+    validate_task_input,
+    validate_uploaded_file,
+    validate_waldiez_flow,
+)
 from .task_jobs import schedule_task, trigger_delete_task, trigger_run_task
 from .task_permission import check_user_can_run_task
 from .task_pub import publish_task_cancellation, publish_task_input_response
@@ -183,9 +188,9 @@ async def create_task(
     session: Annotated[AsyncSession, Depends(get_db)],
     storage: Annotated[Storage, Depends(get_storage)],
     context: Annotated[RequestContext, Depends(get_request_context)],
-    # file: Annotated[UploadFile, File(...)],
     file: Optional[UploadFile] = None,
     file_url: Optional[str] = Form(None),
+    filename: Optional[str] = Form(None),
     env_vars: Optional[str] = Form(
         None, description="JSON string of environment variables"
     ),
@@ -212,6 +217,8 @@ async def create_task(
         The file to process.
     file_url : Optional[str], optional
         The URL of the file to process, by default None
+    filename : Optional[str], optional
+        The local file of a previously uploaded file to use.
     env_vars : Optional[str], optional
         A JSON string of environment variables, by default None
     input_timeout : int, optional
@@ -240,25 +247,32 @@ async def create_task(
     # Check user permission before creating task
     await check_user_can_run_task(context)
 
-    if not file and not file_url:
+    if not file and not file_url and not filename:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Either file or file_url must be provided",
+            detail="Either file, file_url or filename must be provided",
         )
-    if file and file_url:
+    provided = sum(
+        bool(item)  # pyright: ignore
+        for item in [file, file_url, filename]  # pyright: ignore
+    )
+    if provided > 1:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only one of file or file_url can be provided",
+            detail=(
+                "Only one of `file`, `file_url` or `filename` can be provided"
+            ),
         )
     (
         file_hash,
-        filename,
+        file_name,
         save_path,
         environment_vars,
     ) = await validate_task_input(
         session=session,
         file=file,
         file_url=file_url,
+        file_path=filename,
         env_vars=env_vars,
         client_id=client_id,
         storage=storage,
@@ -268,7 +282,7 @@ async def create_task(
         task_create = TaskCreate(
             client_id=client_id,
             flow_id=file_hash,
-            filename=filename,
+            filename=file_name,
             input_timeout=input_timeout,
             schedule_type=schedule_type,
             scheduled_time=scheduled_time,
@@ -287,7 +301,7 @@ async def create_task(
             task_create=task_create,
         )
         # relative to root if local, or "bucket" if other (e.g. S3, GCS)
-        dst = os.path.join(client_id, str(task.id), filename)
+        dst = os.path.join(client_id, str(task.id), file_name)
         await storage.move_file(save_path, dst)
     except BaseException as error:  # pragma: no cover
         await storage.delete_file(save_path)
@@ -320,6 +334,55 @@ async def create_task(
             env_vars=environment_vars,
         )
     return task_response
+
+
+@task_router.post("/tasks/upload/", include_in_schema=False)
+@task_router.post(
+    "/tasks/upload",
+    summary="Upload a workflow to be later used in a new task.",
+    description="Upload a workflow to be later used in a new task.",
+)
+async def upload_task_workflow(
+    client_id: Annotated[str, Depends(validate_tasks_audience)],
+    storage: Annotated[Storage, Depends(get_storage)],
+    file: Annotated[UploadFile, File(...)],
+) -> Response:
+    """Upload a workflow file to be later used in a new task.
+
+    Parameters
+    ----------
+    client_id : str
+        The client ID.
+    storage : Storage
+        The storage service dependency.
+    file : UploadFile
+        The uploaded file.
+
+    Returns
+    -------
+    Response
+        No content (204) if successfully saved.
+
+    Raises
+    ------
+    HTTPException
+        If the request is invalid.
+    """
+    filename, _, save_path = await validate_uploaded_file(
+        file, client_id=client_id, storage=storage
+    )
+    try:
+        await validate_waldiez_flow(save_path)
+    except HTTPException:
+        await storage.delete_file(save_path)
+        raise
+    try:
+        dst = os.path.join(client_id, filename)
+        await storage.move_file(save_path, dst)
+    except HTTPException:
+        await storage.delete_file(save_path)
+        raise
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @task_router.get("/tasks/{task_id}/", include_in_schema=False)

@@ -50,12 +50,32 @@ class LocalStorage:
         self.root_dir = Path(root_dir).resolve()
         self.root_dir.mkdir(exist_ok=True, parents=True)
 
-    def _resolve(self, path: str) -> Path:
+    async def _resolve(self, path: str) -> Path:
         """Resolve a path."""
         resolved = Path(path)
         if not resolved.is_absolute():
             resolved = self.root_dir / path.lstrip("/")
-        return resolved.resolve().absolute()
+        return await anyio.to_thread.run_sync(
+            lambda: resolved.resolve().absolute()
+        )
+
+    async def resolve(self, path: str) -> str | None:
+        """Resolve a file path.
+
+        Parameters
+        ----------
+        path : str
+            The path to resolve.
+
+        Returns
+        -------
+        str | None
+            The resolved path.
+        """
+        resolved = await self._resolve(path)
+        if not resolved.exists():
+            return None
+        return str(resolved)
 
     @staticmethod
     def _unlink(path: Path) -> None:
@@ -225,8 +245,8 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        full_src_path = self._resolve(src_path)
-        full_dst_path = self._resolve(dst_path)
+        full_src_path = await self._resolve(src_path)
+        full_dst_path = await self._resolve(dst_path)
 
         if not full_src_path.exists() or not full_src_path.is_file():
             raise HTTPException(status_code=404, detail="Source file not found")
@@ -234,8 +254,7 @@ class LocalStorage:
             raise HTTPException(
                 status_code=400, detail="Destination file already exists"
             )
-
-        full_dst_path.parent.mkdir(parents=True, exist_ok=True)
+        await os.makedirs(full_dst_path.parent, exist_ok=True)
 
         move = os.wrap(shutil.move)
         try:
@@ -345,18 +364,17 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        full_src_path = self._resolve(src_path)
+        full_src_path = await self._resolve(src_path)
         if not full_src_path.exists() or not full_src_path.is_file():
             raise HTTPException(status_code=404, detail="Source file not found")
-        full_dest_path = self._resolve(dest_path)
-        full_dest_path.parent.mkdir(parents=True, exist_ok=True)
-
+        full_dest_path = await self._resolve(dest_path)
         if not full_src_path.exists() or not full_src_path.is_file():
             raise HTTPException(status_code=404, detail="Source file not found")
         if full_dest_path.exists():
             raise HTTPException(
                 status_code=400, detail="Destination file already exists"
             )
+        await os.makedirs(full_dest_path.parent, exist_ok=True)
         copyfile = os.wrap(shutil.copyfile)
         # pylint: disable=too-many-try-statements, broad-exception-caught
         try:
@@ -381,10 +399,9 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        full_src_path = self._resolve(src_path)
-        full_dest_path = self._resolve(dest_path)
-        full_dest_path.parent.mkdir(parents=True, exist_ok=True)
-
+        full_src_path = await self._resolve(src_path)
+        full_dest_path = await self._resolve(dest_path)
+        await os.makedirs(full_dest_path.parent, exist_ok=True)
         if not await os.path.exists(full_src_path) or not await os.path.isdir(
             full_src_path
         ):
@@ -420,7 +437,7 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        file_path = self._resolve(path)
+        file_path = await self._resolve(path)
         if not await os.path.exists(file_path) or not await os.path.isfile(
             file_path
         ):
@@ -449,7 +466,7 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        folder = self._resolve(folder_path)
+        folder = await self._resolve(folder_path)
         if not await os.path.exists(folder) or not await os.path.isdir(folder):
             LOG.warning("Folder not found: %s", folder)
             return
@@ -482,7 +499,7 @@ class LocalStorage:
         HTTPException
             If an error occurs.
         """
-        root = self._resolve(folder_path)
+        root = await self._resolve(folder_path)
         if not await os.path.exists(root) or not await os.path.isdir(root):
             LOG.warning("Folder not found: %s", root)
             return []
@@ -546,7 +563,7 @@ class LocalStorage:
         bool
             True if the item exists and is a file, False otherwise.
         """
-        return await os.path.isfile(self._resolve(path))
+        return await os.path.isfile(await self._resolve(path))
 
     async def is_dir(self, path: str) -> bool:
         """Check if an item exists and is a directory in the storage.
@@ -561,4 +578,43 @@ class LocalStorage:
         bool
             True if the item exists and is a directory, False otherwise.
         """
-        return await os.path.isdir(self._resolve(path))
+        return await os.path.isdir(await self._resolve(path))
+
+    async def hash(self, path: str) -> str:
+        """Get the file's md5 hash.
+
+        Parameters
+        ----------
+        path : str
+            The path to the file.
+
+        Returns
+        -------
+        str
+            The file's md5 hash.
+
+        Raises
+        ------
+        HTTPException
+            If the file doesn't exist or cannot be read.
+        """
+        file_path = await self._resolve(path)
+
+        if not await os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="File not found")
+
+        if not await os.path.isfile(file_path):
+            raise HTTPException(status_code=400, detail="Path is not a file")
+
+        hash_md5 = hashlib.md5(usedforsecurity=False)
+
+        try:
+            async with aiofiles.open(file_path, "rb") as f:
+                while chunk := await f.read(CHUNK_SIZE):
+                    hash_md5.update(chunk)
+            return hash_md5.hexdigest()
+        except Exception as error:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to compute file hash: {str(error)}",
+            ) from error

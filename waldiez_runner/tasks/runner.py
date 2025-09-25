@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from waldiez_runner.dependencies import AsyncRedis, Storage
 from waldiez_runner.models.task_status import TaskStatus
 from waldiez_runner.schemas.task import TaskResponse
+from waldiez_runner.services import TaskService
 
 from .__base__ import APP_DIR
 from .status_watcher import terminate_process, watch_status_and_cancel_if_needed
@@ -311,7 +312,10 @@ async def run_app_in_venv(
         env={**os.environ, "PYTHONUNBUFFERED": "1"},
         start_new_session=True,
     )
-
+    await TaskService.trigger(
+        db_session,
+        task_id=task_id,
+    )
     watcher_task = asyncio.create_task(
         watch_status_and_cancel_if_needed(
             task_id=task_id,
