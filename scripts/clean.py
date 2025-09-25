@@ -28,6 +28,7 @@ FILE_PATTERNS = [
     "*.py~",
     "*~",
     ".*~",
+    "*.db",
     ".DS_Store",
     "._DS_Store",
     "._.DS_Store",
