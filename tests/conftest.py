@@ -161,8 +161,11 @@ def dot_env_path_fixture(
     settings.save(to=TEST_DOT_ENV_PATH)
     with patch(DOT_ENV_PATH_DOTTED, TEST_DOT_ENV_PATH):
         yield TEST_DOT_ENV_PATH
-        if TEST_DOT_ENV_PATH.exists():
-            TEST_DOT_ENV_PATH.unlink()
+        try:
+            if TEST_DOT_ENV_PATH.exists():
+                TEST_DOT_ENV_PATH.unlink(missing_ok=True)
+        except BaseException:  # pylint: disable=broad-exception-caught
+            pass
     _env_file_restore(worker_id, backed_up)
 
 
