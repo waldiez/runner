@@ -26,6 +26,7 @@ from pydantic import ValidationError
 from starlette import status
 from typing_extensions import Literal
 
+from waldiez_runner.config import Settings
 from waldiez_runner.dependencies import (
     ADMIN_API_AUDIENCE,
     TASK_API_AUDIENCE,
@@ -35,6 +36,7 @@ from waldiez_runner.dependencies import (
     get_client_id,
     get_client_id_with_admin_check,
     get_db_manager,
+    get_settings,
     get_storage,
 )
 from waldiez_runner.dependencies.context import (
@@ -190,6 +192,7 @@ async def create_task(
     db_manager: Annotated[DatabaseManager, Depends(get_db_manager)],
     storage: Annotated[Storage, Depends(get_storage)],
     context: Annotated[RequestContext, Depends(get_request_context)],
+    settings: Annotated[Settings, Depends(get_settings)],
     file: Optional[UploadFile] = None,
     file_url: Optional[str] = Form(None),
     filename: Optional[str] = Form(None),
@@ -215,6 +218,8 @@ async def create_task(
         The storage service dependency.
     context : RequestContext
         The request context containing external user info.
+    settings : Settings
+        The settings to get the max_jobs config.
     file : Optional[UploadFile]
         The file to process.
     file_url : Optional[str], optional
@@ -278,6 +283,7 @@ async def create_task(
         env_vars=env_vars,
         client_id=client_id,
         storage=storage,
+        max_jobs=settings.max_jobs,
         schedule_type=schedule_type,
     )
     try:

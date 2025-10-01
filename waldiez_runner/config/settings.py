@@ -66,7 +66,6 @@ from ._server import (
     get_default_host,
     get_default_port,
     get_force_ssl,
-    get_max_jobs,
     get_secret_key,
     get_trusted_hosts,
     get_trusted_origin_regex,
@@ -75,6 +74,7 @@ from ._server import (
 from ._tasks import (
     get_input_timeout,
     get_keep_task_for_days,
+    get_max_jobs,
     get_max_task_duration,
 )
 
@@ -108,7 +108,7 @@ class Settings(BaseSettings):
     host: str = get_default_host()
     port: Annotated[int, Field(ge=1, le=65535)] = get_default_port()
     domain_name: str = get_default_domain_name()
-    max_jobs: Annotated[int, Field(ge=1, le=100)] = get_max_jobs()
+    max_jobs: int = get_max_jobs()
     force_ssl: bool = get_force_ssl()
     trusted_hosts: str | list[str] = get_trusted_hosts(
         domain_name=domain_name, host=host

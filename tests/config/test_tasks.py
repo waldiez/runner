@@ -68,6 +68,24 @@ def test_get_keep_task_for_days_with_env() -> None:
     assert _tasks.get_keep_task_for_days() == 31
 
 
+def test_get_max_jobs_no_env() -> None:
+    """Test get_max_jobs with no environment variables."""
+    os.environ.pop(f"{ENV_PREFIX}MAX_JOBS", None)
+    assert _tasks.get_max_jobs() == _tasks.DEFAULT_MAX_JOBS
+
+
+def test_get_max_jobs_with_env() -> None:
+    """Test get_max_jobs with environment variables."""
+    os.environ[f"{ENV_PREFIX}MAX_JOBS"] = "10"
+    assert _tasks.get_max_jobs() == 10
+
+
+def test_get_max_jobs_from_cli() -> None:
+    """Test get_max_jobs from cli arg."""
+    sys.argv.extend(["--max-jobs", "11"])
+    assert _tasks.get_max_jobs() == 11
+
+
 def test_get_max_task_duration_no_env() -> None:
     """Test get_max_task_duration with no environment variables."""
     os.environ.pop(f"{ENV_PREFIX}MAX_TASK_DURATION", None)

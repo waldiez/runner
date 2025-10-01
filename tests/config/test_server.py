@@ -19,7 +19,6 @@ from waldiez_runner.config._server import (
     get_default_domain_name,
     get_default_host,
     get_default_port,
-    get_max_jobs,
     get_secret_key,
     get_trusted_hosts,
     get_trusted_origin_regex,
@@ -242,33 +241,3 @@ def test_get_secret_key() -> None:
     os.environ.pop(f"{ENV_PREFIX}SECRET_KEY", None)
     sys.argv += ["--secret-key", ""]
     assert get_secret_key() == "REPLACE_ME"
-
-
-def test_get_max_jobs() -> None:
-    """Test get_max_jobs."""
-    os.environ[f"{ENV_PREFIX}MAX_JOBS"] = "5"
-    assert get_max_jobs() == 5
-
-    sys.argv += ["--max-jobs", "10"]
-    os.environ.pop(f"{ENV_PREFIX}MAX_JOBS", None)
-    assert get_max_jobs() == 10
-    sys.argv = [str(THIS_FILE)]
-
-    sys.argv = [str(THIS_FILE), "--max-jobs"]
-    os.environ.pop(f"{ENV_PREFIX}MAX_JOBS", None)
-    assert get_max_jobs() == 3
-    sys.argv = [str(THIS_FILE)]
-
-    sys.argv += ["--max-jobs", "invalid"]
-    os.environ.pop(f"{ENV_PREFIX}MAX_JOBS", None)
-    assert get_max_jobs() == 3
-    sys.argv = [str(THIS_FILE)]
-
-    os.environ[f"{ENV_PREFIX}MAX_JOBS"] = "invalid"
-    assert get_max_jobs() == 3
-
-    os.environ[f"{ENV_PREFIX}MAX_JOBS"] = ""
-    assert get_max_jobs() == 3
-
-    os.environ.pop(f"{ENV_PREFIX}MAX_JOBS", None)
-    assert get_max_jobs() == 3

@@ -9,7 +9,6 @@ DOMAIN_NAME (str) # default: localhost
 HOST (str) # default: localhost
 PORT (int) # default: 8000
 SECRET_KEY (str) # default: REPLACE_ME / auto-generated
-MAX_JOBS (int) # default: 3
 FORCE_SSL (bool) # default: True
 TRUSTED_HOSTS (str, comma separated) # default: DOMAIN_NAME
 TRUSTED_ORIGINS (str, comma separated) # default: https://DOMAIN_NAME
@@ -227,14 +226,3 @@ def get_secret_key() -> str:
     """
     value = get_value("--secret-key", "SECRET_KEY", str, "REPLACE_ME")
     return value
-
-
-def get_max_jobs() -> int:
-    """Get the maximum number of jobs.
-
-    Returns
-    -------
-    int
-        The maximum number of jobs
-    """
-    return get_value("--max-jobs", "MAX_JOBS", int, 3)

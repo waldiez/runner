@@ -29,10 +29,6 @@ from waldiez_runner.dependencies.storage import LocalStorage
 from waldiez_runner.main import get_app
 from waldiez_runner.models.task import Task
 from waldiez_runner.models.task_status import TaskStatus
-from waldiez_runner.routes.v1.task_input_validation import (
-    MAX_TASKS_ERROR,
-    MAX_TASKS_PER_CLIENT,
-)
 from waldiez_runner.routes.v1.task_router import (  # type: ignore
     get_client_id_with_admin_check,
     get_storage,
@@ -405,11 +401,15 @@ async def test_create_task_active_flow_task(
 @pytest.mark.anyio
 async def test_create_task_max_tasks(
     client: AsyncClient,
+    settings: Settings,
     async_session: AsyncSession,
     client_id: str,
 ) -> None:
     """Test creating a task when the client has reached the maximum tasks."""
-    for _ in range(MAX_TASKS_PER_CLIENT):
+    if settings.max_jobs <= 0:
+        settings.max_jobs = 5
+        settings.save()
+    for _ in range(settings.max_jobs):
         task = Task(
             client_id=client_id,
             flow_id="flow123",
@@ -430,7 +430,7 @@ async def test_create_task_max_tasks(
     response = await client.post("/tasks", files=file)
 
     assert response.status_code == 400
-    assert response.json() == {"detail": MAX_TASKS_ERROR}
+    assert "Please wait for some tasks to finish" in response.json()["detail"]
 
 
 @pytest.mark.anyio

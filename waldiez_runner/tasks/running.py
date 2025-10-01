@@ -58,7 +58,17 @@ async def run_task(
         If the task could not be executed.
     """
     temp_dir = Path(tempfile.mkdtemp())
-    venv_dir = await prepare_app_env(storage, task, temp_dir)
+    try:
+        venv_dir = await prepare_app_env(storage, task, temp_dir)
+    except BaseException as error:
+        async with db_manager.session() as db_session:
+            await TaskService.update_task_status(
+                session=db_session,
+                task_id=task.id,
+                status=TaskStatus.FAILED,
+                results=[{"error": str(error)}],
+            )
+        return
     app_dir = temp_dir / task.client_id / task.id / "app"
     file_path = temp_dir / task.client_id / task.id / "app" / task.filename
     settings = SettingsManager.load_settings()

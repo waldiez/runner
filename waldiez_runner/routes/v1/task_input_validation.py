@@ -24,11 +24,11 @@ from waldiez_runner.services.task_service import TaskService
 
 from .env_vars import get_env_vars
 
-MAX_TASKS_PER_CLIENT = 3
-MAX_TASKS_ERROR = (
-    f"Cannot create more than {MAX_TASKS_PER_CLIENT} tasks "
-    "at the same time. Please wait for some tasks to finish"
-)
+# MAX_TASKS_PER_CLIENT = 3
+# MAX_TASKS_ERROR = (
+#     f"Cannot create more than {MAX_TASKS_PER_CLIENT} tasks "
+#     "at the same time. Please wait for some tasks to finish"
+# )
 ALLOWED_REMOTE_URL_SCHEMES = (
     # "http",
     "https",
@@ -112,6 +112,7 @@ async def validate_task_input(
     env_vars: Optional[str],
     client_id: str,
     storage: Storage,
+    max_jobs: int,
     schedule_type: Optional[Literal["once", "cron"]] = None,
 ) -> tuple[str, str, str, dict[str, str]]:
     """Validate the uploaded file.
@@ -132,6 +133,8 @@ async def validate_task_input(
         The client ID.
     storage : Storage
         The storage service.
+    max_jobs : int
+        The upper limit for concurrent running tasks/jobs (<=0 means no limit)
     schedule_type : Optional[Literal["once", "cron"]], optional
         The type of schedule, by default None
 
@@ -154,8 +157,12 @@ async def validate_task_input(
             session,
             client_id=client_id,
         )
-    if len(active_tasks.items) >= MAX_TASKS_PER_CLIENT:
-        raise HTTPException(status_code=400, detail=MAX_TASKS_ERROR)
+    if max_jobs > 0 and len(active_tasks.items) >= max_jobs:
+        detail = (
+            f"Cannot create more than {max_jobs} tasks "
+            "at the same time. Please wait for some tasks to finish"
+        )
+        raise HTTPException(status_code=400, detail=detail)
     saved_path: str = ""
     file_hash: str = ""
     filename: str = ""
