@@ -39,3 +39,17 @@ class Hasher(Protocol):  # pragma: no cover
         bool
             True if password matches, False otherwise
         """
+
+    def needs_rehash(self, stored: str) -> bool:  # pyright:ignore
+        """Check if the stored hashed secret needs rehash.
+
+        Parameters
+        ----------
+        stored : str
+            The stored hash
+
+        Returns
+        -------
+        bool
+            True if secret needs rehash, False otherwise
+        """

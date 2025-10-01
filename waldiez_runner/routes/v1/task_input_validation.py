@@ -157,6 +157,7 @@ async def validate_task_input(
             session,
             client_id=client_id,
         )
+    # pylint: disable=chained-comparison
     if max_jobs > 0 and len(active_tasks.items) >= max_jobs:
         detail = (
             f"Cannot create more than {max_jobs} tasks "

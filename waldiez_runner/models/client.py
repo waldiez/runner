@@ -53,7 +53,7 @@ class Client(Base):
     description: Mapped[str | None] = mapped_column(String, nullable=True)
 
     @classmethod
-    def verify(cls, secret: str, hashed_secret: str) -> bool:
+    def verify(cls, secret: str, hashed_secret: str) -> tuple[bool, str | None]:
         """Verify a secret.
 
         Parameters
@@ -65,12 +65,16 @@ class Client(Base):
 
         Returns
         -------
-        bool
-            True if the secret is verified.
+        tuple[bool,str | None]
+            True if verified and an optional new hash if rehash is needed.
         """
-        # pylint: disable=broad-exception-caught
+        # pylint: disable=broad-exception-caught,too-many-try-statements
         # noinspection PyBroadException
         try:
-            return password_hasher.verify(plain=secret, stored=hashed_secret)
+            valid = password_hasher.verify(plain=secret, stored=hashed_secret)
+            if valid and password_hasher.needs_rehash(hashed_secret):
+                new_hash = password_hasher.hash(secret)
+                return valid, new_hash
+            return valid, None
         except BaseException:  # pragma: no cover
-            return False
+            return False, None

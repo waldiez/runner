@@ -7,9 +7,10 @@
 import logging
 from typing import Any, Sequence
 
+from anyio import to_thread
 from fastapi_pagination import Page, Params
 from fastapi_pagination.ext.sqlalchemy import apaginate
-from sqlalchemy import asc, desc, or_
+from sqlalchemy import asc, desc, or_, update
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.sql import delete
@@ -74,17 +75,39 @@ async def verify_client(
 
     Returns
     -------
-    bool
-        Whether the client is valid.
+    ClientResponse | None
+        The client if valid, else None.
     """
     client = await get_client_in_db(session, None, client_id)
     if not client or client.deleted_at is not None:
-        LOG.warning("Client not found or deleted: %s", client_id)
+        LOG.warning("Client not found")
         return None
     # noinspection PyTypeChecker
-    if not client.verify(client_secret, client.client_secret):
-        LOG.warning("Invalid client secret for client: %s", client_id)
+    valid, new_hash = await to_thread.run_sync(
+        lambda: client.verify(client_secret, client.client_secret)
+    )
+    if not valid:
+        LOG.warning("Invalid credentials")
         return None
+    if new_hash:
+        try:
+            # Atomic compare-and-set using the prior hash value
+            await session.execute(
+                update(Client)
+                .where(
+                    Client.client_id == client_id,
+                    Client.client_secret == client.client_secret,
+                )
+                .values(
+                    client_secret=new_hash,
+                )
+            )
+            await session.commit()
+            await session.refresh(client)
+        except BaseException:  # pylint: disable=broad-exception-caught
+            await session.rollback()
+            LOG.exception("Failed to store upgraded hash")
+
     return ClientResponse.from_client(client)
 
 
