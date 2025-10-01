@@ -5,13 +5,13 @@ aiohttp==3.12.15
 aiosqlite==0.21.0
 alembic==1.16.5
 anyio==4.11.0
-asyncssh==2.21.0
-bcrypt==4.3.0
-boto3==1.40.38
+argon2-cffi==25.1.0; sys_platform != 'win32'
+asyncssh==2.21.1
+boto3==1.40.42
 click<8.2
 fakeredis==2.31.3
-fastapi-pagination==0.14.1
-fastapi[all]==0.117.1
+fastapi-pagination==0.14.2
+fastapi[all]==0.118.0
 faststream[redis,cli]==0.5.48
 hiredis==3.2.1
 httpx<1

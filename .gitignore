@@ -9,6 +9,7 @@
 .env.*
 .test_env
 !*.env.example
+!*.env.locust.example
 **/.coverage*
 **/coverage/
 **/lcov.info

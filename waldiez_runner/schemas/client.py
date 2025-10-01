@@ -4,7 +4,6 @@
 
 from datetime import datetime
 
-import bcrypt
 from pydantic import BaseModel, Field
 
 from waldiez_runner.models.client import (
@@ -12,6 +11,7 @@ from waldiez_runner.models.client import (
     generate_client_id,
     generate_client_secret,
 )
+from waldiez_runner.models.hasher_impl import password_hasher
 
 
 class ClientCreate(BaseModel):
@@ -37,7 +37,7 @@ class ClientCreate(BaseModel):
         str
             The hashed secret.
         """
-        return bcrypt.hashpw(secret.encode(), bcrypt.gensalt()).decode()
+        return password_hasher.hash(secret)
 
     def hashed_secret(self) -> str:
         """Return the hashed version of `plain_secret`.

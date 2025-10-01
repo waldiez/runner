@@ -170,5 +170,9 @@ smoke-debug: toggle drop
 header:
 	$(PYTHON) scripts/header.py
 
+.PHONY: load
+load:
+	$(PYTHON) scripts/load.py run
+
 .PHONY: some
 some: requirements clean forlint test smoke

@@ -4,11 +4,11 @@
 
 import secrets
 
-import bcrypt
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .common import Base
+from .hasher_impl import password_hasher
 
 
 def generate_client_id() -> str:
@@ -71,6 +71,6 @@ class Client(Base):
         # pylint: disable=broad-exception-caught
         # noinspection PyBroadException
         try:
-            return bcrypt.checkpw(secret.encode(), hashed_secret.encode())
+            return password_hasher.verify(plain=secret, stored=hashed_secret)
         except BaseException:  # pragma: no cover
             return False
