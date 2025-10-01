@@ -61,6 +61,7 @@ async def run_task(
     try:
         venv_dir = await prepare_app_env(storage, task, temp_dir)
     except BaseException as error:
+        LOG.error("Failed to prepare the app env: %s", error)
         async with db_manager.session() as db_session:
             await TaskService.update_task_status(
                 session=db_session,

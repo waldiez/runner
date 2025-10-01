@@ -561,6 +561,7 @@ async def trigger(session: AsyncSession, task_id: str) -> None:
         .where(Task.id == task_id)
         .values(triggered_at=datetime.now(timezone.utc))
     )
+    await session.commit()
 
 
 async def update_waiting_for_input_tasks(

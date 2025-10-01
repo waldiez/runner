@@ -84,15 +84,16 @@ async def verify_client(
         return None
     # noinspection PyTypeChecker
     valid, new_hash = await to_thread.run_sync(
-        lambda: client.verify(client_secret, client.client_secret)
+        Client.verify, client_secret, client.client_secret
     )
     if not valid:
         LOG.warning("Invalid credentials")
         return None
     if new_hash:
+        # pylint: disable=too-many-try-statements
         try:
             # Atomic compare-and-set using the prior hash value
-            await session.execute(
+            result = await session.execute(
                 update(Client)
                 .where(
                     Client.client_id == client_id,
@@ -102,8 +103,14 @@ async def verify_client(
                     client_secret=new_hash,
                 )
             )
-            await session.commit()
-            await session.refresh(client)
+            if result.rowcount > 0:
+                await session.commit()
+                await session.refresh(client)
+            else:  # pragma: no cover
+                # Another request already updated it, rollback and continue
+                await session.rollback()
+                LOG.debug("Hash already upgraded")
+
         except BaseException:  # pylint: disable=broad-exception-caught
             await session.rollback()
             LOG.exception("Failed to store upgraded hash")

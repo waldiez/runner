@@ -76,5 +76,5 @@ class Client(Base):
                 new_hash = password_hasher.hash(secret)
                 return valid, new_hash
             return valid, None
-        except BaseException:  # pragma: no cover
+        except Exception:  # pragma: no cover
             return False, None
