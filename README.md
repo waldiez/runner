@@ -2,33 +2,6 @@
 
 Run your [Waldiez](https://github.com/waldiez/waldiez) flows in isolated environments and stream AG2 logs/input/output via Redis.
 
-You'll need the `tasks-api` credentials to:
-
-- Use the Swagger UI (try out endpoints under `/api/v1/tasks`)
-- Submit tasks via curl or HTTP clients
-- Use the **example UI** at [http://localhost](http://localhost)
-
-!!!INFO
-    On the example page, you'll be asked to paste the base URL, client ID, and secret.  
-    Use the values from `clients.json` (specifically the `tasks-api` entry).
-
-🔐 See [Clients & Authentication](https://waldiez.github.io/runner/clients/) for more details.
-
-### 🔐 Admin Access
-
-For administrative operations, you'll need an `admin-api` audience client:
-
-- **View all tasks** across all users: `GET /api/v1/admin/tasks`
-- **Monitor task activity** across all clients
-- **Access administrative endpoints** for oversight and management
-
-!!!WARNING
-    Admin endpoints require special authentication with the `admin-api` audience.  
-    Regular `tasks-api` clients cannot access admin functionality.
-
-The server automatically generates an admin client alongside the standard clients.  
-Check `clients.json` for the `admin-api` entry when it exists.
-
 <!-- markdownlint-disable MD034 -->
 
 <video
@@ -107,6 +80,21 @@ You'll need the `tasks-api` credentials to:
     Use the values from `clients.json` (specifically the `tasks-api` entry).
 
 🔐 See [Clients & Authentication](https://waldiez.github.io/runner/clients/) for more details.
+
+### 🔐 Admin Access
+
+For administrative operations, you'll need an `admin-api` audience client:
+
+- **View all tasks** across all users: `GET /api/v1/admin/tasks`
+- **Monitor task activity** across all clients
+- **Access administrative endpoints** for oversight and management
+
+!!!WARNING
+    Admin endpoints require special authentication with the `admin-api` audience.  
+    Regular `tasks-api` clients cannot access admin functionality.
+
+The server automatically generates an admin client alongside the standard clients.  
+Check `clients.json` for the `admin-api` entry when it exists.
 
 ### 🧪 Local Mode (Advanced)
 
