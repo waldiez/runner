@@ -36,6 +36,7 @@ dependencies = [
     "anyio==4.11.0",
     "asyncssh==2.21.1",
     "argon2-cffi==25.1.0; sys_platform != 'win32'",
+    "bcrypt==5.0.0",
     "boto3==1.40.42",
     "fakeredis==2.31.3",
     "fastapi[all]==0.118.0",

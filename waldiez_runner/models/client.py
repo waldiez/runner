@@ -7,8 +7,8 @@ import secrets
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
+from ..hashing import password_hasher
 from .common import Base
-from .hasher_impl import password_hasher
 
 
 def generate_client_id() -> str:

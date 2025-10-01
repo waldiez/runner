@@ -6,12 +6,12 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from waldiez_runner.hashing import password_hasher
 from waldiez_runner.models.client import (
     Client,
     generate_client_id,
     generate_client_secret,
 )
-from waldiez_runner.models.hasher_impl import password_hasher
 
 
 class ClientCreate(BaseModel):
