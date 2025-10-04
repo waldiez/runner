@@ -138,17 +138,7 @@ atexit.register(_cleanup_temp_files)
 # Shell helpers
 # ---------------------------
 def run(cmd: Sequence[str], dry_run: bool, cwd: Path | None = None) -> None:
-    """Run a command.
-
-    Parameters
-    ----------
-    cmd : Sequence[str]
-        The command and the arguments.
-    dry_run : bool
-        Flag to skip running and only log what to run.
-    cwd : Path | None
-        Optional cwd to chdir to.
-    """
+    """Run a command."""
     cmd_str = _redact(cmd)
     if dry_run:
         logging.info("Would run:\t%s", cmd_str)
@@ -192,24 +182,10 @@ def pipe_run(left: Sequence[str], right: Sequence[str], dry_run: bool) -> None:
 
 
 def which(cmd: str) -> bool:
-    """Check if a command can be resolved.
-
-    Parameters
-    ----------
-    cmd : str
-        The command to check.
-
-    Returns
-    -------
-    bool
-        True if the command can be resolved, False otherwise.
-    """
+    """Check if a command can be resolved."""
     return shutil.which(cmd) is not None
 
 
-# ---------------------------
-# Time + naming
-# ---------------------------
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
