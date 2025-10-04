@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# SHA256: 87d863f80421b90922743c02eb8ea9cb5774d69edb3fe333a2da0c1e100f60e4
+# SHA256: c3f6c22d3830c940eb67eb620589983f3cfba9b72db36de98c12926f8cb401cb
 # shellcheck disable=SC2129,SC1091,SC1090,SC2086
 #
 # example direct usage from git:
@@ -426,8 +426,8 @@ cat > "$TMP_DAEMON_CONFIG" <<EOF
 {
   "log-driver": "json-file",
   "log-opts": {
-    "max-size": "3m",
-    "max-file": "1"
+    "max-size": "50m",
+    "max-file": "10"
   }
 }
 EOF

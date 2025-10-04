@@ -49,3 +49,5 @@ waldiez_runner/storage/*
 !waldiez_runner/storage/.gitkeep
 compose.yaml
 .vagrant/
+deploy/compose/backup.ini
+deploy/compose/restore.ini

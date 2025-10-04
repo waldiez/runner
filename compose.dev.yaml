@@ -8,6 +8,10 @@ volumes:
 x-podman:
   in_pod: false
 
+networks:
+  default:
+    name: waldiez-runner-net-dev
+
 # noinspection ComposeUnknownValues
 x-waldiez-volumes: &waldiez-runner-volumes-dev
   - .:/home/waldiez/app
@@ -39,10 +43,10 @@ services:
       POSTGRES_USER: db_user
       POSTGRES_PASSWORD: db_password
       POSTGRES_DB: db_name
-      PGDATA: /var/lib/postgresql/data
+      PGDATA: /var/lib/postgresql/pgdata
       PGPORT: '5432'
     volumes:
-      - runner-postgres-data-dev:/var/lib/postgresql/data
+      - runner-postgres-data-dev:/var/lib/postgresql/pgdata
     healthcheck:
       <<: *common-healthcheck
       test:
