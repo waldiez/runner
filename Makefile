@@ -176,3 +176,12 @@ load:
 
 .PHONY: some
 some: requirements clean forlint test smoke
+
+
+.PHONY: backup
+backup:
+	$(PYTHON) deploy/compose/backup.py
+
+.PHONY: restore
+restore:
+	$(PYTHON) deploy/compose/restore.py
