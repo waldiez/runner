@@ -1,12 +1,5 @@
-#!/usr/bin/env python3
-
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
-
-# pylint: disable=broad-exception-caught,inconsistent-quotes
-# pylint: disable=missing-function-docstring,missing-param-doc
-# pylint: disable=missing-return-doc,missing-yield-doc,missing-raises-doc
-# pyright: reportConstantRedefinition=false
 
 """Archive related functions."""
 
@@ -17,6 +10,43 @@ import tarfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from ._common import utc_now
+
+
+def ts_compact(dt: datetime | None = None) -> str:
+    """Compact timestamp string.
+
+    Parameters
+    ----------
+    dt : datetime | None
+        Optional datetime, if not provided, "now" will be used.
+
+    Returns
+    -------
+    str
+        The compact timestamp string.
+    """
+    dt = dt or utc_now()
+    return dt.strftime("%Y%m%dT%H%M%SZ")
+
+
+def archive_basename(name: str, dt: datetime | None = None) -> str:
+    """Get the base name for an archive with a trailing timestamp.
+
+    Parameters
+    ----------
+    name : str
+        the base name of the archive.
+    dt : datetime | None
+        Optional datetime, if not provided, "now" will be used.
+
+    Returns
+    -------
+    str
+        The compact timestamp string.
+    """
+    return f"{name}-{ts_compact(dt)}"
+
 
 def make_archive(
     src_root: Path,
@@ -24,7 +54,19 @@ def make_archive(
     tar_root: str,
     mtime_iso: str,
 ) -> None:
-    """Create a gzipped tar with normalized root folder name and mtime."""
+    """Create a gzipped tar with normalized root folder name and mtime.
+
+    Parameters
+    ----------
+    src_root : Path
+        The src root directory.
+    out_path : Path
+        The output path.
+    tar_root : str
+        The archive's root.
+    mtime_iso : str
+        The modification time iso string.
+    """
     # Tarfile doesn't let us set mtime globally; we set per member.
     dt = datetime.strptime(mtime_iso, "%Y%m%dT%H%M%SZ")
     epoch = int(dt.replace(tzinfo=timezone.utc).timestamp())
@@ -57,7 +99,22 @@ def extract_archive(
     *,
     allow_links: bool = False,
 ) -> Path:
-    """Extract a tar.* archive into `dest`."""
+    """Extract a tar.* archive into `dest`.
+
+    Parameters
+    ----------
+    archive : Path
+        The path to the archive.
+    dest : Path
+        The extract destination.
+    allow_links : bool
+        Handle sym or hard links. Defaults to False.
+
+    Returns
+    -------
+    Path
+        The extracted root path.
+    """
     dest.mkdir(parents=True, exist_ok=True)
 
     with tarfile.open(archive, mode="r:*") as tar:
@@ -89,6 +146,7 @@ def _is_within(p: Path, resolved: Path) -> bool:
 
 
 def _restore_target_meta(member: tarfile.TarInfo, target: Path) -> None:
+    # pylint: disable=broad-exception-caught
     try:
         os.chmod(target, member.mode)
     except Exception:
@@ -153,6 +211,7 @@ def _handle_tar_members(
         if member.isdir():
             target.mkdir(parents=True, exist_ok=True)
             # best-effort mtime
+            # pylint: disable=broad-exception-caught
             try:
                 os.utime(target, (member.mtime, member.mtime))
             except Exception:

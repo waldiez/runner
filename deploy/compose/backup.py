@@ -14,12 +14,14 @@ import argparse
 import logging
 import os
 import sys
+from functools import partial
 from pathlib import Path
 
-_HAD_TO_MODIFY_SYS_PATH = False
+_SYS_PATH = str(Path(__file__).parent.parent)
+
 try:
-    from compose._archive import make_archive
-    from compose._lib import (
+    from compose.lib import (
+        BackupConfig,
         S3Params,
         SSHParams,
         archive_basename,
@@ -27,6 +29,8 @@ try:
         dump_redis,
         ensure_dir,
         get_logger,
+        load_backup_config,
+        make_archive,
         notify,
         prune_local,
         s3_cp_upload,
@@ -38,17 +42,16 @@ try:
         stage_container_dir,
         stage_host_dir,
         tempdir,
+        try_do,
         utc_now,
         verify_checksum,
         write_checksum,
     )
-    from compose._models import BackupConfig, load_backup_config
 
 except ImportError:
-    _HAD_TO_MODIFY_SYS_PATH = True
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-    from compose._archive import make_archive
-    from compose._lib import (
+    sys.path.insert(0, _SYS_PATH)
+    from compose.lib import (
+        BackupConfig,
         S3Params,
         SSHParams,
         archive_basename,
@@ -56,6 +59,8 @@ except ImportError:
         dump_redis,
         ensure_dir,
         get_logger,
+        load_backup_config,
+        make_archive,
         notify,
         prune_local,
         s3_cp_upload,
@@ -67,11 +72,11 @@ except ImportError:
         stage_container_dir,
         stage_host_dir,
         tempdir,
+        try_do,
         utc_now,
         verify_checksum,
         write_checksum,
     )
-    from compose._models import BackupConfig, load_backup_config
 
 
 def parse_args() -> argparse.Namespace:
@@ -424,6 +429,37 @@ def run_backup(log: logging.Logger, cfg: BackupConfig) -> bool:
     return True
 
 
+def _do(
+    args: argparse.Namespace,
+    cfg: BackupConfig,
+    log: logging.Logger,
+) -> int:
+    log.debug("Loading configuration...")
+    # Apply CLI overrides
+    if args.dry_run:
+        cfg.core.dry_run = True
+    if args.only:
+        cfg.core.only = args.only
+
+    # Validate-only mode
+    if args.validate:
+        log.info("✓ Configuration is valid")
+        log.info("  Files: %d", len(cfg.files))
+        log.info("  PostgreSQL: %d", len(cfg.postgres))
+        log.info("  Redis: %d", len(cfg.redis))
+        log.info("  Transport: %s", cfg.transport.type)
+        return 0
+
+    # Run backup
+    success = run_backup(log, cfg)
+    message = "Backup completed successfully" if success else "Backup failed"
+
+    # Send notification
+    send_notification(cfg, success, message)
+
+    return 0 if success else 1
+
+
 def main() -> int:
     """Parse config and backup."""
     args = parse_args()
@@ -432,60 +468,30 @@ def main() -> int:
     # Override config file path if specified
     if args.config:
         os.environ["BACKUP_INI"] = args.config
-
-    cfg: BackupConfig | None = None
     log = get_logger("backup")
-
     try:
-        # Load configuration
-        log.debug("Loading configuration...")
         cfg = load_backup_config()
-
-        # Apply CLI overrides
-        if args.dry_run:
-            cfg.core.dry_run = True
-        if args.only:
-            cfg.core.only = args.only
-
-        # Validate-only mode
-        if args.validate:
-            log.info("✓ Configuration is valid")
-            log.info("  Files: %d", len(cfg.files))
-            log.info("  PostgreSQL: %d", len(cfg.postgres))
-            log.info("  Redis: %d", len(cfg.redis))
-            log.info("  Transport: %s", cfg.transport.type)
-            return 0
-
-        # Run backup
-        success = run_backup(log, cfg)
-        message = (
-            "Backup completed successfully" if success else "Backup failed"
-        )
-
-        # Send notification
-        send_notification(cfg, success, message)
-
-        return 0 if success else 1
-
-    except KeyboardInterrupt:
-        log.warning("\nBackup interrupted by user")
-        send_notification(
-            cfg if "cfg" in locals() else None,  # type: ignore
-            False,
-            "Backup interrupted by user",
-        )
-        return 130  # Standard exit code for SIGINT
-
-    except Exception as e:
-        log.error("Backup failed: %s", e, exc_info=args.verbose)
-        if cfg is not None:
-            send_notification(cfg, False, f"Backup failed: {e}")
+    except BaseException as e:
+        log.error("Invalid config: %s", e)
         return 1
+    what = partial(_do, args, cfg, log)
+
+    def on_interrupt() -> None:
+        log.warning("Backup interrupted by user")
+        send_notification(cfg, False, "Backup interrupted by user")
+
+    def on_error(error: Exception) -> None:
+        log.error("Backup failed: %s", error, exc_info=args.verbose)
+        send_notification(cfg, False, f"Backup failed: {error}")
+
+    return try_do(what, on_interrupt=on_interrupt, on_error=on_error)
 
 
 if __name__ == "__main__":
+    _EXIT_CODE = 1
     try:
-        main()
+        _EXIT_CODE = main()
     finally:
-        if _HAD_TO_MODIFY_SYS_PATH:
+        if sys.path[0] == _SYS_PATH:
             sys.path.pop(0)
+    sys.exit(_EXIT_CODE)

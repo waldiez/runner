@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
-# pylint: disable=broad-exception-caught,inconsistent-quotes
 """Backup and restore related models."""
 
 from __future__ import annotations
@@ -11,154 +10,51 @@ import logging
 import os
 import re
 import subprocess
-import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+from ._common import split_list
+from ._constants import (
+    DEFAULT_BACKUP_DIR,
+    DEFAULT_BACKUP_NAME,
+    DEFAULT_CONTAINER_CMD,
+    DEFAULT_DRY_RUN,
+    DEFAULT_GENERATE_CHECKSUM,
+    DEFAULT_NOTIFY_ON_FAILURE,
+    DEFAULT_NOTIFY_ON_SUCCESS,
+    DEFAULT_ONLY,
+    DEFAULT_PG_CONTAINER,
+    DEFAULT_PG_DATABASE,
+    DEFAULT_PG_USER,
+    DEFAULT_REDIS_CONTAINER,
+    DEFAULT_REDIS_RDB_NAME,
+    DEFAULT_RESTORE_SRC,
+    DEFAULT_RESTORE_STRATEGY,
+    DEFAULT_RETENTION,
+    DEFAULT_S3_PREFIX_FMT,
+    DEFAULT_SSH_DEST,
+    DEFAULT_SSH_OPTS,
+    DEFAULT_SSH_PORT,
+    DEFAULT_TRANSPORT_MODE,
+    DEFAULT_TRANSPORT_TYPE,
+    DEFAULT_WEBHOOK_HEADERS,
+    DEFAULT_WEBHOOK_URL,
+    ENV_PG_PASSWORD_FMT,
+    ENV_REDIS_PASSWORD_FMT,
+    PFX_FILES,
+    PFX_POSTGRES,
+    PFX_REDIS,
+    SEC_BACKUP,
+    SEC_NOTIFY,
+    SEC_RESTORE,
+    SEC_RUNTIME,
+    SEC_TRANSPORT,
+    SEC_TRANSPORT_S3,
+    SEC_TRANSPORT_SSH,
+)
+
 HERE = Path(__file__).parent.resolve()
-
-
-# ==============================
-# Constants
-# ==============================
-# Section names
-SEC_BACKUP = "backup"
-# Section for restore
-SEC_RESTORE = "restore"
-SEC_RUNTIME = "runtime"
-SEC_TRANSPORT = "transport"
-SEC_TRANSPORT_S3 = "transport.s3"
-SEC_TRANSPORT_SSH = "transport.ssh"
-SEC_NOTIFY = "notify"
-#
-PFX_FILES = "files:"
-PFX_POSTGRES = "postgres:"
-PFX_REDIS = "redis:"
-
-# Env
-ENV_FMT_INI = "{key}_INI"  # e.g. BACKUP_INI or RESTORE_INI
-ENV_PG_PASSWORD_FMT = "PG_PASSWORD_{name}"  # nosemgrep # nosec
-ENV_REDIS_PASSWORD_FMT = "REDIS_PASSWORD_{name}"  # nosemgrep # nosec
-ENV_LOG_LEVEL = "LOG_LEVEL"
-
-# Defaults
-DEFAULT_BACKUP_NAME = "waldiez_runner"
-DEFAULT_BACKUP_DIR = "backups"
-DEFAULT_RETENTION = 7
-DEFAULT_GENERATE_CHECKSUM = True
-DEFAULT_DRY_RUN = False
-DEFAULT_ONLY = "all"  # files|postgres|redis|all
-
-DEFAULT_NOTIFY_ON_SUCCESS = False
-DEFAULT_NOTIFY_ON_FAILURE = True
-DEFAULT_WEBHOOK_URL = ""
-DEFAULT_WEBHOOK_HEADERS = ""  # "Authorization: Bearer xxx, X-Env: prod"
-
-# Restore defaults
-DEFAULT_RESTORE_STRATEGY = "select"  # select|all
-DEFAULT_RESTORE_SRC = "auto"  # auto|local|s3|ssh
-
-DEFAULT_CONTAINER_CMD = "auto"  # auto|docker|podman|none
-
-DEFAULT_TRANSPORT_TYPE = "none"  # s3|ssh|both|none
-DEFAULT_TRANSPORT_MODE = "retain"  # retain|mirror (s3 only)
-DEFAULT_S3_PREFIX_FMT = "backups/{name}"
-DEFAULT_SSH_DEST = "user@host:/remote/backups"
-DEFAULT_SSH_PORT = 22
-DEFAULT_SSH_OPTS = "-az --partial --inplace"
-
-DEFAULT_PG_CONTAINER = "postgres"
-DEFAULT_PG_USER = "postgres"
-DEFAULT_PG_DATABASE = "postgres"
-
-DEFAULT_REDIS_CONTAINER = "redis"
-DEFAULT_REDIS_RDB_NAME = "redis_dump.rdb"
-
-
-class IniNotFoundError(FileNotFoundError):
-    """Config (.ini) file not found."""
-
-
-# ==============================
-# INI loading
-# ==============================
-def load_ini(key: str) -> configparser.ConfigParser:
-    """Load an INI by key (e.g. 'backup' or 'restore').
-
-    Respects {KEY}_INI env var, then searches script dir and two parents.
-    If key='restore' and not found, falls back to backup.ini search.
-
-    Parameters
-    ----------
-    key : str
-        The key to check for the file/env.
-    Returns
-    -------
-    configparser.ConfigParser
-        The config parser.
-
-    Raises
-    ------
-    IniNotFoundError
-        If the config file is not found.
-    """
-    cfg = configparser.ConfigParser(interpolation=None)
-
-    _key = key.split("_")[0].split(".")[0].upper()
-    env_var = ENV_FMT_INI.format(key=_key)
-    env_path = os.environ.get(env_var, "").strip()
-    if env_path:
-        p = Path(env_path)
-        if p.exists():
-            cfg.read(p, encoding="utf-8")
-            return cfg
-        logging.error("%s is set but file not found: %s", env_var, p)
-        sys.exit(2)
-
-    base = _key.lower()
-    candidates = [
-        HERE / f"{base}.ini",
-        HERE.parent / f"{base}.ini",
-        HERE.parent.parent / f"{base}.ini",
-    ]
-    for candidate in candidates:
-        if candidate.exists():
-            cfg.read(candidate, encoding="utf-8")
-            return cfg
-
-    if base == "restore":
-        backup_candidates = [
-            HERE / "backup.ini",
-            HERE.parent / "backup.ini",
-            HERE.parent.parent / "backup.ini",
-        ]
-        for candidate in backup_candidates:
-            if candidate.exists():
-                cfg.read(candidate, encoding="utf-8")
-                return cfg
-
-    raise IniNotFoundError(
-        f"{base}.ini not found (searched script dir + two parents)."
-    )
-
-
-def split_list(raw: str) -> list[str]:
-    """Split a raw string to a list of strings.
-
-    Parameters
-    ----------
-    raw : str
-        The raw parsed string
-
-    Returns
-    -------
-    list[str]
-        The list of strings after split.
-    """
-    if not raw:
-        return []
-    return [x.strip() for x in raw.replace(",", "\n").splitlines() if x.strip()]
 
 
 # ==============================
@@ -222,10 +118,12 @@ class RestoreCfg:
 
     # Which archive to restore (local path OR object key)
     archive: str
+
+    # Optional: Local directory where backups are stored
+    backup_dir: Path | None
+
     # Where to fetch from
-    source: Literal[
-        "auto", "local", "s3", "ssh"
-    ]  # auto picks based on presence/transport
+    source: Literal["local", "s3", "ssh"]
     # What to restore
     strategy: Literal[
         "select", "all"
@@ -238,17 +136,21 @@ class RestoreCfg:
     staging_dir: Path | None
     dry_run: bool
 
+    archive_path: str = field(init=False)
+
     def __post_init__(self) -> None:
         archive = self.archive
-        if self.source in ("local", "auto"):
+        if self.source == "local":
             archive_path = Path(archive)
             # Check for parent directory traversal
             try:
                 # Will raise ValueError if path escapes via ..
                 if archive_path.is_absolute():
                     archive_path.resolve()
+                elif self.backup_dir:
+                    archive_path = (self.backup_dir / archive_path).resolve()
                 else:
-                    (Path.cwd() / archive_path).resolve()
+                    archive_path = (Path.cwd() / archive_path).resolve()
             except (ValueError, OSError) as e:
                 raise ValueError(
                     f"[{SEC_RESTORE}] Unsafe archive path: {archive}"
@@ -261,12 +163,20 @@ class RestoreCfg:
                 raise ValueError(
                     f"[{SEC_RESTORE}] Cannot restore from system directory"
                 )
+            # if not self.dry_run and not archive_path.exists():
+            #     raise ValueError(
+            #         f"Invalid configuration. ""
+            #         "Archive: {archive_path} not found"
+            #     )
+            self.archive_path = str(archive_path)
+            return
 
         # For S3/SSH keys, basic validation
-        elif archive.startswith(("/", "~", "..")):
+        if archive.startswith(("/", "~", "..")):
             raise ValueError(
                 f"[{SEC_RESTORE}] Invalid remote archive key: {archive}"
             )
+        self.archive_path = archive
 
     @classmethod
     def load(cls, cfg: configparser.ConfigParser) -> "RestoreCfg":
@@ -298,7 +208,7 @@ class RestoreCfg:
         if not archive:
             raise ValueError(f"[{SEC_RESTORE}] 'archive' is required")
         source = s.get("source", DEFAULT_RESTORE_SRC)
-        if source not in ("auto", "local", "s3", "ssh"):
+        if source not in ("local", "s3", "ssh"):
             source = DEFAULT_RESTORE_SRC
 
         strategy = s.get("strategy", DEFAULT_RESTORE_STRATEGY)
@@ -315,6 +225,8 @@ class RestoreCfg:
 
         staging = s.get("staging_dir", "").strip()
         staging_dir = Path(staging).resolve() if staging else None
+        backup = s.get("backup_dir", "").strip()
+        backup_dir = Path(backup).resolve() if backup else None
         dry_run = _opt_bool("dry_run")
         if dry_run is None:
             dry_run = False
@@ -327,45 +239,9 @@ class RestoreCfg:
             restore_postgres=_opt_bool("restore_postgres"),
             restore_redis=_opt_bool("restore_redis"),
             staging_dir=staging_dir,
+            backup_dir=backup_dir,
             dry_run=dry_run,
         )
-
-    def resolve_source(
-        self, transport: TransportCfg
-    ) -> Literal["local", "s3", "ssh"]:
-        """Resolve 'auto' source based on archive path and transport config.
-
-        Logic:
-        - If archive looks like absolute/relative path → local
-        - If archive looks like S3 key AND transport.s3 exists → s3
-        - If transport.ssh exists → ssh
-        - Default → local
-
-        Parameters
-        ----------
-        transport : TransportCfg
-            The transport config.
-
-        Returns
-        -------
-        Literal["local", "s3", "ssh"]
-            The resolved source.
-        """
-        if self.source != "auto":
-            return self.source
-
-        # Check if archive looks like a filesystem path
-        if self.archive.startswith("/") or self.archive.startswith("."):
-            return "local"
-
-        # Check transport availability
-        if transport.s3 is not None:
-            return "s3"
-        if transport.ssh is not None:
-            return "ssh"
-
-        # Default fallback
-        return "local"
 
 
 @dataclass
@@ -396,7 +272,7 @@ class RuntimeCfg:
                 check=True,
             )  # nosec
             return True
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             return False
 
     def __post_init__(self) -> None:
@@ -527,6 +403,43 @@ class S3Cfg:
         if not self.bucket or not self.bucket.strip():
             raise ValueError("S3 bucket cannot be empty")
 
+    @classmethod
+    def load(cls, cfg: configparser.ConfigParser) -> S3Cfg:
+        """Load from ini.
+
+        Parameters
+        ----------
+        cfg : configparser.ConfigParser
+            The parsed ini.
+
+        Returns
+        -------
+        S3Cfg
+            The s3 config.
+
+        Raises
+        ------
+        ValueError
+            If the config cannot be loaded.
+        """
+        if not cfg.has_section(SEC_TRANSPORT_S3):
+            raise ValueError(f"No {SEC_TRANSPORT_S3} section found in config.")
+        s = cfg[SEC_TRANSPORT_S3]
+        backup_name = (
+            cfg[SEC_BACKUP].get("name", DEFAULT_BACKUP_NAME)
+            if cfg.has_section(SEC_BACKUP)
+            else DEFAULT_BACKUP_NAME
+        )
+        return cls(
+            bucket=s.get("bucket", ""),
+            prefix=s.get(
+                "prefix", DEFAULT_S3_PREFIX_FMT.format(name=backup_name)
+            ).lstrip("/"),
+            aws_profile=s.get("aws_profile", ""),
+            aws_region=s.get("aws_region", ""),
+            object_tags=s.get("object_tags", ""),
+        )
+
 
 @dataclass
 class SSHCfg:
@@ -549,6 +462,35 @@ class SSHCfg:
             raise ValueError("SSH dest cannot be empty")
         if not 1 <= self.port <= 65535:
             raise ValueError(f"Invalid SSH port: {self.port}")
+
+    @classmethod
+    def load(cls, cfg: configparser.ConfigParser) -> SSHCfg:
+        """Load from ini.
+
+        Parameters
+        ----------
+        cfg : configparser.ConfigParser
+            The parsed ini.
+
+        Returns
+        -------
+        SSHCfg
+            The ssh config.
+
+        Raises
+        ------
+        ValueError
+            If the config cannot be loaded.
+        """
+        if not cfg.has_section(SEC_TRANSPORT_SSH):
+            raise ValueError(f"No {SEC_TRANSPORT_SSH} section found in config.")
+        s = cfg[SEC_TRANSPORT_SSH]
+        return cls(
+            dest=s.get("dest", DEFAULT_SSH_DEST),
+            port=s.getint("port", DEFAULT_SSH_PORT),
+            rsync_opts=s.get("rsync_opts", DEFAULT_SSH_OPTS),
+            prune_cmd=s.get("prune_cmd", ""),
+        )
 
 
 @dataclass
@@ -946,43 +888,3 @@ class RestoreConfig:
                 or any(cfg.mode == "container" for cfg in self.files)
             ):
                 raise RuntimeError("Cannot find a running container engine.")
-
-
-def load_backup_config() -> BackupConfig:
-    """Load all backup config settings.
-
-    Returns
-    -------
-    ParsedBackupConfig
-        The parsed settings from config file.
-    """
-    cfg = load_ini("backup")
-    return BackupConfig(
-        core=BackupCfg.load(cfg),
-        runtime=RuntimeCfg.load(cfg),
-        transport=TransportCfg.load(cfg),
-        files=FilesCfg.load_many(cfg),
-        postgres=PgCfg.load_many(cfg),
-        redis=RedisCfg.load_many(cfg),
-        notify=NotifyCfg.load(cfg),
-    )
-
-
-def load_restore_config() -> RestoreConfig:
-    """Load all restore settings.
-
-    Returns
-    -------
-    ParsedRestoreConfig
-        The parsed settings from the config file.
-    """
-    cfg = load_ini("restore")
-    return RestoreConfig(
-        core=RestoreCfg.load(cfg),
-        runtime=RuntimeCfg.load(cfg),
-        transport=TransportCfg.load(cfg),
-        files=FilesCfg.load_many(cfg),
-        postgres=PgCfg.load_many(cfg),
-        redis=RedisCfg.load_many(cfg),
-        notify=NotifyCfg.load(cfg),
-    )
