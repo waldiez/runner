@@ -1,4 +1,4 @@
-aiocsv==1.3.2
+aiocsv>=1.3.2
 aiofiles==24.1.0
 aioftp==0.27.2
 aiohttp==3.12.15

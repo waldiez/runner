@@ -4,13 +4,13 @@ bandit==1.8.6
 black[jupyter]==25.9.0
 flake8==7.3.0
 hatchling==1.27.0
-isort==6.0.1
-locust==2.41.2
+isort==6.1.0
+locust==2.41.3
 mypy==1.18.2
 pre-commit==4.3.0
 pydocstyle==6.3.0
 pylint==3.3.8
-ruff==0.13.2
+ruff==0.13.3
 streamlit-autorefresh==1.0.1
 streamlit==1.50.0
 types-PyYAML==6.0.12.20250915
