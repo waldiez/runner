@@ -39,6 +39,7 @@ RUN apt update && \
     libxcomposite1 \
     libxdamage1 \
     libxrandr2 \
+    rsync \
     tzdata \
     locales \
     pandoc \

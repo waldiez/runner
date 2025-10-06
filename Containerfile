@@ -44,6 +44,7 @@ RUN apt update && \
     libxcomposite1 \
     libxdamage1 \
     libxrandr2 \
+    rsync \
     tini \
     tzdata \
     locales \
@@ -93,7 +94,6 @@ RUN ARCH=$(uname -m) && \
     else \
     echo "Unsupported architecture: $ARCH" && exit 1; \
     fi && \
-    # Add Mozilla's signing key the modern way
     curl -fsSL https://packages.mozilla.org/apt/repo-signing-key.gpg | \
     gpg --dearmor -o /etc/apt/trusted.gpg.d/mozilla.gpg && \
     echo "deb https://packages.mozilla.org/apt mozilla main" > /etc/apt/sources.list.d/mozilla.list && \
@@ -101,7 +101,6 @@ RUN ARCH=$(uname -m) && \
     apt-get install -y firefox && \
     FIREFOX_VERSION=$(firefox --version | grep -oP '\d+\.\d+') && \
     echo "Firefox version: $FIREFOX_VERSION" && \
-    # Get latest GeckoDriver (it's generally backward compatible)
     GECKO_VERSION=""; \
     for i in 1 2 3; do \
     GECKO_VERSION=$(curl -s https://api.github.com/repos/mozilla/geckodriver/releases/latest | jq -r '.tag_name'); \
