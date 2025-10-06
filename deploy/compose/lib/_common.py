@@ -250,7 +250,7 @@ def format_size(num_bytes: float) -> str:
 @contextmanager
 def tempdir(
     prefix: str = "wlz-", path: Path | None = None
-) -> Generator[Path, None]:
+) -> Generator[Path, None, None]:
     """Enter a temp context.
 
     Parameters
