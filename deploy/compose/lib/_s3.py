@@ -112,8 +112,8 @@ def s3_cp_upload(
     if not bucket or not prefix:
         return
     dest = f"s3://{bucket}/{prefix.strip('/')}/"
-    cmd = ["aws", "s3", "cp", str(local), dest] + _aws_base_args(params)
-    run(cmd, dry_run=dry_run)
+    cmd = ["aws", "s3", "cp", local.name, dest] + _aws_base_args(params)
+    run(cmd, dry_run=dry_run, cwd=local.parent)
     put_object_tags(
         params=params,
         key=local.name,

@@ -29,7 +29,7 @@ HERE = Path(__file__).parent.resolve()
 
 
 # optionally load from env
-DOT_ENVS = [".env", ".aws.env"]
+DOT_ENVS = [".aws.env", ".env"]
 
 try:
     from dotenv import load_dotenv

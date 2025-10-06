@@ -23,6 +23,7 @@ import argparse
 import os
 import platform
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -49,14 +50,21 @@ def which(cmd: str) -> str | None:
 
 
 def run(
-    cmd: Sequence[str], *, check: bool = True, env: dict[str, Any] | None = None
+    cmd: Sequence[str],
+    *,
+    check: bool = True,
+    env: dict[str, Any] | None = None,
 ) -> int:
     cmd_str = " ".join(map(str, cmd))
     if DRY_RUN:
         log(f"[dry-run] {cmd_str}")
         return 0
     v(f"[run] {cmd_str}")
-    return subprocess.run(cmd, check=check, env=env).returncode  # nosec
+    return subprocess.run(
+        cmd,
+        check=check,
+        env=env,
+    ).returncode  # nosemgrep nosec
 
 
 def sudo_prefix() -> list[str]:
@@ -110,21 +118,63 @@ def aws_cli_installed() -> bool:
 def install_aws_macos() -> None:
     url = "https://awscli.amazonaws.com/AWSCLIV2.pkg"
     # cspell: disable-next-line
-    with tempfile.TemporaryDirectory() as tmpd:
+    with tempfile.TemporaryDirectory(delete=False) as tmp_dir:
         # cspell: disable-next-line
-        pkg = Path(tmpd) / "AWSCLIV2.pkg"
+        pkg = Path(tmp_dir) / "AWSCLIV2.pkg"
         curl = which("curl")
         if curl:
             run([curl, "-L", url, "-o", str(pkg)])
         else:
             # fallback to python download
             urllib.request.urlretrieve(url, pkg)  # nosec
-        # cspell: disable-next-line
-        # sudo installer -pkg ./AWSCLIV2.pkg -target /
-        run([*sudo_prefix(), "installer", "-pkg", str(pkg), "-target", "/"])
+    # cspell: disable-next-line
+    # sudo installer -pkg ./AWSCLIV2.pkg -target /
+    run([*sudo_prefix(), "installer", "-pkg", str(pkg), "-target", "/"])
+    shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
-def install_aws_linux() -> None:
+# pylint: disable=too-complex
+def _unzip(zip_path: Path, dest_dir: Path) -> None:
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        for info in zf.infolist():
+            # Ensure parent dir exists
+            target_path = dest_dir / info.filename
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Detect if entry is a symlink (Unix file type in upper 16 bits)
+            mode = (info.external_attr >> 16) & 0o777777
+            file_type = stat.S_IFMT(mode)
+
+            if file_type == stat.S_IFLNK:
+                # Link target is stored as the file content in many zips
+                with zf.open(info, "r") as rf:
+                    link_target = rf.read().decode("utf-8")
+                # If zipfile created a regular file,
+                # remove it before making the symlink
+                if target_path.exists() or target_path.is_symlink():
+                    try:
+                        target_path.unlink()
+                    except FileNotFoundError:
+                        pass
+                try:
+                    os.symlink(link_target, target_path)
+                except (NotImplementedError, OSError):
+                    # Fallback: create a small text file with the link target
+                    # not ideal, but avoids
+                    #   hard failure on filesystems without symlink support
+                    target_path.write_text(link_target)
+            else:
+                # Regular file or directory
+                extracted = Path(zf.extract(info, dest_dir))
+                # Apply stored UNIX mode if present
+                if mode:
+                    try:
+                        os.chmod(extracted, mode & 0o7777)
+                    except PermissionError:
+                        pass
+
+
+def _get_aws_url_linux() -> str:
     arch = cpu_arch()
     if arch == "x86_64":
         url = "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
@@ -134,37 +184,62 @@ def install_aws_linux() -> None:
         raise RuntimeError(
             f"Unsupported CPU architecture for AWS CLI v2: {arch}"
         )
+    return url
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
+
+def install_aws_linux() -> None:
+    url = _get_aws_url_linux()
+    tmp_dir = tempfile.mkdtemp(prefix="awscli_")
+    try:
         # cspell: disable-next-line
         zip_path = Path(tmp_dir) / "awscliv2.zip"
+
         curl = which("curl")
         if curl:
             run([curl, "-L", url, "-o", str(zip_path)])
         else:
-            # fallback to python download
+            # Fallback to Python download
             urllib.request.urlretrieve(url, zip_path)  # nosemgrep # nosec
 
-        with zipfile.ZipFile(zip_path, "r") as zf:
-            zf.extractall(zip_path)
+        dest_dir = zip_path.parent
 
-        installer = Path(zip_path) / "aws" / "install"
+        unzip = which("unzip")
+        if unzip:
+            # System unzip preserves permissions and symlinks
+            run([unzip, "-o", str(zip_path), "-d", str(dest_dir)])
+        else:
+            # Python fallback: extract and restore perms (+ symlinks)
+            _unzip(zip_path, dest_dir=dest_dir)
+
+        installer = dest_dir / "aws" / "install"
         if not installer.exists():
             raise RuntimeError("AWS CLI installer not found after extraction")
 
-        # try to ensure executable bit
+        # Ensure installer script is executable
         try:
             run(["chmod", "+x", str(installer)], check=False)
         except Exception:
             pass
+        aws_exec = dest_dir / "aws" / "dist" / "aws"
+        if aws_exec.exists():
+            try:
+                run(
+                    ["chmod", "-R", "u+rwX,go+rX", str(aws_exec)],
+                    check=False,
+                )
+            except Exception:
+                pass
 
         run([*sudo_prefix(), str(installer)])
+
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 def install_aws_windows() -> None:
     # Requires admin rights; silent install
     msi_url = "https://awscli.amazonaws.com/AWSCLIV2.msi"
-    with tempfile.TemporaryDirectory() as tmp_dir:
+    with tempfile.TemporaryDirectory(delete=False) as tmp_dir:
         # cspell: disable-next-line
         msi = Path(tmp_dir) / "AWSCLIV2.msi"
         # Use PowerShell to download if curl not available
@@ -183,9 +258,10 @@ def install_aws_windows() -> None:
                 ]
             )
 
-        # Install silently
-        # cspell: disable-next-line
-        run(["msiexec.exe", "/i", str(msi), "/qn"], check=False)
+    # Install silently
+    # cspell: disable-next-line
+    run(["msiexec.exe", "/i", str(msi), "/qn"], check=False)
+    shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 def ensure_aws_cli() -> None:
