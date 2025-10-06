@@ -10,7 +10,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from aiofiles.os import path, unlink, wrap
+from aiofiles.os import wrap
 from taskiq import TaskiqDepends
 
 from waldiez_runner.config import SettingsManager
@@ -57,7 +57,7 @@ async def run_task(
     RuntimeError
         If the task could not be executed.
     """
-    temp_dir = Path(tempfile.mkdtemp())
+    temp_dir = Path(tempfile.mkdtemp(prefix="wlz-brk"))
     try:
         venv_dir = await prepare_app_env(storage, task, temp_dir)
     except BaseException as error:
@@ -69,6 +69,7 @@ async def run_task(
                 status=TaskStatus.FAILED,
                 results=[{"error": str(error)}],
             )
+        await remove_tmp_dir(temp_dir=temp_dir)
         return
     app_dir = temp_dir / task.client_id / task.id / "app"
     file_path = temp_dir / task.client_id / task.id / "app" / task.filename
@@ -108,19 +109,17 @@ async def run_task(
                 raise RuntimeError(
                     "Failed to update task status in the database"
                 ) from e
-
-        if settings.keep_task_for_days > 0:
-            await copy_results_to_storage(
-                temp_dir,
-                task=task,
-                storage=storage,
-            )
-        await remove_tmp_dir(temp_dir=temp_dir)
-        await remove_dot_env(app_dir)
+    if settings.keep_task_for_days > 0:
+        await copy_results_to_storage(
+            app_dir=app_dir,
+            task=task,
+            storage=storage,
+        )
+    await remove_tmp_dir(temp_dir=temp_dir)
 
 
 async def copy_results_to_storage(
-    temp_dir: Path,
+    app_dir: Path,
     task: TaskResponse,
     storage: Storage,
 ) -> None:
@@ -128,8 +127,8 @@ async def copy_results_to_storage(
 
     Parameters
     ----------
-    temp_dir : Path
-        Temporary directory.
+    app_dir : Path
+        Temporary directory with the app.
     task: TaskResponse
         TaskResponse object.
     storage : Storage
@@ -140,7 +139,7 @@ async def copy_results_to_storage(
     RuntimeError
         If the results could not be copied to the storage.
     """
-    results_dir = temp_dir / task.client_id / task.id / "app" / "waldiez_out"
+    results_dir = app_dir / "waldiez_out"
     if not results_dir.exists():
         LOG.warning("No results directory found for task %s", task.id)
         return
@@ -165,29 +164,15 @@ async def remove_tmp_dir(temp_dir: Path) -> None:
         The temp dir to remove.
     """
     if not temp_dir.is_dir():
+        LOG.warning("Not a directory: %s", temp_dir)
         return
     rmtree = wrap(shutil.rmtree)
     try:
         await rmtree(str(temp_dir), ignore_errors=True)
+        LOG.debug("Removed temporary directory: %s", temp_dir)
     except FileNotFoundError:
         LOG.warning("Temporary directory %s not found", temp_dir)
     except PermissionError:
         LOG.warning(
             "Permission denied to remove temporary directory %s", temp_dir
         )
-
-
-async def remove_dot_env(parent_dir: Path) -> None:
-    """Remove .env if it exists.
-
-    Parameters
-    ----------
-    parent_dir : Path
-        The parent dir to check for the .env file.
-    """
-    dot_env = parent_dir / ".env"
-    if await path.exists(dot_env):
-        try:
-            await unlink(dot_env)
-        except BaseException as err:  # pragma: no cover
-            LOG.warning("Failed to remove .env : %s", err)
