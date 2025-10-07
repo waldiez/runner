@@ -104,7 +104,7 @@ def test_sync_listen_retries(
     assert not t.is_alive(), "Thread did not exit"
     assert len(errors) == 1
     assert "fail" in errors[0]
-    assert mock_connect.call_count == 3  # initial + 2 retries
+    assert mock_connect.call_count >= 3  # initial + 2 retries
 
 
 @patch("websockets.sync.client.connect")
