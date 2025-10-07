@@ -117,16 +117,15 @@ def aws_cli_installed() -> bool:
 
 def install_aws_macos() -> None:
     url = "https://awscli.amazonaws.com/AWSCLIV2.pkg"
+    tmp_dir = tempfile.mkdtemp(prefix="awscli_")
     # cspell: disable-next-line
-    with tempfile.TemporaryDirectory(delete=False) as tmp_dir:
-        # cspell: disable-next-line
-        pkg = Path(tmp_dir) / "AWSCLIV2.pkg"
-        curl = which("curl")
-        if curl:
-            run([curl, "-L", url, "-o", str(pkg)])
-        else:
-            # fallback to python download
-            urllib.request.urlretrieve(url, pkg)  # nosec
+    pkg = Path(tmp_dir) / "AWSCLIV2.pkg"
+    curl = which("curl")
+    if curl:
+        run([curl, "-L", url, "-o", str(pkg)])
+    else:
+        # fallback to python download
+        urllib.request.urlretrieve(url, pkg)  # nosec
     # cspell: disable-next-line
     # sudo installer -pkg ./AWSCLIV2.pkg -target /
     run([*sudo_prefix(), "installer", "-pkg", str(pkg), "-target", "/"])
@@ -239,24 +238,24 @@ def install_aws_linux() -> None:
 def install_aws_windows() -> None:
     # Requires admin rights; silent install
     msi_url = "https://awscli.amazonaws.com/AWSCLIV2.msi"
-    with tempfile.TemporaryDirectory(delete=False) as tmp_dir:
-        # cspell: disable-next-line
-        msi = Path(tmp_dir) / "AWSCLIV2.msi"
-        # Use PowerShell to download if curl not available
-        curl = which("curl")
-        if curl:
-            run([curl, "-L", msi_url, "-o", str(msi)])
-        else:
-            # powershell Invoke-WebRequest
-            ps = which("powershell") or "powershell"
-            run(
-                [
-                    ps,
-                    "-NoProfile",
-                    "-Command",
-                    f'Invoke-WebRequest -Uri "{msi_url}" -OutFile "{msi}"',
-                ]
-            )
+    tmp_dir = tempfile.mkdtemp(prefix="awscli_")
+    # cspell: disable-next-line
+    msi = Path(tmp_dir) / "AWSCLIV2.msi"
+    # Use PowerShell to download if curl not available
+    curl = which("curl")
+    if curl:
+        run([curl, "-L", msi_url, "-o", str(msi)])
+    else:
+        # powershell Invoke-WebRequest
+        ps = which("powershell") or "powershell"
+        run(
+            [
+                ps,
+                "-NoProfile",
+                "-Command",
+                f'Invoke-WebRequest -Uri "{msi_url}" -OutFile "{msi}"',
+            ]
+        )
 
     # Install silently
     # cspell: disable-next-line
@@ -308,7 +307,7 @@ def detect_linux_os() -> tuple[str, str]:
     lsb_release = Path("/etc/lsb-release")
 
     def parse_lines(lines: list[str]) -> dict[str, str]:
-        result = {}
+        result: dict[str, str] = {}
         for line in lines:
             line = line.strip()
             if not line or "=" not in line:
