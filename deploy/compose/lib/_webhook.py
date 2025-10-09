@@ -59,7 +59,7 @@ def notify(
         "timestamp": utc_now().strftime("%Y-%m-%dT%H:%M:%SZ"),
         "message": message,
         "hostname": (
-            os.uname().nodename
+            os.uname().nodename  # pyright: ignore
             if hasattr(os, "uname")
             else socket.gethostname()
         ),

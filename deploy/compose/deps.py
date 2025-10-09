@@ -73,7 +73,8 @@ def sudo_prefix() -> list[str]:
     if sys.platform.startswith("win"):
         return []
     # If already root, no sudo
-    if hasattr(os, "geteuid") and os.geteuid() == 0:
+    # pylint: disable=no-member
+    if hasattr(os, "geteuid") and os.geteuid() == 0:  # pyright: ignore
         return []
     # Use sudo when available
     return ["sudo"] if which("sudo") else []
