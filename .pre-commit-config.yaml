@@ -61,6 +61,15 @@ repos:
           - "--config"
           - "pyproject.toml"
 
+      - id: pyright
+        name: pyright
+        entry: pyright
+        language: system
+        types: [python]
+        args:
+          - "-p"
+          - "pyproject.toml"
+
       - id: header
         name: header
         language: system

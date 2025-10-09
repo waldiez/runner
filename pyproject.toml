@@ -31,16 +31,16 @@ dependencies = [
     "aiosqlite==0.21.0",
     "aiofiles==24.1.0",
     "aioftp==0.27.2",
-    "aiohttp==3.12.15",
+    "aiohttp==3.13.0",
     "alembic==1.16.5",
     "anyio==4.11.0",
     "asyncssh==2.21.1",
     "argon2-cffi==25.1.0; sys_platform != 'win32'",
     "bcrypt==5.0.0",
-    "boto3==1.40.42",
-    "fakeredis==2.31.3",
-    "fastapi[all]==0.118.0",
-    "fastapi-pagination==0.14.2",
+    "boto3==1.40.48",
+    "fakeredis==2.32.0",
+    "fastapi[all]==0.118.2",
+    "fastapi-pagination==0.14.3",
     "faststream[redis,cli]==0.5.48",
     "hiredis==3.2.1",
     "httpx<1",
@@ -62,11 +62,11 @@ dependencies = [
     "python-multipart==0.0.20",
     "redis==6.4.0",
     "slowapi==0.1.9",
-    "pydantic>=2.11.3,<3.0.0",
+    "pydantic>=2.11.3,<2.12",  # update when we bump waldiez_core
     "python-ulid==3.1.0",
     "taskiq==0.11.18",
     "taskiq-dependencies==1.5.7",
-    "taskiq-redis==1.1.0",
+    "taskiq-redis==1.1.2",
     "tenacity<10.0.0",
     "trio==0.31.0",
     "typer<1",
@@ -101,12 +101,13 @@ dev = [
     "flake8==7.3.0",
     "hatchling==1.27.0",
     "isort==6.1.0",
-    "locust==2.41.3",
+    "locust==2.41.5",
     "mypy==1.18.2",
     "pre-commit==4.3.0",
     "pydocstyle==6.3.0",
-    "pylint==3.3.8",
-    "ruff==0.13.3",
+    "pylint==3.3.9",
+    "pyright==1.1.406",
+    "ruff==0.14.0",
     "streamlit==1.50.0",
     "streamlit-autorefresh==1.0.1",
     "types-aiofiles==24.1.0.20250822",
@@ -122,7 +123,7 @@ test = [
     "greenlet==3.2.4",
     "httpx<1",
     "httpx_ws==0.8.0",
-    "locust==2.41.3",
+    "locust==2.41.5",
     "moto[s3]==5.1.14",
     "pytest==8.4.2",
     "pytest-asyncio==1.2.0",
@@ -223,6 +224,11 @@ exclude = [
 init_forbid_extra = true
 init_typed = true
 warn_required_dynamic_aliases = false
+
+[tool.pyright]
+include = ["waldiez_runner", "tests", "scripts"]
+
+reportCallIssue = false
 
 # isort
 [tool.isort]
