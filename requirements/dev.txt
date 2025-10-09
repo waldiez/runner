@@ -6,6 +6,7 @@ flake8==7.3.0
 hatchling==1.27.0
 isort==6.1.0
 locust==2.41.5
+lupa==2.5
 mypy==1.18.2
 pre-commit==4.3.0
 pydocstyle==6.3.0
