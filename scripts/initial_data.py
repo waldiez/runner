@@ -171,6 +171,7 @@ def check_first_client() -> None:
                 )
             ]
         )
+    sync_engine.dispose()
 
 
 def update_clients_json(new_clients: list[ClientCreateResponse]) -> None:
@@ -215,6 +216,7 @@ def ensure_clients_api_client() -> None:
             )
             return
     check_first_client()
+    sync_engine.dispose()
 
 
 def ensure_other_clients() -> None:
@@ -254,6 +256,7 @@ def ensure_other_clients() -> None:
                     client, client_create.plain_secret
                 )
             )
+    sync_engine.dispose()
 
     if new_clients:
         LOG.info(

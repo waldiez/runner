@@ -61,12 +61,15 @@ def main() -> None:
             session.execute(text(statement))
         session.commit()
         print("Tables and types dropped.")
+    sync_engine.dispose()
     with open(INITIAL_CLIENTS_JSON, "w", encoding="utf-8") as f:
         f.write("[]")
     print("The clients.json file has been reset.")
-
     if SQLITE_DB_PATH.exists():
-        os.remove(SQLITE_DB_PATH)
+        try:
+            os.remove(SQLITE_DB_PATH)
+        except PermissionError:
+            print("WARNING: db file not removed")
     print("The database is now empty.")
     # let's also flush redis
     redis_url = settings.get_redis_url()

@@ -38,7 +38,14 @@ def _try_stop_on_windows(service_name: str) -> None:
     # pylint: disable=broad-exception-caught
     # noinspection PyBroadException
     try:
-        subprocess.run(powershell_cmd, shell=True, check=False, cwd=cwd)
+        subprocess.run(
+            powershell_cmd,
+            shell=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+            cwd=cwd,
+        )
     except BaseException:
         pass
 
