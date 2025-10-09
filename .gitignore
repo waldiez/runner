@@ -36,6 +36,10 @@ dmypy.json
 **/*.sqlite3-journal
 **/*.sqlite3-shm
 **/*.sqlite3-wal
+**/*.sqlite3
+**/*.db-journal
+**/*.db-shm
+**/*.db-wal
 **/*.
 **/waldiez_out/
 **/node_modules/
