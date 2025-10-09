@@ -309,7 +309,7 @@ def get_uvicorn_command(
         "websockets",
         "--proxy-headers",
         "--forwarded-allow-ips",
-        "*",
+        "'*'",
     ]
     if reload:
         uvicorn_cmd += [
@@ -425,6 +425,7 @@ def start_all(
         module_name=module_name,
         cwd=cwd,
     )
+    print("Uvicorn command:", uvicorn_cmd)
     worker_cmd = get_worker_command(
         module_name=module_name,
         reload=reload,
