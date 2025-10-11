@@ -70,6 +70,14 @@ def main() -> None:
             os.remove(SQLITE_DB_PATH)
         except PermissionError:
             print("WARNING: db file not removed")
+    for suffix in ["wal", "shm", "journal"]:
+        extra = SQLITE_DB_PATH.with_suffix(f".sqlite3-{suffix}")
+        if extra.exists():
+            try:
+                os.remove(extra)
+            except PermissionError:
+                pass
+
     print("The database is now empty.")
     # let's also flush redis
     redis_url = settings.get_redis_url()
