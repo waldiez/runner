@@ -1,16 +1,17 @@
 -r main.txt
 autoflake==2.3.1
 bandit==1.8.6
+basedpyright==1.31.7
 black[jupyter]==25.9.0
 flake8==7.3.0
 hatchling==1.27.0
+isort==7.0.0
 locust==2.41.6
 lupa==2.5
 mypy==1.18.2
 prek==0.2.5
 pydocstyle==6.3.0
-pylint==3.3.9
-pyright==1.1.406
+pylint==4.0.0
 ruff==0.14.0
 streamlit-autorefresh==1.0.1
 streamlit==1.50.0
