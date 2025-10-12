@@ -297,6 +297,7 @@
         "pixbuf",
         "poolclass",
         "popen",
+        "prek",
         "privkey",
         "psutil",
         "psycopg",
