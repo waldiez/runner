@@ -104,7 +104,7 @@ async def verify_client(
                     client_secret=new_hash,
                 )
             )
-            if result.rowcount > 0:
+            if result.rowcount > 0:  # type: ignore[unused-ignore,attr-defined]
                 await session.commit()
                 await session.refresh(client)
             else:  # pragma: no cover

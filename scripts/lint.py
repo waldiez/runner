@@ -116,6 +116,7 @@ def ensure_requirements() -> None:
             "-m",
             "pip",
             "install",
+            "-qq",
             "-r",
             str(dev_requirements),
             "-r",
