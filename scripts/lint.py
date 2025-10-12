@@ -192,6 +192,7 @@ def run_pyright() -> None:
             "waldiez_runner",
             "tests",
             "scripts",
+            "deploy",
         ]
     )
 
@@ -277,7 +278,7 @@ def run_all() -> None:
     run_isort()
     run_black()
     run_mypy()
-    # run_pyright()
+    run_pyright()
     run_flake8()
     run_pydocstyle()
     run_bandit()

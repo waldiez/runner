@@ -284,7 +284,7 @@ def _ssh_capture(host: str, port: int, script: str, dry_run: bool) -> list[str]:
         display_cmd = ["ssh", "-p", str(port), host, short_script]
         run(display_cmd, dry_run=True)
         return []
-    proc = subprocess.run(  # nosemgrep # nosec - explicit ssh invocation
+    proc = subprocess.run(  # nosemgrep # nosec
         cmd,
         check=True,
         stdout=subprocess.PIPE,
