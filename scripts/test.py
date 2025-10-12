@@ -2,6 +2,7 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
 # pylint: disable=consider-using-with
+# pyright: reportImplicitRelativeImport=false
 
 """Run tests for the waldiez_runner package."""
 

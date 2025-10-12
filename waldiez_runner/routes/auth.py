@@ -1,10 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
+
+# pyright: reportCallInDefaultInitializer=false
+
 """Authentication routes."""
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, List
+from typing import Any
 
 import jwt
 from fastapi import APIRouter, Depends, Form, HTTPException
@@ -29,7 +32,7 @@ class RefreshTokenRequest(BaseModel):
     """Refresh token request."""
 
     refresh_token: str
-    audience: str | List[str] | None = None
+    audience: str | list[str] | None = None
 
 
 class TokensResponse(BaseModel):

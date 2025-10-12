@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
+# pyright: reportArgumentType=false,reportCallInDefaultInitializer=false
+
 """Command line interface module."""
 
 # flake8: noqa: E501
@@ -10,7 +12,6 @@ import logging.config
 import secrets
 import sys
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 import typer
 
@@ -81,15 +82,15 @@ def run(
         default=DEFAULT_SETTINGS.domain_name,
         help="The domain name",
     ),
-    trusted_hosts: List[str] = typer.Option(
+    trusted_hosts: list[str] = typer.Option(
         default=DEFAULT_SETTINGS.trusted_hosts,
         help="Trusted hosts (comma separated)",
     ),
-    trusted_origins: List[str] = typer.Option(
+    trusted_origins: list[str] = typer.Option(
         default=DEFAULT_SETTINGS.trusted_origins,
         help="Trusted origins (comma separated)",
     ),
-    trusted_origin_regex: Optional[str] = typer.Option(
+    trusted_origin_regex: str | None = typer.Option(
         default=DEFAULT_SETTINGS.trusted_origin_regex,
         help="Trusted origin regex",
     ),
@@ -167,7 +168,7 @@ def run(
         help="Redis connection scheme",
         case_sensitive=False,
     ),
-    redis_password: Optional[str] = typer.Option(
+    redis_password: str | None = typer.Option(
         default=(
             DEFAULT_SETTINGS.redis_password.get_secret_value()
             if DEFAULT_SETTINGS.redis_password
@@ -176,7 +177,7 @@ def run(
         help="Redis password",
         show_default=False,
     ),
-    redis_url: Optional[str] = typer.Option(
+    redis_url: str | None = typer.Option(
         default=DEFAULT_SETTINGS.redis_url,
         help="Manually specify the Redis URL, overriding the other Redis options",
         show_default=False,
@@ -328,7 +329,7 @@ def check_secrets(
     local_client_id: str,
     local_client_secret: str,
     dev: bool,
-) -> Tuple[str, str, str]:
+) -> tuple[str, str, str]:
     """Check the secret key and the local client id/secret pair."""
     data = {
         "secret_key": secret_key,

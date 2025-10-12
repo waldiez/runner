@@ -1,16 +1,21 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
+# pyright: reportArgumentType=false
+
 """Authentication related functions for dependencies."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal
 
 import jwt
 import jwt.algorithms
 from fastapi import HTTPException
 
-from ..services.external_token_service import ExternalTokenService
+from ..services.external_token_service import (
+    ExternalTokenResponse,
+    ExternalTokenService,
+)
 from .jwks import JWKSCache
 
 TASK_API_AUDIENCE = "tasks-api"
@@ -224,8 +229,8 @@ async def verify_external_auth_token(
     token: str,
     settings: "Settings",
 ) -> tuple[
-    Optional[ExternalTokenService.ExternalTokenResponse],
-    Optional[BaseException],
+    ExternalTokenResponse | None,
+    BaseException | None,
 ]:
     """Verify an external token.
 

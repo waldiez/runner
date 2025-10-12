@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
+
+# pyright: reportCallInDefaultInitializer=false
 """Websocket authentication.
 
 Way to get the client ID from the WebSocket connection:
@@ -70,7 +72,7 @@ async def get_ws_client_id(
 
     # Try each token source in order of priority
     for source in token_sources:
-        token = source["method"](websocket)  # pyright: ignore
+        token = source["method"](websocket)
         if not token:
             continue
 

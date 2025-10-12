@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
+
+# pyright: reportUnreachable=false
+
 """Storage backend factory."""
 
 from pathlib import Path

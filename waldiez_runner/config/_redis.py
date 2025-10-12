@@ -27,7 +27,7 @@ Command line arguments (no prefix)
 import os
 import sys
 from enum import Enum
-from typing import Literal
+from typing import Literal, cast
 
 from ._common import ENV_PREFIX, get_value, in_container, is_testing
 
@@ -99,7 +99,7 @@ def get_redis_scheme() -> RedisSchemeType:
     if value not in allowed_schemes:
         value = "redis"
         os.environ[f"{ENV_PREFIX}REDIS_SCHEME"] = value
-    return value  # type: ignore
+    return cast(RedisSchemeType, value)
 
 
 def get_redis_password() -> str | None:

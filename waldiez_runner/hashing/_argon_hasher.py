@@ -3,7 +3,7 @@
 
 # pylint: disable=line-too-long,too-complex
 # flake8: noqa: E501,C901
-# pyright: reportConstantRedefinition=false,reportRedeclaration=false
+# pyright: reportConstantRedefinition=false,reportRedeclaration=false,reportAssignmentType=false
 """Argon2id password hasher implementation (preferred algorithm)."""
 
 from dataclasses import dataclass, field

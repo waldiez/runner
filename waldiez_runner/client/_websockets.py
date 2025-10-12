@@ -3,13 +3,16 @@
 #
 # flake8: noqa: E501
 # pylint: disable=line-too-long,broad-exception-caught,too-many-try-statements
+# pyright: reportAttributeAccessIssue=false,reportUnknownMemberType=false,reportUnknownArgumentType=false
+
 """Waldiez serve WebSocket clients."""
 
 import asyncio
 import logging
 import threading
 import time
-from typing import Any, Callable, Coroutine
+from collections.abc import Coroutine
+from typing import Any, Callable
 
 import websockets.asyncio.client
 import websockets.sync.client
@@ -207,7 +210,7 @@ class SyncWebSocketClient:
 
         if hasattr(e, "code"):  # pragma: no cover
             try:
-                code = int(e.code)  # pyright: ignore
+                code = int(e.code)
             except ValueError:
                 pass
 

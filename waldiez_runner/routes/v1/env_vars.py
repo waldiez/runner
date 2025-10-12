@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
+# pyright: reportUnnecessaryIsInstance=false,reportUnreachable=false
 
 """Environment variable validation and parsing."""
 
 import json
 import re
-from typing import Optional
 
 from fastapi import HTTPException
 
@@ -68,7 +68,7 @@ PROTECTED_ENV_VARS = {
 
 # pylint: disable=too-complex
 def get_env_vars(  # noqa: C901
-    env_vars: Optional[str],
+    env_vars: str | None,
 ) -> dict[str, str]:
     """Get environment variables from a JSON string.
 
@@ -103,7 +103,7 @@ def get_env_vars(  # noqa: C901
         raise HTTPException(
             status_code=400, detail="Invalid JSON format for env_vars"
         ) from e
-    if not isinstance(environment_vars, dict):  # pyright: ignore
+    if not isinstance(environment_vars, dict):
         raise HTTPException(
             status_code=400, detail="env_vars must be a JSON object"
         )

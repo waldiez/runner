@@ -2,6 +2,7 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
 # pyright: reportUnusedFunction=false,reportUnnecessaryIsInstance=false
+# pyright: reportImplicitRelativeImport=false,reportUnusedParameter=false
 """The main Faststream app entrypoint."""
 
 import asyncio
@@ -59,7 +60,7 @@ async def run(params: TaskParams) -> None:
         The parameters for the task.
     """
     broker = RedisBroker(url=params.redis_url)
-    app = FastStream(broker=broker)
+    app = FastStream(broker)
     status_channel = f"task:{params.task_id}:status"
 
     @broker.subscriber(channel=status_channel)

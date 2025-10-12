@@ -160,11 +160,11 @@ def setup_environment() -> None:
     flow_path = input("  Path to .waldiez flow file: ").strip()
     if flow_path:
         config["WALDIEZ_RUNNER_WALDIEZ_FLOW"] = flow_path
-
-        env_keys = input(
+        prompt = (
             "  Environment variable keys "
             "(comma-separated, e.g., OPENAI_API_KEY,ANTHROPIC_API_KEY): "
-        ).strip()
+        )
+        env_keys = input(prompt).strip()
         if env_keys:
             config["WALDIEZ_RUNNER_ENV_KEYS"] = env_keys
             print("\n  Enter values for the environment variables:")
@@ -198,10 +198,11 @@ def run_locust_web(
         Enable debug logging
     """
     if not check_locust_installed():
-        print(
+        msg = (
             "✗ Locust is not installed. "
             "Run 'python scripts/load.py install' first."
         )
+        print(msg)
         sys.exit(1)
 
     dot_env = ROOT_DIR / ".env.locust"
@@ -260,11 +261,12 @@ def run_locust_headless(
         Enable debug logging
     """
     if not check_locust_installed():
-        print(
+        msg = (
             "✗ Locust is not installed. Run "
             "'python scripts/load.py install' "
             "or 'pip install locust' first."
         )
+        print(msg)
         sys.exit(1)
 
     # Get configuration from environment or arguments

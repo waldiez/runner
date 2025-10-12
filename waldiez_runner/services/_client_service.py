@@ -5,7 +5,8 @@
 """Clients management service."""
 
 import logging
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from anyio import to_thread
 from fastapi_pagination import Page, Params

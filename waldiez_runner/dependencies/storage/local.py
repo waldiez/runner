@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
-# pyright: reportUnknownMemberType=false
+# pyright: reportUnknownMemberType=false,reportUnusedParameter=false
+
 """Local filesystem-based storage backend."""
 
 # We might later want to add more backends like S3 (with boto?).

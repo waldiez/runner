@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 # pyright: reportMissingTypeArgument=false,reportUnknownMemberType=false
+# pyright: reportAttributeAccessIssue=false
 # pylint: disable=too-many-try-statements
 # pylint: disable=broad-exception-caught, protected-access
 """Redis connection manager."""
@@ -9,9 +10,10 @@ import asyncio
 import atexit
 import logging
 import os
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from threading import Event, Lock, Thread
-from typing import TYPE_CHECKING, Any, AsyncIterator
+from typing import TYPE_CHECKING, Any
 
 import redis
 import redis.asyncio as a_redis
@@ -48,7 +50,7 @@ class RedisManager:
     _server_thread: Thread | None = None
 
     settings: "Settings"
-    redis_url: str
+    _redis_url: str | None = None
 
     def __init__(self, settings: "Settings", skip_setup: bool = False) -> None:
         """Initialize the Redis manager.
@@ -64,6 +66,21 @@ class RedisManager:
         if not skip_setup:
             self.setup()
         atexit.register(self._atexit_close)
+
+    @property
+    def redis_url(self) -> str:
+        """Get the redis url.
+
+        Raises
+        ------
+        RuntimeError
+            If the redis url cannot be setup.
+        """
+        if not self._redis_url:
+            self.setup()
+        if not self._redis_url:
+            raise RuntimeError("Failed to setup redis url.")
+        return self._redis_url
 
     def _atexit_close(self) -> None:
         """Fallback sync cleanup in case async close wasn't awaited."""
@@ -98,11 +115,11 @@ class RedisManager:
                 )
             redis_url = self.start_fake_redis_server()
 
-        self.redis_url = redis_url
+        self._redis_url = redis_url
         self._pool = a_redis.ConnectionPool.from_url(
-            self.redis_url, decode_responses=True
+            self._redis_url, decode_responses=True
         )
-        LOG.info("Redis pool initialized at %s", self.redis_url)
+        LOG.info("Redis pool initialized at %s", self._redis_url)
 
     async def close(self) -> None:
         """Close the Redis connection and stop Fake Redis if running."""
@@ -182,7 +199,9 @@ class RedisManager:
         with thread_lock:
             if self._server_thread and self._server_thread.is_alive():
                 LOG.debug("Fake Redis already running.")
-                return self.redis_url
+                if not self._redis_url:  # pragma: no cover
+                    raise RuntimeError("Redis url not set. Run setup() first.")
+                return self._redis_url
         port = self.settings.redis_port
         if not is_port_available(port) or new_port is True:
             port = get_available_port()
@@ -218,7 +237,7 @@ class RedisManager:
             self._stop_event.clear()
             self._server_thread.start()
             LOG.info("Fake Redis server started at %s", new_url)
-            self.redis_url = new_url
+            self._redis_url = new_url
             self._pool = a_redis.ConnectionPool.from_url(
                 new_url, decode_responses=True
             )

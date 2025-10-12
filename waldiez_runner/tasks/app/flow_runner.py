@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
+
+# pyright: reportMissingTypeStubs=false
+
 """FlowRunner class for running Waldiez flows with Redis I/O stream."""
 
 import asyncio
@@ -78,7 +81,7 @@ class FlowRunner:
         with IOStream.set_default(self.io_stream):
             try:
                 runner = WaldiezRunner(self.waldiez)
-                results = await runner.a_run(  # pyright: ignore
+                results = await runner.a_run(
                     output_path=self.output_path,
                     dot_env=self.dot_env_path,
                 )
@@ -104,7 +107,7 @@ class FlowRunner:
         with RedisIOStream.set_default(self.io_stream):
             try:
                 runner = WaldiezRunner(self.waldiez)
-                results = runner.run(  # pyright: ignore
+                results = runner.run(
                     output_path=self.output_path,
                     dot_env=self.dot_env_path,
                 )

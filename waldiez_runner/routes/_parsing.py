@@ -9,13 +9,13 @@ import json
 import logging
 from typing import Any
 
-from faststream.redis.fastapi import RedisMessage
+from faststream.redis.fastapi import RedisChannelMessage
 
 LOG = logging.getLogger(__name__)
 
 
 def parse_message(
-    message: RedisMessage,
+    message: RedisChannelMessage,
     skip_message_id: bool,
 ) -> dict[str, Any] | list[dict[str, Any]] | None:
     """Parse a Redis message into a serializable format.
@@ -45,7 +45,7 @@ def parse_message(
 
 
 def parse_task_results(
-    message: RedisMessage,
+    message: RedisChannelMessage,
 ) -> tuple[dict[str, Any] | list[dict[str, Any]] | None, bool]:
     """Parse task results from a Redis message.
 
@@ -96,11 +96,13 @@ def is_valid_user_input(payload: Any) -> bool:
     )
 
 
-def _get_data_from_raw_message(message: RedisMessage) -> dict[str, Any] | None:
+def _get_data_from_raw_message(
+    message: RedisChannelMessage,
+) -> dict[str, Any] | None:
     """Get the data from a raw Redis message."""
     raw = getattr(message, "raw_message", None)
     if raw is None:
-        LOG.warning("No raw message in RedisMessage: %s", message)
+        LOG.warning("No raw message in RedisChannelMessage: %s", message)
         return None
 
     if isinstance(raw, bytes):
@@ -124,7 +126,7 @@ def _extract_message_id(decoded: dict[str, Any]) -> str | None:
 
     message_ids = decoded.get("message_ids")
     if isinstance(message_ids, list) and message_ids:
-        item = message_ids[0]  # pyright: ignore
+        item = message_ids[0]
         if isinstance(item, bytes):
             return item.decode("utf-8")
         if isinstance(item, str):

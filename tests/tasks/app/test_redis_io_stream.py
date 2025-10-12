@@ -3,6 +3,7 @@
 
 # pyright: reportPrivateUsage=false,reportUnknownMemberType=false
 # pyright: reportUnknownVariableType=false,reportUnknownArgumentType=false
+# pyright: reportMissingTypeStubs=false
 # pylint: disable=missing-param-doc,missing-type-doc,missing-return-doc
 # pylint: disable=missing-yield-doc, protected-access
 

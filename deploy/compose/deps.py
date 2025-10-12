@@ -6,6 +6,8 @@
 # pylint: disable=broad-exception-caught,too-many-try-statements,
 # pylint: disable=missing-function-docstring,missing-param-doc
 # pylint: disable=missing-return-doc,missing-yield-doc,missing-raises-doc
+# pyright: reportAttributeAccessIssue=false
+
 """
 deps.py — Detect and (try to) install dependencies:
   - AWS CLI v2
@@ -29,8 +31,9 @@ import sys
 import tempfile
 import urllib.request
 import zipfile
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 DRY_RUN = "--dry-run" in sys.argv
 VERBOSE = "-v" in sys.argv or "--verbose" in sys.argv
@@ -74,7 +77,7 @@ def sudo_prefix() -> list[str]:
         return []
     # If already root, no sudo
     # pylint: disable=no-member
-    if hasattr(os, "geteuid") and os.geteuid() == 0:  # pyright: ignore
+    if hasattr(os, "geteuid") and os.geteuid() == 0:
         return []
     # Use sudo when available
     return ["sudo"] if which("sudo") else []
@@ -389,11 +392,12 @@ def install_rsync_windows() -> None:
     if choco:
         run(["choco", "install", "rsync", "-y"], check=False)
         return
-    raise RuntimeError(
+    msg = (
         "Chocolatey not found. "
         "Install Chocolatey and run `choco install rsync`, "
         "or install rsync via MSYS2 or cwRsync."
     )
+    raise RuntimeError(msg)
 
 
 def ensure_rsync() -> None:

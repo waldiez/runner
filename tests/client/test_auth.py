@@ -4,7 +4,7 @@
 # flake8: noqa: E501
 # pylint: disable=line-too-long, missing-function-docstring
 # pylint: disable=missing-param-doc,missing-return-doc,protected-access
-# pyright: reportPrivateUsage=false
+# pyright: reportPrivateUsage=false,reportAttributeAccessIssue=false
 
 """Test waldiez_runner.client._auth.*."""
 

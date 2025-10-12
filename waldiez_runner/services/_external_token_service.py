@@ -1,10 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
+
+# pyright: reportUnreachable=false,reportUnnecessaryIsInstance=false
+
 """External token verification service."""
 
 import json
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 from fastapi import HTTPException
@@ -23,7 +26,7 @@ class ExternalTokenResponse(BaseModel):
 
 async def verify_external_token(
     token: str, verify_url: str, secret: str = ""
-) -> tuple[Optional[ExternalTokenResponse], Optional[BaseException]]:
+) -> tuple[ExternalTokenResponse | None, BaseException | None]:
     """Verify an external token by sending it to a verification endpoint.
 
     Parameters
@@ -99,9 +102,9 @@ def get_user_info(
     """
     data = response.json()
     user_info: dict[str, Any] = data.get("user", data)
-    if not isinstance(user_info, dict):  # pyright: ignore  # pragma: no cover
+    if not isinstance(user_info, dict):  # pragma: no cover
         user_info = {}
-    sub = user_info.get("sub", user_info.get("id", token))  # pyright: ignore
+    sub = user_info.get("sub", user_info.get("id", token))
     if not isinstance(sub, str):
         sub = token
     user_info["sub"] = sub

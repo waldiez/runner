@@ -3,6 +3,7 @@
 
 # flake8: noqa: E501
 # pylint: disable=too-many-try-statements,broad-exception-caught,line-too-long
+# pyright: reportMissingTypeStubs=false,reportUnknownArgumentType=false,reportUnknownMemberType=false
 
 """A Redis I/O stream for handling print and input messages.
 
@@ -69,16 +70,9 @@ import logging
 import time
 import traceback as tb
 import uuid
+from collections.abc import Awaitable
 from types import TracebackType
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Awaitable,
-    Callable,
-    Literal,
-    Optional,
-    Type,
-)
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import redis
 import redis.asyncio as a_redis
@@ -109,10 +103,10 @@ class RedisIOStream(IOStream):
     redis: Redis
     task_id: str
     input_timeout: int
-    on_input_request: Optional[Callable[[str, str, str], None]]
-    on_input_received: Optional[Callable[[str, str], None]]
+    on_input_request: Callable[[str, str, str], None] | None
+    on_input_response: Callable[[str, str], None] | None
     max_stream_size: int
-    output_stream: str
+    task_output_stream: str
     input_request_channel: str
     input_response_channel: str
 
@@ -122,8 +116,8 @@ class RedisIOStream(IOStream):
         task_id: str | None = None,
         input_timeout: int = 180,
         max_stream_size: int = 1000,
-        on_input_request: Optional[Callable[[str, str, str], None]] = None,
-        on_input_response: Optional[Callable[[str, str], None]] = None,
+        on_input_request: Callable[[str, str, str], None] | None = None,
+        on_input_response: Callable[[str, str], None] | None = None,
         redis_connection_kwargs: dict[str, Any] | None = None,
     ) -> None:
         """Initialize the Redis I/O stream.
@@ -165,7 +159,7 @@ class RedisIOStream(IOStream):
 
     def __exit__(
         self,
-        exc_type: Type[Exception] | None,
+        exc_type: type[Exception] | None,
         exc_value: Exception | None,
         traceback: TracebackType | None,
     ) -> None:
@@ -205,7 +199,7 @@ class RedisIOStream(IOStream):
         """
         LOG.debug("Sending print message: %s", payload)
         RedisIOStream.try_do(
-            self.redis.xadd,  # pyright: ignore
+            self.redis.xadd,
             self.task_output_stream,
             payload,
             maxlen=self.max_stream_size,
@@ -224,7 +218,7 @@ class RedisIOStream(IOStream):
         """
         LOG.debug("Sending print message: %s", payload)
         RedisIOStream.try_do(
-            self.redis.xadd,  # pyright: ignore
+            self.redis.xadd,
             self.common_output_stream,
             payload,
             maxlen=self.max_stream_size,
@@ -431,7 +425,7 @@ class RedisIOStream(IOStream):
     @staticmethod
     def parse_pubsub_input(
         message: dict[str, Any],
-    ) -> tuple[Optional[str], Optional[str]]:
+    ) -> tuple[str | None, str | None]:
         """Extract request ID and user input from a message.
 
         Parameters
@@ -454,7 +448,7 @@ class RedisIOStream(IOStream):
             return None, None
         if "data" not in message_dict:
             return None, None
-        user_input = str(message_dict.get("data", ""))  # pyright: ignore
+        user_input = str(message_dict.get("data", ""))
         if user_input.lower() in [
             "",
             "\n",
@@ -465,7 +459,10 @@ class RedisIOStream(IOStream):
             "'/\\n'",
         ]:
             user_input = ""
-        return message_dict["request_id"], user_input  # pyright: ignore
+        return (
+            message_dict.get("request_id", ""),
+            user_input,
+        )  # pyright: ignore[reportUnknownVariableType]
 
     @staticmethod
     def try_do(func: Callable[..., Any], *args: Any, **kwargs: Any) -> None:
@@ -638,7 +635,7 @@ class RedisIOStream(IOStream):
         """
         for key in redis_client.scan_iter("task:*:output", count=100):
             RedisIOStream.try_do(
-                redis_client.xtrim,  # pyright: ignore
+                redis_client.xtrim,
                 key,
                 maxlen=maxlen,
                 approximate=approximate,
@@ -714,7 +711,7 @@ class RedisIOStream(IOStream):
         ):
             before = await redis_client.xlen(key)
             await RedisIOStream.a_try_do(
-                redis_client.xtrim,  # pyright: ignore
+                redis_client.xtrim,
                 key,
                 maxlen=maxlen,
                 approximate=approximate,

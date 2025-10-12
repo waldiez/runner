@@ -1,14 +1,16 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
+# pyright: reportOptionalMemberAccess=false,reportArgumentType=false
 # pylint: disable=too-many-try-statements,broad-exception-caught
 
 """Waldiez serve client."""
 
 import asyncio
 import inspect
+from collections.abc import Coroutine
 from types import TracebackType
-from typing import Any, Callable, Coroutine, Type
+from typing import Any, Callable
 
 import httpx
 from typing_extensions import Self
@@ -94,7 +96,7 @@ class BaseClient:
 
     async def __aexit__(
         self,
-        exc_type: Type[BaseException] | None,
+        exc_type: type[BaseException] | None,
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
@@ -102,7 +104,7 @@ class BaseClient:
 
         Parameters
         ----------
-        exc_type : Type[BaseException] | None
+        exc_type : type[BaseException] | None
             The exception type
         exc_value : BaseException | None
             The exception value
@@ -118,7 +120,7 @@ class BaseClient:
 
     def __exit__(
         self,
-        exc_type: Type[BaseException] | None,
+        exc_type: type[BaseException] | None,
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
@@ -126,7 +128,7 @@ class BaseClient:
 
         Parameters
         ----------
-        exc_type : Type[BaseException] | None
+        exc_type : type[BaseException] | None
             The exception type
         exc_value : BaseException | None
             The exception value

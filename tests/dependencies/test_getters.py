@@ -16,7 +16,7 @@ from waldiez_runner.dependencies.getters import (
     get_client_id,
     get_user_info,
 )
-from waldiez_runner.services.external_token_service import ExternalTokenService
+from waldiez_runner.services.external_token_service import ExternalTokenResponse
 
 
 @pytest.mark.asyncio
@@ -89,7 +89,7 @@ async def test_get_client_id_with_external_token(
 
     # External validation succeeds
     mock_verify_external.return_value = (
-        ExternalTokenService.ExternalTokenResponse(
+        ExternalTokenResponse(
             valid=True,
             user_info={"id": "ext-user", "name": "External User"},
             id="ext-user",

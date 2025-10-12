@@ -28,7 +28,7 @@ async def test_run_async_flow_success(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     monkeypatch.setattr(
         f"{MODULE_TO_PATCH}.make_serializable_results",
-        lambda x: x,  # pyright: ignore[]
+        lambda x: x,
     )
 
     fr = FlowRunner("task1", "redis://...", waldiez, "out.py", 120)

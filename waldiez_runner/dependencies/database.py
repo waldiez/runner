@@ -1,12 +1,16 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
+
+# pyright: reportUnusedParameter=false
+
 """Database connection manager."""
 
 import contextlib
 import json
 import logging
 from asyncio import Lock
-from typing import TYPE_CHECKING, Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.engine import Connection as ConnectionPoolEntry
 from sqlalchemy.engine.interfaces import DBAPIConnection

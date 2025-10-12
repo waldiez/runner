@@ -3,14 +3,16 @@
 
 # pyright: reportUnusedFunction=false,reportUnknownMemberType=false
 # pyright: reportUnknownArgumentType=false,reportAttributeAccessIssue=false
+# pyright: reportUnknownVariableType=false,reportUnusedParameter=false
 
 """Application entry point."""
 
 import http
 import logging
 import traceback
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import ORJSONResponse, Response
@@ -109,7 +111,7 @@ def get_app() -> FastAPI:
         }
         if hasattr(exc, "detail"):
             if isinstance(exc.detail, (dict, list)):
-                detail = exc.detail  # pyright: ignore
+                detail = exc.detail
             elif isinstance(exc.detail, str):  # pragma: no cover
                 detail = {"detail": exc.detail}
         return ORJSONResponse(

@@ -2,6 +2,7 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
 # pylint: disable=broad-exception-caught, unused-argument
+# pyright: reportCallInDefaultInitializer=false
 """Handle running tasks."""
 
 import logging

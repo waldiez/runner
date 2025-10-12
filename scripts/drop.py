@@ -46,6 +46,7 @@ def delete_storage() -> None:
     STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 
+# pylint: disable=too-complex
 def main() -> None:
     """Drop the tables."""
     settings = SettingsManager.load_settings(force_reload=False)

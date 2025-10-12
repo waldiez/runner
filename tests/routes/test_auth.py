@@ -7,7 +7,7 @@
 """Test waldiez_runner.routes.auth.*."""
 
 import time
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 from unittest.mock import patch
 
 import pytest

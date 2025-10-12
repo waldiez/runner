@@ -2,7 +2,7 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 # flake8: noqa: E501
 # pylint: disable=import-error,import-outside-toplevel,too-few-public-methods,broad-exception-caught
-# pyright: reportReturnType=false
+# pyright: reportReturnType=false,reportUnreachable=false
 # isort: skip_file
 
 """Generate requirements/*txt files from pyproject.toml."""
@@ -77,11 +77,12 @@ def get_loader() -> TomlLoader:
 
                 return toml.load
             except Exception as err:
-                raise ImportError(
+                msg = (
                     "Failed to install the `toml` library. "
                     "Please install it manually.\n"
                     f"Error: {err}"
-                ) from err
+                )
+                raise ImportError(msg) from err
 
 
 def _write_all_dot_txt(project_dir: Path, extras: list[str]) -> None:

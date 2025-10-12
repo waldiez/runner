@@ -3,7 +3,8 @@
 # pyright: reportReturnType=false
 """Types for tests."""
 
-from typing import Any, Coroutine, Protocol, Tuple
+from collections.abc import Coroutine
+from typing import Any, Protocol
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,7 +26,7 @@ class CreateClientCallable(Protocol):
         name: str | None = None,
         description: str | None = None,
         client_id: str | None = None,
-    ) -> Coroutine[Any, Any, Tuple[Client, ClientCreateResponse]]:
+    ) -> Coroutine[Any, Any, tuple[Client, ClientCreateResponse]]:
         """Callable to create a client.
 
         Parameters
@@ -59,7 +60,7 @@ class CreateTaskCallable(Protocol):
         filename: str = "file1.waldiez",
         status: TaskStatus = TaskStatus.PENDING,
         input_timeout: int = 180,
-    ) -> Coroutine[Any, Any, Tuple[Task, TaskResponse]]:
+    ) -> Coroutine[Any, Any, tuple[Task, TaskResponse]]:
         """Callable to create a task.
 
         Parameters
@@ -73,6 +74,6 @@ class CreateTaskCallable(Protocol):
 
         Returns
         -------
-        Tuple[Task, TaskResponse]
+        tuple[Task, TaskResponse]
             The created task and the response.
         """

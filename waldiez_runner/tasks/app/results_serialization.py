@@ -3,6 +3,7 @@
 
 # pylint: disable=broad-exception-caught,too-many-return-statements
 # pyright: reportUnknownArgumentType=false, reportUnknownVariableType=false
+# pyright: reportMissingTypeStubs=false
 """Module for serializing results into a JSON-compatible format."""
 
 import json

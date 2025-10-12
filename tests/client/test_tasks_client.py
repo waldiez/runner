@@ -3,7 +3,7 @@
 
 # pylint: disable=missing-param-doc,missing-return-doc
 # pylint: disable=protected-access,unused-argument
-# pyright: reportPrivateUsage=false
+# pyright: reportPrivateUsage=false,reportOptionalMemberAccess=false
 """Test waldiez_runner.client._tasks_client.*."""
 
 import asyncio

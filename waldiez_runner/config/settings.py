@@ -1,12 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
+# pyright: reportUnknownArgumentType=false,reportUnusedParameter=false
+# pyright: reportUnknownVariableType=false
+
 """Waldiez runner settings module."""
 
 import logging
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from dotenv import load_dotenv
 from pydantic import (
@@ -119,7 +122,7 @@ class Settings(BaseSettings):
         force_ssl=force_ssl,
         host=host,
     )
-    trusted_origin_regex: Optional[str] = get_trusted_origin_regex()
+    trusted_origin_regex: str | None = get_trusted_origin_regex()
     secret_key: SecretStr = SecretStr(get_secret_key())
     log_level: str = "INFO"
     # Database
@@ -129,15 +132,15 @@ class Settings(BaseSettings):
     db_user: str = get_db_user()
     db_password: SecretStr = SecretStr(get_db_password())
     db_name: str = get_db_name()
-    db_url: Optional[str] = get_db_url()
+    db_url: str | None = get_db_url()
     # Redis
     redis: bool = get_redis_enabled()
     redis_host: str = get_redis_host()
     redis_port: Annotated[int, Field(ge=1, le=65535)] = get_redis_port()
     redis_db: Annotated[int, Field(ge=0, le=15)] = get_redis_db()
     redis_scheme: RedisSchemeType = get_redis_scheme()
-    redis_password: Optional[SecretStr] = _get_redis_password()
-    redis_url: Optional[str] = get_redis_url_()
+    redis_password: SecretStr | None = _get_redis_password()
+    redis_url: str | None = get_redis_url_()
     dev: bool = False
     #
     # Auth
@@ -150,9 +153,9 @@ class Settings(BaseSettings):
     # OIDC/OAuth2 provider setup (Keycloak, Auth0, Google, etc.)
     use_oidc_auth: bool = get_use_oidc_auth()
     # e.g., https://keycloak.example.com/realms/myrealm
-    oidc_issuer_url: Optional[HttpUrl] = _get_oidc_issuer_url()
-    oidc_audience: Optional[str] = get_oidc_audience()
-    oidc_jwks_url: Optional[HttpUrl] = _get_oidc_jwks_url()
+    oidc_issuer_url: HttpUrl | None = _get_oidc_issuer_url()
+    oidc_audience: str | None = get_oidc_audience()
+    oidc_jwks_url: HttpUrl | None = _get_oidc_jwks_url()
     oidc_jwks_cache_ttl: Annotated[int, Field(ge=1, le=3600)] = (
         get_oidc_jwks_cache_ttl()
     )
@@ -377,11 +380,11 @@ class Settings(BaseSettings):
             if isinstance(value, bool):
                 env_value = str(value).lower()
             if isinstance(value, (list, tuple)):
-                env_value = ",".join(value)  # pyright: ignore
+                env_value = ",".join(value)
             if isinstance(value, (int, float)):
                 env_value = str(int(value))
             if not isinstance(env_value, str):
-                env_value = str(value)  # pyright: ignore
+                env_value = str(value)
             env_value = env_value if env_value != "None" else ""
             self._handle_special_key_value(key, env_value)
             os.environ[env_key] = env_value
@@ -478,7 +481,7 @@ class Settings(BaseSettings):
 
             return [value] if value else []
         if isinstance(value, list):
-            return [item for item in value if item]  # pyright: ignore
+            return [item for item in value if item]
         return []  # pragma: no cover
 
     @model_validator(mode="after")

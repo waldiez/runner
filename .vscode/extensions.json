@@ -1,0 +1,11 @@
+{
+    "recommendations": [
+        "ms-python.python",
+        "waldiez.waldiez-vscode",
+        "charliermarsh.ruff",
+        "esbenp.prettier-vscode",
+        "ms-python.pylint",
+        "ms-python.mypy-type-checker",
+        "detachhead.basedpyright"
+    ]
+}

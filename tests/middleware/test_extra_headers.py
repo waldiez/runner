@@ -6,7 +6,8 @@
 
 """Tests for the CSP middleware."""
 
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
 import pytest
 from fastapi import FastAPI

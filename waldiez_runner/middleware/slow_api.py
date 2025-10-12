@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
+
+# pyright: reportArgumentType=false
 """Middleware for rate limiting."""
 
 import re
-from typing import Optional
 
 from fastapi import FastAPI, Request
 
@@ -44,7 +45,7 @@ class SlowAPIMiddleware:
     def __init__(
         self,
         app: ASGIApp,
-        exclude_patterns: Optional[list[str]] = None,
+        exclude_patterns: list[str] | None = None,
     ) -> None:
         """Initialize the instance."""
         self.app = app
@@ -67,7 +68,7 @@ class SlowAPIMiddleware:
 
 
 def add_rate_limiter(
-    app: FastAPI, exclude_patterns: Optional[list[str]] = None
+    app: FastAPI, exclude_patterns: list[str] | None = None
 ) -> Limiter:
     """Add rate limits to the app.
 

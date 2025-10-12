@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
+
+# pyright: reportUnknownMemberType=false
+
 """Pre start actions to be performed."""
 
 import logging
@@ -162,10 +165,11 @@ def assert_secrets(entries: list[tuple[str, str | None]]) -> None:
         if not value:
             raise RuntimeError(f"{key} is not available in environment")
         if value != expected:
-            raise RuntimeError(
+            msg = (
                 f"{key} in environment does not match, "
                 f"expected {expected}, got {value}"
             )
+            raise RuntimeError(msg)
         in_settings = getattr(settings, key)
         if not in_settings:
             raise RuntimeError(f"Secret {key} is not available in settings")

@@ -1,12 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
+# pyright: reportArgumentType=false,reportReturnType=false
+
 """Common configuration constants and functions."""
 
 import os
 import sys
 from pathlib import Path
-from typing import Callable, Optional, TypeVar
+from typing import Callable, TypeVar
 
 from dotenv import load_dotenv
 
@@ -101,7 +103,7 @@ def get_value(
     T
         The value
     """
-    value_str: Optional[str] = None
+    value_str: str | None = None
     env_var = f"{ENV_PREFIX}{env_key}" if not skip_prefix else env_key
 
     # Handle --key and --no-key for boolean

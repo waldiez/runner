@@ -71,12 +71,13 @@ def build(out_dir: Path) -> None:
     subprocess.run(mkdocs_build, check=True)
     output_parent = out_dir.parent
     dir_name = out_dir.name
-    print(
+    msg = (
         f"Docs built successfully in {output_parent}/{dir_name}"
         f"Use: `open file://{output_parent}/{dir_name}/index.html`"
         f"Or `cd {output_parent}/{dir_name}`\n"
         f"and run `python -m http.server --directory {dir_name}`"
     )
+    print(msg)
 
 
 def main() -> None:

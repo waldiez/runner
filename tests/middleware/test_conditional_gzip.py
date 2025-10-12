@@ -7,7 +7,7 @@
 
 """Test the conditional gzip middleware."""
 
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 import pytest
 from fastapi import FastAPI

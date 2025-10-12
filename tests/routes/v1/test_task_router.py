@@ -4,13 +4,15 @@
 # pylint: disable=missing-return-doc,missing-yield-doc
 # pylint: disable=missing-param-doc,missing-raises-doc,unused-argument
 # pylint: disable=missing-module-docstring,too-many-lines
+# pyright: reportPrivateLocalImportUsage=false
+
 """Test waldiez_runner.routes.task_router."""
 
 # Standard library imports
 import hashlib
 import json
+from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import AsyncGenerator
 from unittest.mock import AsyncMock, patch
 
 # Third-party imports

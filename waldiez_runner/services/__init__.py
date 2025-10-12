@@ -3,11 +3,12 @@
 """Waldiez runner services."""
 
 from .client_service import ClientService
-from .external_token_service import ExternalTokenService
+from .external_token_service import ExternalTokenResponse, ExternalTokenService
 from .task_service import TaskService
 
 __all__ = [
     "ClientService",
+    "ExternalTokenResponse",
     "ExternalTokenService",
     "TaskService",
 ]

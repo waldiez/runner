@@ -7,7 +7,8 @@
 # pylint: disable=missing-function-docstring,missing-param-doc
 # pylint: disable=missing-return-doc,missing-yield-doc,missing-raises-doc
 # pylint: disable=too-many-try-statements
-# pyright: reportConstantRedefinition=false
+# pyright: reportConstantRedefinition=false,reportImplicitRelativeImport=false
+
 """Python backup tool with INI config and multi-source support."""
 
 import argparse

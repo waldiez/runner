@@ -3,14 +3,16 @@
 
 # pylint: disable=missing-return-doc,missing-param-doc,missing-yield-doc
 # pylint: disable=unused-argument,protected-access,no-member
-# pyright: reportPrivateUsage=false
+# pyright: reportPrivateUsage=false, reportAttributeAccessIssue=false
+# pyright: reportUnknownMemberType=false
+
 """Test waldiez_runner.routes.ws.handler*."""
 
 import asyncio
 import json
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest

@@ -7,7 +7,8 @@
 
 import asyncio
 import json
-from typing import Any, Coroutine
+from collections.abc import Coroutine
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest

@@ -2,7 +2,8 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 """App dependency getters."""
 
-from typing import Any, AsyncGenerator, Callable, Coroutine
+from collections.abc import AsyncGenerator, Coroutine
+from typing import Any, Callable
 
 from fastapi import Depends, HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -263,7 +264,7 @@ def get_client_id_with_admin_check(
                 # Return a special identifier for external auth
                 sub = token_response.user_info.get(
                     "sub", token_response.user_info.get("id", token)
-                )  # pyright: ignore
+                )
                 client_id = sub if isinstance(sub, str) else token
                 return client_id, is_admin
 

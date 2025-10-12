@@ -2,6 +2,7 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
 # pylint: disable=consider-using-with,unused-argument
+# pyright: reportUnusedParameter=false
 
 """Start the server and the worker in development mode."""
 
@@ -12,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import FrameType
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import uvicorn
 
@@ -40,7 +41,7 @@ def start_uvicorn(
     port: int,
     reload: bool,
     log_level: LogLevel,
-    logging_config: Dict[str, Any],
+    logging_config: dict[str, Any],
 ) -> None:
     """Start the Uvicorn server.
 
@@ -54,7 +55,7 @@ def start_uvicorn(
         Whether to reload the server when the code changes.
     log_level : LogLevel
         The log level to use.
-    logging_config : Dict[str, Any]
+    logging_config : dict[str, Any]
         The logging configuration.
     """
     module_name, cwd = get_module_and_cwd()
@@ -83,12 +84,12 @@ def start_uvicorn(
     )
 
 
-def get_module_and_cwd() -> Tuple[str, str]:
+def get_module_and_cwd() -> tuple[str, str]:
     """Get the module name and the current working directory.
 
     Returns
     -------
-    Tuple[str, str]
+    tuple[str, str]
         The module name and the current working directory.
     """
     module_name = Path(__file__).parent.name
@@ -97,13 +98,13 @@ def get_module_and_cwd() -> Tuple[str, str]:
 
 
 def run_process(
-    command: List[str], cwd: str, skip_redis: bool = False
+    command: list[str], cwd: str, skip_redis: bool = False
 ) -> subprocess.Popen[Any]:
     """Run a process.
 
     Parameters
     ----------
-    command : List[str]
+    command : list[str]
         The command to run.
     cwd : str
         The current working directory.
@@ -186,11 +187,11 @@ def start_scheduler(log_level: LogLevel, skip_redis: bool) -> None:
         scheduler_process.terminate()
 
 
-def run_worker(worker_args: List[str], cwd: str, skip_redis: bool) -> None:
+def run_worker(worker_args: list[str], cwd: str, skip_redis: bool) -> None:
     """Run the worker.
     Parameters
     ----------
-    worker_args : List[str]
+    worker_args : list[str]
         The arguments to pass to the worker.
     cwd : str
         The current working directory.
@@ -202,12 +203,12 @@ def run_worker(worker_args: List[str], cwd: str, skip_redis: bool) -> None:
 
 
 def run_scheduler(
-    scheduler_args: List[str], cwd: str, skip_redis: bool
+    scheduler_args: list[str], cwd: str, skip_redis: bool
 ) -> None:
     """Run the scheduler.
     Parameters
     ----------
-    scheduler_args : List[str]
+    scheduler_args : list[str]
         The arguments to pass to the scheduler.
     cwd : str
         The current working directory.
@@ -271,7 +272,7 @@ def get_uvicorn_command(
     log_level: LogLevel,
     module_name: str,
     cwd: str,
-) -> List[str]:
+) -> list[str]:
     """Get the Uvicorn command.
 
     Parameters
@@ -291,7 +292,7 @@ def get_uvicorn_command(
 
     Returns
     -------
-    List[str]
+    list[str]
         The Uvicorn command arguments.
     """
     uvicorn_cmd = [
@@ -326,7 +327,7 @@ def get_worker_command(
     module_name: str,
     reload: bool,
     log_level: LogLevel,
-) -> List[str]:
+) -> list[str]:
     """Get the Taskiq worker command.
 
     Parameters
@@ -340,7 +341,7 @@ def get_worker_command(
 
     Returns
     -------
-    List[str]
+    list[str]
         The Taskiq worker command arguments.
     """
     worker_cmd = [
@@ -360,7 +361,7 @@ def get_worker_command(
 def get_scheduler_command(
     module_name: str,
     log_level: LogLevel,
-) -> List[str]:
+) -> list[str]:
     """Get the Taskiq scheduler command.
 
     Parameters
@@ -372,7 +373,7 @@ def get_scheduler_command(
 
     Returns
     -------
-    List[str]
+    list[str]
         The Taskiq scheduler command arguments.
     """
     scheduler_cmd = [

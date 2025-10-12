@@ -4,8 +4,9 @@
 # pylint: disable=line-too-long
 """Task management service."""
 
+from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
-from typing import Any, Sequence
+from typing import Any
 
 import sqlalchemy.sql.functions
 from fastapi_pagination import Page, Params

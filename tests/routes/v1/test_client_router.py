@@ -5,7 +5,7 @@
 # pylint: disable=missing-return-doc, missing-yield-doc, missing-raises-doc
 """Test client routes."""
 
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 from unittest.mock import patch
 
 import pytest

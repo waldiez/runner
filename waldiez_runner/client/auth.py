@@ -8,8 +8,9 @@ import inspect
 import logging
 import threading
 import urllib.parse
+from collections.abc import AsyncGenerator, Coroutine, Generator
 from datetime import datetime, timedelta, timezone
-from typing import Any, AsyncGenerator, Callable, Coroutine, Generator
+from typing import Any, Callable
 
 import httpx
 

@@ -8,7 +8,8 @@
 """Test waldiez_runner.client._client_base.*."""
 
 import asyncio
-from typing import Any, Coroutine
+from collections.abc import Coroutine
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -123,6 +124,17 @@ async def test_a_authenticate_failure(mocker: MockerFixture) -> None:
     client._handle_auth_error = MagicMock()  # type: ignore
     assert not await client.a_authenticate()
     client._handle_auth_error.assert_called_once()
+
+
+# Dummy loop for async task scheduling
+# pylint: disable=too-few-public-methods,no-self-use
+# noinspection PyMethodMayBeStatic
+class DummyLoop:
+    """Dummy loop for async task scheduling."""
+
+    def create_task(self, coro: Coroutine[Any, Any, None]) -> None:
+        """Create a task."""
+        asyncio.get_event_loop().run_until_complete(coro)
 
 
 def test_context_manager_sync() -> None:
@@ -271,17 +283,6 @@ def test_ensure_configured_raises_if_not_configured() -> None:
     client = BaseClient()
     with pytest.raises(ValueError):
         client._ensure_configured()
-
-
-# Dummy loop for async task scheduling
-# pylint: disable=too-few-public-methods,no-self-use
-# noinspection PyMethodMayBeStatic
-class DummyLoop:
-    """Dummy loop for async task scheduling."""
-
-    def create_task(self, coro: Coroutine[Any, Any, None]) -> None:
-        """Create a task."""
-        asyncio.get_event_loop().run_until_complete(coro)
 
 
 # noinspection DuplicatedCode

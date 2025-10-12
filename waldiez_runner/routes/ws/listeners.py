@@ -155,7 +155,7 @@ def decode_stream_msg(raw: dict[Any, Any], msg_id: str) -> dict[str, Any]:
         The decoded message.
     """
     if not isinstance(raw, dict):
-        return {}
+        return {}  # pyright: ignore[reportUnreachable]
     decoded = {
         k.decode() if isinstance(k, bytes) else k: (
             v.decode() if isinstance(v, bytes) else v

@@ -3,7 +3,6 @@
 """Custom GZip middleware to exclude certain patterns from compression."""
 
 import re
-from typing import Optional
 
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.types import ASGIApp, Receive, Scope, Send
@@ -16,7 +15,7 @@ class ConditionalGZipMiddleware:
     def __init__(
         self,
         app: ASGIApp,
-        exclude_patterns: Optional[list[str]] = None,
+        exclude_patterns: list[str] | None = None,
         minimum_size: int = 500,
         compresslevel: int = 5,
     ) -> None:

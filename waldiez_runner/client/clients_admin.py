@@ -1,8 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
+
+# pyright: reportOptionalMemberAccess=false,reportArgumentType=false
+
 """Waldiez serve client admin."""
 
-from typing import Any, Callable, Coroutine
+from collections.abc import Coroutine
+from typing import Any, Callable
 
 from ._clients_api import ClientsAPIClient
 from .client_base import BaseClient

@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
+# pyright: reportOptionalMemberAccess=false
+
 """Backup and restore related utils."""
 
 import atexit
@@ -9,10 +11,11 @@ import secrets
 import shutil
 import subprocess
 import tempfile
+from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Generator, Sequence
+from typing import Callable
 
 HERE = Path(__file__).parent.resolve()
 SENSITIVE_TOKENS = (

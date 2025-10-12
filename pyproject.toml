@@ -32,16 +32,16 @@ dependencies = [
     "aiofiles>=24.1.0",  # bump with waldiez core
     "aioftp==0.27.2",
     "aiohttp==3.13.0",
-    "alembic==1.16.5",
+    "alembic==1.17.0",
     "anyio==4.11.0",
     "asyncssh==2.21.1",
     "argon2-cffi==25.1.0",
     "bcrypt==5.0.0",
     "boto3==1.40.50",
     "fakeredis==2.32.0",
-    "fastapi[all]==0.118.3",
+    "fastapi[all]==0.119.0",
     "fastapi-pagination==0.14.3",
-    "faststream[redis,cli]==0.5.48",
+    "faststream[redis,cli]==0.6.0",
     "hiredis==3.2.1",
     "httpx<1",
     "nest-asyncio==1.6.0",
@@ -100,7 +100,6 @@ dev = [
     "black[jupyter]==25.9.0",
     "flake8==7.3.0",
     "hatchling==1.27.0",
-    "isort==6.1.0",
     "locust==2.41.6",
     "lupa==2.5",
     "mypy==1.18.2",
@@ -161,6 +160,12 @@ docs = [
 [tool.hatch.version]
 path = "waldiez_runner/_version.py"
 
+[tool.uv]
+managed = true
+# check and sync with waldiez code if needed
+override-dependencies = []
+
+
 # black
 [tool.black]
 line-length = 80
@@ -174,6 +179,7 @@ exclude = '''
   | \.hg
   | \.mypy_cache
   | \.tox
+  | \.hatch
   | \.venv
   | .local
   | _build
@@ -187,7 +193,7 @@ exclude = '''
 
 # mypy
 [tool.mypy]
-files = "."
+files = "waldiez_runner,tests,scripts,deploy"
 explicit_package_bases = false
 show_error_codes = true
 namespace_packages = false
@@ -213,6 +219,8 @@ plugins = [
 exclude = [
     '.venv',
     '.local',
+    '.tox',
+    '.hatch',
     'build',
     'dist',
     "node_modules",
@@ -227,10 +235,31 @@ init_forbid_extra = true
 init_typed = true
 warn_required_dynamic_aliases = false
 
-[tool.pyright]
-include = ["waldiez_runner", "tests", "scripts"]
-
+[tool.basedpyright]
+include = ["waldiez_runner", "tests", "scripts", "deploy"]
+exclude = [
+    "**/__pycache__",
+    "src",
+    ".tox",
+    ".hatch",
+    ".venv",
+    ".local",
+    "examples",
+    "docs",
+    "waldiez_out",
+    "waldiez_runner/migrations",
+]
+extraPaths = ["."]
 reportCallIssue = false
+reportUnusedCallResult = false
+reportExplicitAny = false
+reportUnannotatedClassAttribute = false
+reportAny = false
+reportImplicitOverride = false
+
+executionEnvironments = [
+    {root = "tests",  reportPrivateUsage=false, reportUninitializedInstanceVariable=false, reportArgumentType=false, reportUnusedParameter=false, reportAssignmentType=false }
+]
 
 # isort
 [tool.isort]
@@ -238,6 +267,8 @@ profile ="black"
 skip=[
     ".venv",
     ".local",
+    '.tox',
+    '.hatch',
     "build",
     "dist",
     "node_modules",
@@ -270,6 +301,8 @@ fail-under=8.0
 ignore=["CVS"]
 ignore-paths = [
     ".venv",
+    '.tox',
+    '.hatch',
     ".local*",
     ".*/node_modules/.*",
     "waldiez_out",
@@ -311,6 +344,8 @@ default-docstring-type = "numpy"
 exclude_dirs = [
     ".venv",
     ".local",
+    '.tox',
+    '.hatch',
     "waldiez_out",
     "node_modules",
 ]
@@ -327,6 +362,8 @@ line-length = 80
 extend-exclude = [
     ".venv",
     ".local",
+    '.tox',
+    '.hatch',
     "waldiez_out",
     "docs/examples",
     "waldiez_runner/storage",
@@ -402,6 +439,8 @@ addopts = """
 omit = [
     ".venv/*",
     ".local/*",
+    '.tox/*',
+    '.hatch/*',
     "waldiez_out/*",
     "waldiez_runner/storage/*",
     "node_modules/*",

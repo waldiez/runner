@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
-# pyright: reportUnusedFunction=false
+# pyright: reportUnusedFunction=false,reportCallInDefaultInitializer=false
 
 """Other routes like health check, robots.txt, and status."""
 

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
+# pyright: reportAttributeAccessIssue=false
 
 """Webhook for notifying about operation."""
 
@@ -59,7 +60,7 @@ def notify(
         "timestamp": utc_now().strftime("%Y-%m-%dT%H:%M:%SZ"),
         "message": message,
         "hostname": (
-            os.uname().nodename  # pyright: ignore
+            os.uname().nodename
             if hasattr(os, "uname")
             else socket.gethostname()
         ),

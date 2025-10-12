@@ -7,7 +7,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Generic, Optional, TypeVar, Union
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import Annotated, Literal
@@ -43,9 +43,7 @@ class StatusResponse(ModelBase):
         int,
         Field(..., description="The maximum number of parallel active tasks"),
     ]
-    cpu_count: Annotated[
-        Optional[int], Field(..., description="Number of cpus")
-    ]
+    cpu_count: Annotated[int | None, Field(..., description="Number of cpus")]
     cpu_percent: Annotated[
         float, Field(..., description="CPU usage percentage")
     ]
@@ -139,18 +137,18 @@ class OrderSearchRequest(ModelBase):
     """Generic order and search request model."""
 
     order_by: Annotated[
-        Optional[str],
+        str | None,
         Field(
             None,
             description="Field to order by (e.g., 'created_at', 'updated_at')",
         ),
     ] = None
     order_type: Annotated[
-        Optional[Literal["asc", "desc"]],
+        Literal["asc", "desc"] | None,
         Field(None, description="Order direction: 'asc' or 'desc'"),
     ] = None
     search: Annotated[
-        Optional[str],
+        str | None,
         Field(None, description="Search term for filtering results"),
     ] = None
 
@@ -171,24 +169,24 @@ class TaskScheduleBase(ModelBase):
     """Common schedule-related fields (mirrors TaskBase on server)."""
 
     schedule_type: Annotated[
-        Optional[Literal["once", "cron"]],
+        Literal["once", "cron"] | None,
         Field(None, description="Type of schedule: 'once' or 'cron'"),
     ] = None
 
     scheduled_time: Annotated[
-        Optional[datetime],
+        datetime | None,
         Field(
             None, description="Datetime to run task if scheduled (for 'once')"
         ),
     ] = None
 
     cron_expression: Annotated[
-        Optional[str],
+        str | None,
         Field(None, description="Cron expression if scheduled (for 'cron')"),
     ] = None
 
     expires_at: Annotated[
-        Optional[datetime],
+        datetime | None,
         Field(
             None, description="Optional expiration datetime for scheduled task"
         ),
@@ -222,7 +220,7 @@ class TaskUpdateRequest(TaskScheduleBase):
     """Request model for updating a task."""
 
     input_timeout: Annotated[
-        Optional[int],
+        int | None,
         Field(
             None,
             ge=1,
@@ -256,15 +254,15 @@ class TaskResponse(TaskScheduleBase):
         int, Field(..., description="Timeout for input requests (in seconds)")
     ]
     input_request_id: Annotated[
-        Optional[str],
+        str | None,
         Field(None, description="Expected input request ID if task is waiting"),
     ]
     results: Annotated[
-        Optional[Union[dict[str, Any], list[dict[str, Any]]]],
+        dict[str, Any] | list[dict[str, Any]] | None,
         Field(None, description="Results returned by the task, if completed"),
     ]
     triggered_at: Annotated[
-        Optional[datetime],
+        datetime | None,
         Field(
             None,
             description="Time when the task was triggered (if applicable)",
@@ -293,14 +291,14 @@ class ClientCreateRequest(ModelBase):
     """Request model for creating a new client."""
 
     client_id: Annotated[
-        Optional[str],
+        str | None,
         Field(
             None,
             description="Custom client ID (leave blank for auto-generated)",
         ),
     ] = None
     plain_secret: Annotated[
-        Optional[str],
+        str | None,
         Field(
             None,
             description="Custom client secret (leave blank for auto-generated)",
@@ -314,7 +312,7 @@ class ClientCreateRequest(ModelBase):
         Field("Default", min_length=1)
     )
     description: Annotated[
-        Optional[str],
+        str | None,
         Field(None, description="Optional description of the client"),
     ] = None
 
@@ -342,7 +340,7 @@ class ClientResponse(ModelBase):
         datetime, Field(..., description="Last update timestamp")
     ]
     description: Annotated[
-        Optional[str], Field(None, description="Optional description")
+        str | None, Field(None, description="Optional description")
     ] = None
 
 

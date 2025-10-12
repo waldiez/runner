@@ -3,6 +3,7 @@
 
 # pylint: disable=missing-param-doc,missing-return-doc,missing-yield-doc
 # pylint: disable=too-few-public-methods,protected-access
+# pyright: reportOptionalMemberAccess=false
 """Test authentication dependencies."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -17,7 +18,7 @@ from waldiez_runner.dependencies.auth import (
     decode_oidc_jwt,
     verify_external_auth_token,
 )
-from waldiez_runner.services.external_token_service import ExternalTokenService
+from waldiez_runner.services.external_token_service import ExternalTokenResponse
 
 
 def test_decode_local_jwt_valid() -> None:
@@ -207,7 +208,7 @@ async def test_verify_external_auth_token_success(
 ) -> None:
     """Test successful external auth token verification."""
     settings = MockedSettings.create_mock()
-    token_response = ExternalTokenService.ExternalTokenResponse(
+    token_response = ExternalTokenResponse(
         valid=True,
         user_info={"id": "user123", "name": "Test User"},
         id="user123",
@@ -220,7 +221,7 @@ async def test_verify_external_auth_token_success(
 
     assert exception is None
     assert response is token_response
-    assert response.user_info["id"] == "user123"  # pyright: ignore
+    assert response.user_info["id"] == "user123"
     mock_verify.assert_awaited_once_with(
         "test-token", "https://example.com/verify", "test-secret"
     )

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 # pylint: disable=too-many-lines
-# pyright: reportPossiblyUnboundVariable=false
+# pyright: reportPossiblyUnboundVariable=false, reportUnusedParameter=false
 
 """Task router helpers."""
 
@@ -138,7 +138,8 @@ async def schedule_task(
         task.id,
         task.schedule_type,
     )
-    raise NotImplementedError(
+    msg = (
         "Scheduling tasks is not implemented yet. "
         "Please check the documentation for updates."
     )
+    raise NotImplementedError(msg)

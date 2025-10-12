@@ -21,7 +21,7 @@ from waldiez_runner.routes.ws.auth import (
     _get_jwt_from_subprotocol,
     get_ws_client_id,
 )
-from waldiez_runner.services.external_token_service import ExternalTokenService
+from waldiez_runner.services.external_token_service import ExternalTokenResponse
 
 MODULE_TO_PATCH = "waldiez_runner.routes.ws.auth"
 
@@ -243,7 +243,7 @@ async def test_get_ws_client_id_with_external_auth_success() -> None:
 
     mock_get_client_id = AsyncMock(return_value=(None, None, "some error"))
 
-    mock_token_response = ExternalTokenService.ExternalTokenResponse(
+    mock_token_response = ExternalTokenResponse(
         valid=True,
         user_info={"id": "user123", "name": "Test User", "sub": "user234"},
         id="user234",
@@ -320,7 +320,7 @@ async def test_get_ws_client_id_with_external_auth_failure() -> None:
 
     mock_get_client_id = AsyncMock(return_value=(None, None, "some error"))
 
-    mock_token_response = ExternalTokenService.ExternalTokenResponse(
+    mock_token_response = ExternalTokenResponse(
         valid=False, user_info={}, id="user234"
     )
     mock_verify_external = AsyncMock(
@@ -418,7 +418,7 @@ async def test_get_ws_client_id_external_auth_from_different_sources(
 
     mock_get_client_id = AsyncMock(return_value=(None, None, "some error"))
 
-    mock_token_response = ExternalTokenService.ExternalTokenResponse(
+    mock_token_response = ExternalTokenResponse(
         valid=True, user_info={"key": "value"}, id="user123"
     )
     mock_verify_external = AsyncMock(return_value=(mock_token_response, None))

@@ -3,12 +3,14 @@
 
 # pylint: disable=missing-param-doc,missing-return-doc,missing-yield-doc
 # pylint: disable=no-self-use,unused-argument,too-many-locals
+# pyright: reportMissingTypeStubs=false,reportPrivateUsage=false
 """Test waldiez_runner.dependencies.storage.utils._download.*."""
 
 import hashlib
+from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, AsyncGenerator, AsyncIterator
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -26,7 +28,7 @@ from waldiez_runner.dependencies.storage.utils import (
     download_sftp_file,
 )
 from waldiez_runner.dependencies.storage.utils._download import (
-    _validate_file_content,  # pyright: ignore[reportPrivateUsage]
+    _validate_file_content,
 )
 
 

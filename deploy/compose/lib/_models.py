@@ -199,10 +199,11 @@ class RestoreCfg:
         """
         if not cfg.has_section(SEC_RESTORE):
             # Minimal, explicit config required for restore; fail loudly.
-            raise ValueError(
+            msg = (
                 f"[{SEC_RESTORE}] section is required for restore; "
                 "please set at least 'archive = <path-or-key>'."
             )
+            raise ValueError(msg)
         s = cfg[SEC_RESTORE]
         archive = s.get("archive", "").strip()
         if not archive:
@@ -533,10 +534,11 @@ class TransportCfg:
                 )
                 self.type = "ssh"
             else:
-                logging.warning(
+                msg = (
                     "'both' requested but no transports configured."
                     " using 'none'"
                 )
+                logging.warning(msg)
                 self.type = "none"
 
         if self.mode == "mirror" and self.type not in ("s3", "both"):
@@ -687,10 +689,11 @@ class FilesCfg:
                 container = sub.get("container", "").strip()
                 container_path = sub.get("path", "").strip()
                 if not container or not container_path:
-                    raise ValueError(
+                    msg = (
                         f"files:{name} (container) "
                         "requires both 'container' and 'path'"
                     )
+                    raise ValueError(msg)
                 configs.append(
                     FilesCfg(
                         name=name,

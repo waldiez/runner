@@ -14,7 +14,9 @@
     "css.lint.unknownAtRules": "ignore",
     "scss.lint.unknownAtRules": "ignore",
     "less.lint.unknownAtRules": "ignore",
-    "pylint.args": ["--rcfile=pyproject.toml"],
+    "pylint.args": [
+        "--rcfile=pyproject.toml"
+    ],
     "[python]": {
         "editor.defaultFormatter": "charliermarsh.ruff"
     },
@@ -53,10 +55,14 @@
         "editor.formatOnSave": false,
         "editor.defaultFormatter": "esbenp.prettier-vscode"
     },
-    "black-formatter.args": ["--config=pyproject.toml"],
+    "black-formatter.args": [
+        "--config=pyproject.toml"
+    ],
     "ruff.configuration": "pyproject.toml",
     "mypy.runUsingActiveInterpreter": true,
-    "mypy-type-checker.args": ["--config pyproject.toml"],
+    "mypy-type-checker.args": [
+        "--config pyproject.toml"
+    ],
     "markdown.extension.toc.orderedList": false,
     "markdown.extension.toc.updateOnSave": false,
     "yaml.format.enable": false,
@@ -111,6 +117,7 @@
         "autorefs",
         "autouse",
         "awscli",
+        "basedpyright",
         "baselevel",
         "bento",
         "boto",
@@ -391,5 +398,6 @@
         "zadd",
         "zoneinfo",
         "zremrangebyscore"
-    ]
+    ],
+    "python.analysis.typeCheckingMode": "off"
 }

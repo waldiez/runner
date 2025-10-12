@@ -8,8 +8,8 @@ import os
 import secrets
 import shutil
 import uuid
+from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
-from typing import AsyncGenerator, Generator, Tuple
 from unittest.mock import patch
 
 import fakeredis
@@ -251,7 +251,7 @@ async def _create_client(
     name: str = "Test Client",
     description: str | None = None,
     client_id: str | None = None,
-) -> Tuple[Client, ClientCreateResponse]:
+) -> tuple[Client, ClientCreateResponse]:
     """Create a client."""
     if description is None:
         audience_parts = audience.split("-")
@@ -313,7 +313,7 @@ def client_factory() -> CreateClientCallable:
         name: str | None = None,
         description: str | None = None,
         client_id: str | None = None,
-    ) -> Tuple[Client, ClientCreateResponse]:
+    ) -> tuple[Client, ClientCreateResponse]:
         """Create a client."""
         if audience is None:
             audience = "tasks-api"
@@ -357,7 +357,7 @@ async def _create_task(
     filename: str = "file1.waldiez",
     status: TaskStatus = TaskStatus.PENDING,
     input_timeout: int = 180,
-) -> Tuple[Task, TaskResponse]:
+) -> tuple[Task, TaskResponse]:
     """Create a task."""
     task_create = TaskCreate(
         client_id=client_id,
@@ -400,7 +400,7 @@ def create_task_fixture() -> CreateTaskCallable:
         filename: str = "file1.waldiez",
         status: TaskStatus = TaskStatus.PENDING,
         input_timeout: int = 180,
-    ) -> Tuple[Task, TaskResponse]:
+    ) -> tuple[Task, TaskResponse]:
         """Create a task."""
         return await _create_task(
             session=session,

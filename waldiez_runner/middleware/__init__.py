@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
+# pyright:reportArgumentType=false
+
 """Custom middlewares for the waldiez_runner project."""
 
 from typing import TYPE_CHECKING

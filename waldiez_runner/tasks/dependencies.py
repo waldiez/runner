@@ -4,7 +4,7 @@
 """Taskiq dependencies setup."""
 
 import logging
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 from taskiq import Context, TaskiqDepends
 from typing_extensions import Annotated

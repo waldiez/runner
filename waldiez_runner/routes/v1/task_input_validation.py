@@ -8,7 +8,6 @@ import asyncio
 import hashlib
 import os
 from pathlib import Path
-from typing import Optional
 
 from fastapi import HTTPException, UploadFile
 from typing_extensions import Literal
@@ -106,14 +105,14 @@ async def _validate_file_path(
 # pylint: disable=too-many-locals
 async def validate_task_input(
     db: DatabaseManager,
-    file: Optional[UploadFile],
-    file_url: Optional[str],
-    file_path: Optional[str],
-    env_vars: Optional[str],
+    file: UploadFile | None,
+    file_url: str | None,
+    file_path: str | None,
+    env_vars: str | None,
     client_id: str,
     storage: Storage,
     max_jobs: int,
-    schedule_type: Optional[Literal["once", "cron"]] = None,
+    schedule_type: Literal["once", "cron"] | None = None,
 ) -> tuple[str, str, str, dict[str, str]]:
     """Validate the uploaded file.
 
@@ -123,11 +122,11 @@ async def validate_task_input(
         The database session manager.
     file : Optional[UploadFile]
         The file to validate.
-    file_url : Optional[str]
+    file_url : str | None
         The URL of the file to validate, by default None
-    file_path : Optional[str], optional
+    file_path : str | None, optional
         The local path of a previously uploaded file to use.
-    env_vars : Optional[str]
+    env_vars : str | None
         A JSON string of environment variables, by default None
     client_id : str
         The client ID.

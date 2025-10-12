@@ -6,7 +6,7 @@
 
 """Test waldiez_runner.routes.other.*."""
 
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, patch
 
 import pytest

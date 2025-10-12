@@ -29,7 +29,6 @@ Command line arguments (no prefix)
 
 import os
 import sys
-from typing import Optional
 
 from typing_extensions import TypedDict
 
@@ -149,12 +148,12 @@ def get_trusted_origins(
     return [origin for origin in trusted_origins if origin]
 
 
-def get_trusted_origin_regex() -> Optional[str]:
+def get_trusted_origin_regex() -> str | None:
     """Get the trusted origin regex.
 
     Returns
     -------
-    Optional[str]
+    str | None
         The trusted origin regex
     """
     value: str | None = get_value(

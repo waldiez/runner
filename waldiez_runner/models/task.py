@@ -4,7 +4,7 @@
 """Task model."""
 
 from datetime import datetime
-from typing import Any, Optional, Union
+from typing import Any
 
 from sqlalchemy import JSON
 from sqlalchemy import Enum as SqlEnum
@@ -27,9 +27,7 @@ class Task(Base):
     input_timeout: Mapped[int] = mapped_column(
         Integer, nullable=False, default=180
     )
-    input_request_id: Mapped[Optional[str]] = mapped_column(
-        String, nullable=True
-    )
+    input_request_id: Mapped[str | None] = mapped_column(String, nullable=True)
 
     status: Mapped[TaskStatus] = mapped_column(
         SqlEnum(
@@ -41,28 +39,23 @@ class Task(Base):
         default=TaskStatus.PENDING,
         index=True,
     )
-    results: Mapped[
-        Optional[
-            Union[
-                dict[str, Any],
-                list[dict[str, Any]],
-            ]
-        ]
-    ] = mapped_column(JSON, nullable=True)
+    results: Mapped[dict[str, Any] | list[dict[str, Any]] | None] = (
+        mapped_column(JSON, nullable=True)
+    )
 
-    schedule_type: Mapped[Optional[Literal["once", "cron"]]] = mapped_column(
+    schedule_type: Mapped[Literal["once", "cron"] | None] = mapped_column(
         String, nullable=True, index=True, default=None
     )
-    scheduled_time: Mapped[Optional[datetime]] = mapped_column(
+    scheduled_time: Mapped[datetime | None] = mapped_column(
         UTCDateTime, nullable=True, index=True, default=None
     )
-    cron_expression: Mapped[Optional[str]] = mapped_column(
+    cron_expression: Mapped[str | None] = mapped_column(
         String, nullable=True, default=None
     )
-    triggered_at: Mapped[Optional[datetime]] = mapped_column(
+    triggered_at: Mapped[datetime | None] = mapped_column(
         UTCDateTime, nullable=True, default=None
     )
-    expires_at: Mapped[Optional[datetime]] = mapped_column(
+    expires_at: Mapped[datetime | None] = mapped_column(
         UTCDateTime, nullable=True, default=None
     )
 

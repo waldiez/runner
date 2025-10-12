@@ -3,7 +3,7 @@ aiofiles>=24.1.0
 aioftp==0.27.2
 aiohttp==3.13.0
 aiosqlite==0.21.0
-alembic==1.16.5
+alembic==1.17.0
 anyio==4.11.0
 argon2-cffi==25.1.0
 asyncssh==2.21.1
@@ -12,8 +12,8 @@ boto3==1.40.50
 click<8.2
 fakeredis==2.32.0
 fastapi-pagination==0.14.3
-fastapi[all]==0.118.3
-faststream[redis,cli]==0.5.48
+fastapi[all]==0.119.0
+faststream[redis,cli]==0.6.0
 hiredis==3.2.1
 httpx<1
 nest-asyncio==1.6.0

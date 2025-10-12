@@ -9,7 +9,7 @@
 
 import json
 from types import SimpleNamespace
-from typing import Any, Callable, Dict
+from typing import Any, Callable
 
 import pytest
 
@@ -27,10 +27,10 @@ from waldiez_runner.routes._parsing import (
 
 
 @pytest.fixture(name="redis_msg")
-def redis_msg_fixture() -> Callable[[bytes | Dict[str, Any]], SimpleNamespace]:
+def redis_msg_fixture() -> Callable[[bytes | dict[str, Any]], SimpleNamespace]:
     """Fixture to create a RedisMessage mock."""
 
-    def _make(raw: bytes | Dict[str, Any]) -> SimpleNamespace:
+    def _make(raw: bytes | dict[str, Any]) -> SimpleNamespace:
         """Create a RedisMessage mock."""
         return SimpleNamespace(raw_message=raw)
 
@@ -38,7 +38,7 @@ def redis_msg_fixture() -> Callable[[bytes | Dict[str, Any]], SimpleNamespace]:
 
 
 def test_parse_message_with_id(
-    redis_msg: Callable[[bytes | Dict[str, Any]], SimpleNamespace],
+    redis_msg: Callable[[bytes | dict[str, Any]], SimpleNamespace],
 ) -> None:
     """Test parsing a message with a message ID."""
     raw = b'{"message_id": "abc", "data": {"foo": "bar"}}'
@@ -48,7 +48,7 @@ def test_parse_message_with_id(
 
 
 def test_parse_message_skip_id(
-    redis_msg: Callable[[bytes | Dict[str, Any]], SimpleNamespace],
+    redis_msg: Callable[[bytes | dict[str, Any]], SimpleNamespace],
 ) -> None:
     """Test parsing a message with a message ID, skipping it."""
     raw = b'{"data": {"foo": "bar"}}'
@@ -58,7 +58,7 @@ def test_parse_message_skip_id(
 
 
 def test_parse_message_missing_data(
-    redis_msg: Callable[[bytes | Dict[str, Any]], SimpleNamespace],
+    redis_msg: Callable[[bytes | dict[str, Any]], SimpleNamespace],
 ) -> None:
     """Test parsing a message with missing data."""
     raw = b'{"message_id": "abc"}'
@@ -68,7 +68,7 @@ def test_parse_message_missing_data(
 
 
 def test_parse_task_results_valid_list(
-    redis_msg: Callable[[bytes | Dict[str, Any]], SimpleNamespace],
+    redis_msg: Callable[[bytes | dict[str, Any]], SimpleNamespace],
 ) -> None:
     """Test parsing task results with a valid list."""
     raw = b'{"data": "[{\\"key\\": \\"val\\"}]"}'
@@ -80,7 +80,7 @@ def test_parse_task_results_valid_list(
 
 
 def test_parse_task_results_invalid_type(
-    redis_msg: Callable[[bytes | Dict[str, Any]], SimpleNamespace],
+    redis_msg: Callable[[bytes | dict[str, Any]], SimpleNamespace],
 ) -> None:
     """Test parsing task results with an invalid type."""
     raw = b'{"data": {"not": "a list"}}'
@@ -91,7 +91,7 @@ def test_parse_task_results_invalid_type(
 
 
 def test_parse_task_results_unparsable(
-    redis_msg: Callable[[bytes | Dict[str, Any]], SimpleNamespace],
+    redis_msg: Callable[[bytes | dict[str, Any]], SimpleNamespace],
 ) -> None:
     """Test parsing task results with an unparsable string."""
     raw = b'{"data": "not json"}'
@@ -117,7 +117,7 @@ def test_is_valid_user_input(payload: Any, expected: bool) -> None:
 
 
 def test_get_data_from_dict(
-    redis_msg: Callable[[bytes | Dict[str, Any]], SimpleNamespace],
+    redis_msg: Callable[[bytes | dict[str, Any]], SimpleNamespace],
 ) -> None:
     """Test getting data from a RedisMessage with a dict."""
     msg = redis_msg({"key": b"value"})
@@ -126,7 +126,7 @@ def test_get_data_from_dict(
 
 
 def test_get_data_from_bytes(
-    redis_msg: Callable[[bytes | Dict[str, Any]], SimpleNamespace],
+    redis_msg: Callable[[bytes | dict[str, Any]], SimpleNamespace],
 ) -> None:
     """Test getting data from a RedisMessage with bytes."""
     msg = redis_msg(b'{"key": "val"}')
@@ -135,7 +135,7 @@ def test_get_data_from_bytes(
 
 
 def test_get_data_from_invalid(
-    redis_msg: Callable[[bytes | Dict[str, Any]], SimpleNamespace],
+    redis_msg: Callable[[bytes | dict[str, Any]], SimpleNamespace],
 ) -> None:
     """Test getting data from a RedisMessage with invalid data."""
     msg = redis_msg(123)  # type: ignore
@@ -154,7 +154,7 @@ def test_get_data_from_invalid(
     ],
 )
 def test_extract_message_id(
-    input_data: Dict[str, Any], expected: str | None
+    input_data: dict[str, Any], expected: str | None
 ) -> None:
     """Test the _extract_message_id function."""
     assert _extract_message_id(input_data) == expected
@@ -189,7 +189,7 @@ def test_decode_thing(input_val: Any, expected: Any) -> None:
 
 
 def test_parse_message_invalid_json(
-    redis_msg: Callable[[bytes | Dict[str, Any]], SimpleNamespace],
+    redis_msg: Callable[[bytes | dict[str, Any]], SimpleNamespace],
 ) -> None:
     """Test parse_message with undecodable raw message."""
     msg = redis_msg(b"{not valid json}")
@@ -198,7 +198,7 @@ def test_parse_message_invalid_json(
 
 
 def test_parse_message_missing_message_id(
-    redis_msg: Callable[[bytes | Dict[str, Any]], SimpleNamespace],
+    redis_msg: Callable[[bytes | dict[str, Any]], SimpleNamespace],
 ) -> None:
     """Test parse_message with missing message_id when not skipping it."""
     raw = b'{"data": {"foo": "bar"}}'
@@ -208,7 +208,7 @@ def test_parse_message_missing_message_id(
 
 
 def test_parse_task_results_no_raw(
-    redis_msg: Callable[[bytes | Dict[str, Any]], SimpleNamespace],
+    redis_msg: Callable[[bytes | dict[str, Any]], SimpleNamespace],
 ) -> None:
     """Test parse_task_results with no raw_message field."""
     msg = SimpleNamespace(raw_message=None)
@@ -218,7 +218,7 @@ def test_parse_task_results_no_raw(
 
 
 def test_parse_task_results_data_as_bytes(
-    redis_msg: Callable[[bytes | Dict[str, Any]], SimpleNamespace],
+    redis_msg: Callable[[bytes | dict[str, Any]], SimpleNamespace],
 ) -> None:
     """Test parse_task_results with data as bytes containing a list."""
     data = json.dumps([{"foo": "bar"}]).encode("utf-8")

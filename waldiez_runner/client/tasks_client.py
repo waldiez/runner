@@ -1,12 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
+# pyright: reportOptionalMemberAccess=false,reportReturnType=false
+
 """Waldiez serve tasks client."""
 
 import asyncio
 import json
+from collections.abc import Coroutine
 from io import BytesIO
-from typing import Any, Callable, Coroutine
+from typing import Any, Callable
 
 from ._tasks_api import TasksAPIClient
 from ._websockets import AsyncWebSocketClient, SyncWebSocketClient

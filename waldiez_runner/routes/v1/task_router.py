@@ -1,13 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 # pyright: reportPossiblyUnboundVariable=false
+# pyright: reportCallInDefaultInitializer=false
 
 """Task routes."""
 
 import logging
 import os
 from datetime import datetime
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import (
     APIRouter,
@@ -193,17 +194,17 @@ async def create_task(
     storage: Annotated[Storage, Depends(get_storage)],
     context: Annotated[RequestContext, Depends(get_request_context)],
     settings: Annotated[Settings, Depends(get_settings)],
-    file: Optional[UploadFile] = None,
-    file_url: Optional[str] = Form(None),
-    filename: Optional[str] = Form(None),
-    env_vars: Optional[str] = Form(
+    file: UploadFile | None = None,
+    file_url: str | None = Form(None),
+    filename: str | None = Form(None),
+    env_vars: str | None = Form(
         None, description="JSON string of environment variables"
     ),
     input_timeout: int = Form(180),
-    schedule_type: Optional[Literal["once", "cron"]] = Form(None),
-    scheduled_time: Optional[datetime] = Form(None),
-    cron_expression: Optional[str] = Form(None),
-    expires_at: Optional[datetime] = Form(None),
+    schedule_type: Literal["once", "cron"] | None = Form(None),
+    scheduled_time: datetime | None = Form(None),
+    cron_expression: str | None = Form(None),
+    expires_at: datetime | None = Form(None),
     trigger_now: bool = Form(False),
 ) -> TaskResponse:
     """Create a task.
@@ -222,11 +223,11 @@ async def create_task(
         The settings to get the max_jobs config.
     file : Optional[UploadFile]
         The file to process.
-    file_url : Optional[str], optional
+    file_url : str | None, optional
         The URL of the file to process, by default None
-    filename : Optional[str], optional
+    filename : str | None, optional
         The local file of a previously uploaded file to use.
-    env_vars : Optional[str], optional
+    env_vars : str | None, optional
         A JSON string of environment variables, by default None
     input_timeout : int, optional
         The timeout for input requests, by default 180
@@ -234,7 +235,7 @@ async def create_task(
         The type of schedule, by default None
     scheduled_time : Optional[datetime], optional
         The time to schedule the task, by default None
-    cron_expression : Optional[str], optional
+    cron_expression : str | None, optional
         The cron expression for scheduling, by default None
     expires_at : Optional[datetime], optional
         The expiration time for the task, by default None
@@ -259,10 +260,7 @@ async def create_task(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Either file, file_url or filename must be provided",
         )
-    provided = sum(
-        bool(item)  # pyright: ignore
-        for item in [file, file_url, filename]  # pyright: ignore
-    )
+    provided = sum(bool(item) for item in [file, file_url, filename])
     if provided > 1:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -400,8 +398,10 @@ async def upload_task_workflow(
     "/tasks/{task_id}",
     response_model=TaskResponse,
     summary="Get a task by ID",
-    description="Get a task by ID. Admins can view any task, regular users can "
-    "only view their own.",
+    description=(
+        "Get a task by ID. Admins can view any task, regular users can "
+        "only view their own."
+    ),
 )
 async def get_task(
     task_id: str,
@@ -450,8 +450,10 @@ async def get_task(
     "/tasks/{task_id}",
     response_model=TaskResponse,
     summary="Update a task",
-    description="Update a task by ID. Admins can update any task, regular users"
-    " can only update their own.",
+    description=(
+        "Update a task by ID. Admins can update any task, regular users"
+        " can only update their own."
+    ),
 )
 async def update_task(
     task_id: str,
@@ -582,8 +584,10 @@ async def on_input_request(
     "/tasks/{task_id}/download",
     response_model=None,
     summary="Download a task archive",
-    description="Download a task archive by ID. Admins can download any task, "
-    "regular users can only download their own.",
+    description=(
+        "Download a task archive by ID. Admins can download any task, "
+        "regular users can only download their own."
+    ),
 )
 async def download_task(
     task_id: str,
@@ -647,8 +651,10 @@ async def download_task(
     "/tasks/{task_id}/cancel",
     response_model=TaskResponse,
     summary="Cancel a task",
-    description="Cancel a task by ID. Admins can cancel any task, "
-    "regular users can only cancel their own.",
+    description=(
+        "Cancel a task by ID. Admins can cancel any task, "
+        "regular users can only cancel their own."
+    ),
 )
 async def cancel_task(
     task_id: str,
@@ -718,8 +724,10 @@ async def cancel_task(
     "/tasks/{task_id}",
     response_model=None,
     summary="Delete a task",
-    description="Delete a task by ID. Admins can delete any task, "
-    "regular users can only delete their own.",
+    description=(
+        "Delete a task by ID. Admins can delete any task, "
+        "regular users can only delete their own."
+    ),
 )
 async def delete_task(
     task_id: str,
@@ -795,8 +803,10 @@ async def delete_task(
     "/tasks",
     response_model=None,
     summary="Delete multiple tasks",
-    description="Delete multiple tasks. Admins can delete any tasks by ID, "
-    "regular users can only delete their own.",
+    description=(
+        "Delete multiple tasks. Admins can delete any tasks by ID, "
+        "regular users can only delete their own."
+    ),
 )
 async def delete_tasks(
     client_id_and_admin: Annotated[
