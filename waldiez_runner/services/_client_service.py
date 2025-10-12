@@ -2,6 +2,8 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
 # pylint: disable=line-too-long
+# pyright: reportAttributeAccessIssue=false,reportUnknownMemberType=false
+
 """Clients management service."""
 
 import logging
