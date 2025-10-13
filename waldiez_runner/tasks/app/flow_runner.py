@@ -171,7 +171,9 @@ class FlowRunner:
         try:
             self.io_stream.redis.publish(
                 channel=chanel,
-                message=json.dumps(task_status),
+                message=json.dumps(
+                    task_status, ensure_ascii=False, default=str
+                ),
             )
         except BaseException as e:  # pylint: disable=broad-exception-caught
             LOG.error("Error publishing input request: %s", e)
@@ -201,7 +203,9 @@ class FlowRunner:
         try:
             self.io_stream.redis.publish(
                 channel=chanel,
-                message=json.dumps(task_status),
+                message=json.dumps(
+                    task_status, ensure_ascii=False, default=str
+                ),
             )
         except BaseException as e:  # pragma: no cover
             LOG.error("Error publishing input response: %s", e)

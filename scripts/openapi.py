@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
+# pylint: disable=invalid-name
 # pyright: reportImplicitRelativeImport=false
 
 """Try to download the latest openapi.json and move it to the docs folder."""

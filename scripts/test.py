@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
-# pylint: disable=consider-using-with
+# pylint: disable=consider-using-with,invalid-name
 # pyright: reportImplicitRelativeImport=false
 
 """Run tests for the waldiez_runner package."""

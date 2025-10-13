@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
-# pylint: disable=line-too-long,too-complex
+# pylint: disable=line-too-long,too-complex,invalid-name
 # flake8: noqa: E501,C901
 # pyright: reportConstantRedefinition=false,reportRedeclaration=false,reportAssignmentType=false
 """Argon2id password hasher implementation (preferred algorithm)."""

@@ -7,7 +7,7 @@
 # pylint: disable=broad-exception-caught,inconsistent-quotes
 # pylint: disable=missing-function-docstring,missing-param-doc
 # pylint: disable=missing-return-doc,missing-yield-doc,missing-raises-doc
-# pylint: disable=too-many-try-statements,too-complex
+# pylint: disable=too-many-try-statements,too-complex,invalid-name
 # pyright: reportConstantRedefinition=false,reportImplicitRelativeImport=false
 
 """Python restore tool with INI config and multi-source support."""

@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 
+# pylint: disable=invalid-name
+
 """Task status."""
 
 import enum

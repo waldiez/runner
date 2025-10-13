@@ -11,6 +11,7 @@ import os
 import shutil
 import signal
 import sys
+import traceback
 import venv
 from pathlib import Path
 from typing import Any
@@ -342,6 +343,7 @@ async def run_app_in_venv(
                     )
                     return_code = watcher_result
             except Exception as e:
+                LOG.debug(traceback.format_exc())
                 LOG.warning("Watcher task error: %s", e)
                 return_code = -1
         return return_code

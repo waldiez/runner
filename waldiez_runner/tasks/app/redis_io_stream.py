@@ -484,9 +484,9 @@ class RedisIOStream(IOStream):
         """
         try:
             func(*args, **kwargs)
-        except BaseException:  # pragma: no cover
-            LOG.error("Error on try_do:")
-            LOG.error(tb.format_exc())
+        except BaseException as error:  # pragma: no cover
+            LOG.error("Error on try_do: %s", error)
+            LOG.debug(tb.format_exc())
 
     @staticmethod
     async def a_try_do(
@@ -507,9 +507,9 @@ class RedisIOStream(IOStream):
         """
         try:
             await func(*args, **kwargs)
-        except BaseException:  # pragma: no cover
-            LOG.error("Error on a_try_do:")
-            LOG.error(tb.format_exc())
+        except BaseException as error:  # pragma: no cover
+            LOG.error("Error on a_try_do: %s", error)
+            LOG.debug(tb.format_exc())
 
     @staticmethod
     def is_request_processed(
