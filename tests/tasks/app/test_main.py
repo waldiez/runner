@@ -5,6 +5,7 @@
 # pylint: disable=missing-yield-doc,unused-argument
 """Test waldiez_runner.tasks.app.cli.*."""
 
+import json
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -20,7 +21,9 @@ MODULE_TO_PATCH = "waldiez_runner.tasks.app.main"
 @patch(f"{MODULE_TO_PATCH}.FlowRunner")
 @patch(f"{MODULE_TO_PATCH}.RedisBroker")
 @patch(f"{MODULE_TO_PATCH}.FastStream")
+@patch(f"{MODULE_TO_PATCH}.a_redis")
 async def test_run_success(
+    mock_redis: MagicMock,
     mock_app: MagicMock,
     mock_broker: MagicMock,
     mock_runner: MagicMock,
@@ -32,9 +35,11 @@ async def test_run_success(
     test_file_path = str(test_file)
     runner_instance = mock_runner.return_value
     runner_instance.run = AsyncMock(return_value={"result": "ok"})
-
-    broker = mock_broker.return_value
-    broker.publish = AsyncMock()
+    pool = MagicMock(name="pool")
+    mock_redis.ConnectionPool.from_url.return_value = pool
+    client = AsyncMock(name="redis_client")
+    mock_redis.Redis.return_value = client
+    client.publish.return_value = 1
 
     app = mock_app.return_value
     app.start = AsyncMock()
@@ -53,16 +58,9 @@ async def test_run_success(
     ):
         await run(params)
 
-    # we use "@app.after_startup" for the first publish, so it's not
-    # counted in the publish.await_count
-    # assert broker.publish.await_count == 2  # RUNNING and COMPLETED
-    # broker.publish.assert_any_call(
-    #     {"task_id": "task123", "status": "RUNNING"}, "task:task123:status"
-    # )
-    broker.publish.assert_any_call(
-        {"task_id": "task123", "status": "COMPLETED", "data": {"result": "ok"}},
-        "task:task123:status",
-    )
+    assert client.publish.await_count == 2
+    msg = json.loads(client.publish.call_args[0][1])
+    assert msg["status"] == "COMPLETED"
 
 
 # noinspection PyUnusedLocal
@@ -70,7 +68,9 @@ async def test_run_success(
 @patch(f"{MODULE_TO_PATCH}.FlowRunner")
 @patch(f"{MODULE_TO_PATCH}.RedisBroker")
 @patch(f"{MODULE_TO_PATCH}.FastStream")
+@patch(f"{MODULE_TO_PATCH}.a_redis")
 async def test_run_failure(
+    mock_redis: MagicMock,
     mock_app: MagicMock,
     mock_broker: MagicMock,
     mock_runner: MagicMock,
@@ -80,8 +80,11 @@ async def test_run_failure(
     test_file = tmp_path / "file.waldiez"
     test_file.write_text("dummy")
     test_file_path = str(test_file)
-    broker = mock_broker.return_value
-    broker.publish = AsyncMock()
+    pool = MagicMock(name="pool")
+    mock_redis.ConnectionPool.from_url.return_value = pool
+    client = AsyncMock(name="redis_client")
+    mock_redis.Redis.return_value = client
+    client.publish.return_value = 1
     app = mock_app.return_value
     app.start = AsyncMock()
     app.stop = AsyncMock()
@@ -99,6 +102,6 @@ async def test_run_failure(
     ):
         await run(params)
 
-    # assert broker.publish.await_count == 2  # RUNNING and FAILED
-    assert broker.publish.await_count == 2
-    assert broker.publish.call_args[0][0]["status"] == "FAILED"
+    assert client.publish.await_count == 2
+    msg = json.loads(client.publish.call_args[0][1])
+    assert msg["status"] == "FAILED"

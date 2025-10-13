@@ -3,17 +3,22 @@
 
 # pyright: reportUnusedFunction=false,reportUnnecessaryIsInstance=false
 # pyright: reportImplicitRelativeImport=false,reportUnusedParameter=false
+# pyright: reportUnknownVariableType=false,reportUnknownMemberType=false
+# pyright: reportAttributeAccessIssue=false
+
 """The main Faststream app entrypoint."""
 
 import asyncio
+import json
 import logging
 import signal
 import sys
 import traceback
 from pathlib import Path
 from types import FrameType
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+import redis.asyncio as a_redis
 from faststream import FastStream
 from faststream.redis import RedisBroker
 
@@ -31,6 +36,13 @@ except ImportError:
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from app.cli import TaskParams, parse_args  # type: ignore
     from app.flow_runner import FlowRunner  # type: ignore
+
+if TYPE_CHECKING:
+    AsyncRedis = a_redis.Redis[str]
+    ConnectionPool = a_redis.ConnectionPool[Any]
+else:
+    AsyncRedis = a_redis.Redis
+    ConnectionPool = a_redis.ConnectionPool
 
 LOG = logging.getLogger(__name__)
 
@@ -78,7 +90,8 @@ async def run(params: TaskParams) -> None:
             shutdown(0, None)
 
     await app.start()
-    await broker.publish(
+    await publish_status(
+        params,
         {
             "status": "RUNNING",
             "task_id": params.task_id,
@@ -126,7 +139,8 @@ async def run(params: TaskParams) -> None:
             }
         )
     finally:
-        await broker.publish(task_status, status_channel)
+        await publish_status(params, task_status, status_channel)
+        # await broker.publish(task_status, status_channel)
         await app.stop()
         LOG.info("App stopped for task %s", params.task_id)
 
@@ -175,6 +189,32 @@ def check_results(
         "status": "COMPLETED",
         "data": results,
     }
+
+
+async def publish_status(
+    params: TaskParams, status: dict[str, Any], channel: str
+) -> None:
+    """Publish the final task status.
+
+    Parameters
+    ----------
+    params : TaskParams
+        The task parameters to get the redis url.
+    status : dict[str, Any]
+        The task status.
+    channel : str
+        The pub channel.
+    """
+    pool: ConnectionPool = a_redis.ConnectionPool.from_url(
+        params.redis_url, decode_responses=True
+    )
+    client = a_redis.Redis(
+        decode_responses=True,
+        connection_pool=pool,
+        single_connection_client=True,
+    )
+    await client.publish(channel, json.dumps(status, default=str))
+    await client.aclose()  # type: ignore
 
 
 def setup_signal_handlers() -> None:
