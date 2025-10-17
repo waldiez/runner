@@ -3,6 +3,7 @@
 """Locust load testing for Waldiez Runner API."""
 
 # pyright: reportUnknownVariableType=false,reportUnknownMemberType=false
+# pyright: reportUninitializedInstanceVariable=false
 import json
 import os
 import random
@@ -239,10 +240,11 @@ class TasksAPIUser(HttpUser):
                     if response.status_code < 400:
                         response.success()
                     else:
-                        response.failure(
+                        msg = (
                             "Task upload failed with status "
                             f"{response.status_code}"
                         )
+                        response.failure(msg)
         finally:
             # Clean up the temporary file
             if os.path.exists(tmp_path):
