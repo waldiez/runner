@@ -9,10 +9,10 @@ isort==7.0.0
 locust==2.41.6
 lupa==2.5
 mypy==1.18.2
-prek==0.2.5
+prek==0.2.9
 pydocstyle==6.3.0
-pylint==4.0.0
-ruff==0.14.0
+pylint==4.0.1
+ruff==0.14.1
 streamlit-autorefresh==1.0.1
 streamlit==1.50.0
 types-PyYAML==6.0.12.20250915
