@@ -1,5 +1,4 @@
 nest-asyncio==1.6.0
-faststream[redis,cli]==0.6.0
+faststream[redis,cli]==0.6.1
 python-dotenv==1.1.1
-pydantic<2.12  # remove when we bump waldiez
-waldiez==0.6.0
+waldiez==0.6.1
