@@ -177,3 +177,5 @@ async def remove_tmp_dir(temp_dir: Path) -> None:
         LOG.warning(
             "Permission denied to remove temporary directory %s", temp_dir
         )
+    except BaseException as err:
+        LOG.warning("Unexpected error: %s", err)

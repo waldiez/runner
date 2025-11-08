@@ -1,20 +1,20 @@
 -r main.txt
 autoflake==2.3.1
 bandit==1.8.6
-basedpyright==1.31.7
+basedpyright==1.33.0
 black[jupyter]==25.9.0
 flake8==7.3.0
 hatchling==1.27.0
 isort==7.0.0
-locust==2.41.6
-lupa==2.5
+locust==2.42.2
+lupa==2.6
 mypy==1.18.2
-prek==0.2.9
+prek==0.2.13
 pydocstyle==6.3.0
-pylint==4.0.1
-ruff==0.14.1
+pylint==4.0.2
+ruff==0.14.4
 streamlit-autorefresh==1.0.1
-streamlit==1.50.0
+streamlit==1.51.0
 types-PyYAML==6.0.12.20250915
 types-aiofiles==25.1.0.20251011
 types-psutil==7.0.0.20251001

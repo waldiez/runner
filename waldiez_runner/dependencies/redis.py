@@ -125,7 +125,6 @@ class RedisManager:
         """Close the Redis connection and stop Fake Redis if running."""
         if self._pool:
             await self._pool.disconnect()
-            LOG.info("Redis connection pool closed")
         self._pool = None
         self.stop_fake_redis_server()
 
@@ -252,7 +251,6 @@ class RedisManager:
         if self._server:
             try:
                 self._server.shutdown()
-                LOG.info("Fake Redis server shutdown complete.")
             except Exception as e:
                 LOG.warning("Failed to shut down fake Redis server: %s", e)
 

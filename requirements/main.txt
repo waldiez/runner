@@ -1,31 +1,30 @@
 aiocsv==1.4.0
 aiofiles==25.1.0
 aioftp==0.27.2
-aiohttp==3.13.1
+aiohttp==3.13.2
 aiosqlite==0.21.0
-alembic==1.17.0
+alembic==1.17.1
 anyio==4.11.0
 argon2-cffi==25.1.0
 asyncssh==2.21.1
 bcrypt==5.0.0
-boto3==1.40.55
-click<8.2
-fakeredis==2.32.0
-fastapi-pagination==0.14.3
-fastapi[all]==0.119.0
-faststream[redis,cli]==0.6.1
+boto3==1.40.69
+fakeredis==2.32.1
+fastapi-pagination==0.15.0
+fastapi[all]==0.121.0
+faststream[redis,cli]==0.6.3
 hiredis==3.3.0
 httpx<1
 nest-asyncio==1.6.0
-orjson==3.11.3
-psutil==7.1.0
-psycopg>=3.2.10; sys_platform == 'win32' and platform_machine == 'AARCH64'
-psycopg>=3.2.10; sys_platform == 'win32' and platform_machine == 'ARM64'
-psycopg>=3.2.10; sys_platform == 'win32' and platform_machine == 'aarch64'
-psycopg>=3.2.10; sys_platform == 'win32' and platform_machine == 'arm64'
-psycopg[binary,pool]>=3.2.10; sys_platform == 'darwin'
-psycopg[binary,pool]>=3.2.10; sys_platform == 'linux'
-psycopg[binary,pool]>=3.2.10; sys_platform == 'win32' and platform_machine != 'arm64' and platform_machine != 'ARM64' and platform_machine != 'aarch64' and platform_machine != 'AARCH64'
+orjson==3.11.4
+psutil>=7.1.0
+psycopg>=3.2.12; sys_platform == 'win32' and platform_machine == 'AARCH64'
+psycopg>=3.2.12; sys_platform == 'win32' and platform_machine == 'ARM64'
+psycopg>=3.2.12; sys_platform == 'win32' and platform_machine == 'aarch64'
+psycopg>=3.2.12; sys_platform == 'win32' and platform_machine == 'arm64'
+psycopg[binary,pool]>=3.2.12; sys_platform == 'darwin'
+psycopg[binary,pool]>=3.2.12; sys_platform == 'linux'
+psycopg[binary,pool]>=3.2.12; sys_platform == 'win32' and platform_machine != 'arm64' and platform_machine != 'ARM64' and platform_machine != 'aarch64' and platform_machine != 'AARCH64'
 puremagic==1.30
 pyJWT[crypto]==2.10.1
 pydantic-settings==2.11.0
@@ -33,17 +32,17 @@ pydantic>=2.11.3
 pysqlite3-binary==0.5.4; sys_platform == 'linux' and platform_machine != 'arm64' and platform_machine != 'aarch64' and platform_machine != 'ARM64' and platform_machine != 'AARCH64'
 python-multipart==0.0.20
 python-ulid==3.1.0
-python_dotenv==1.1.1
-redis==6.4.0
+python_dotenv==1.2.1
+redis>=6.4.0
 slowapi==0.1.9
 taskiq-dependencies==1.5.7
 taskiq-redis==1.1.2
-taskiq==0.11.18
+taskiq==0.11.20
 tenacity<10.0.0
-trio==0.31.0
-typer<1
-uvicorn[standard]==0.37.0
+trio==0.32.0
+typer>=0.18.0,<1
+uvicorn[standard]==0.38.0
 uvloop==0.22.1; sys_platform != 'win32'
-virtualenv==20.35.3
-waldiez==0.6.1
+virtualenv==20.35.4
+waldiez @ git+https://github.com/waldiez/waldiez.git@dev
 zipstream==1.1.4

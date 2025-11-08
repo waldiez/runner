@@ -2,10 +2,10 @@
 asgi-lifespan==2.1.0
 greenlet==3.2.4
 httpx<1
-httpx_ws==0.8.0
-locust==2.41.6
-lupa==2.5
-moto[s3]==5.1.14
+httpx_ws==0.8.2
+locust==2.42.2
+lupa==2.6
+moto[s3]==5.1.16
 pytest-asyncio==1.2.0
 pytest-cov==7.0.0
 pytest-env==1.2.0
