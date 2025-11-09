@@ -32,7 +32,7 @@ jobs:
           python -m twine check dist/*
 
       - name: Store the distribution packages
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v5.0.0
         with:
           name: waldiez-runner
           path: dist/*
@@ -46,7 +46,7 @@ jobs:
       url: https://pypi.org/p/waldiez-runner
     steps:
       - name: Download the distribution packages
-        uses: actions/download-artifact@v5.0.0
+        uses: actions/download-artifact@v6.0.0
         with:
           name: waldiez-runner
           path: dist
