@@ -126,7 +126,7 @@ test = [
     "locust==2.42.2",
     "lupa==2.6",
     "moto[s3]==5.1.16",
-    "pytest==8.4.2",
+    "pytest>=8.4.2",  # pytest-asyncio 1.2.0 depends on pytest<9 and >=8.2
     "pytest-asyncio==1.2.0",
     "pytest-cov==7.0.0",
     "pytest-html==4.1.1",
