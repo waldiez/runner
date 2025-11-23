@@ -44,5 +44,5 @@ typer>=0.18.0,<1
 uvicorn[standard]==0.38.0
 uvloop==0.22.1; sys_platform != 'win32'
 virtualenv==20.35.4
-waldiez==0.6.4
+waldiez==0.6.5
 zipstream==1.1.4
