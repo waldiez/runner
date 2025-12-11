@@ -8,10 +8,10 @@ anyio==4.12.0
 argon2-cffi==25.1.0
 asyncssh==2.21.1
 bcrypt==5.0.0
-boto3==1.42.5
+boto3==1.42.7
 fakeredis==2.32.1
 fastapi-pagination==0.15.2
-fastapi[all]==0.124.0
+fastapi[all]==0.124.2
 faststream[redis,cli]==0.6.4
 hiredis==3.3.0
 httpx<1
