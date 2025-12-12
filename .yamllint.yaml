@@ -5,5 +5,7 @@ rules:
   line-length:
     max: 200
     level: warning
+  brackets:
+    max-spaces-inside: -1
 
 ignore-from-file: .gitignore
