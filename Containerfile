@@ -136,6 +136,8 @@ RUN pip install --root-user-action ignore -r /tmp/requirements.txt \
     && rm /tmp/requirements.txt \
     && pip freeze > /opt/base-locked.txt
 
+RUN python3.12 /usr/local/lib/python3.12/site-packages/waldiez/utils/ag2_patch.py autogen /usr/local/lib/python3.12/site-packages/waldiez/utils/ag2.diff
+
 # let's hope this will not be needed (e.g. no need to open a shell)
 # if it does, I like colors
 RUN sed -i 's/^#force_color_prompt=yes/force_color_prompt=yes/' /etc/skel/.bashrc
