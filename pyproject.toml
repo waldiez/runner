@@ -73,7 +73,7 @@ dependencies = [
     "uvicorn[standard]==0.38.0",
     "uvloop==0.22.1; sys_platform != 'win32'",
     "virtualenv==20.35.4",
-    "waldiez==0.6.10",
+    "waldiez==0.6.11",
     "zipstream==1.1.4",
 ]
 
