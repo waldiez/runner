@@ -14,6 +14,7 @@ from typing import Any
 
 from autogen.io.base import IOStream  # type: ignore
 from waldiez import Waldiez, WaldiezRunner
+from waldiez.utils.ag2_patch import patch_ag2
 
 from .redis_io_stream import RedisIOStream
 from .results_serialization import make_serializable_results
@@ -67,6 +68,10 @@ class FlowRunner:
             self.dot_env_path = dot_env_path
         else:
             self.dot_env_path = None
+        try:
+            patch_ag2()
+        except Exception as error:  # pylint: disable=broad-exception-caught
+            LOG.error(error)
 
     async def run(self) -> list[dict[str, Any]] | dict[str, Any]:
         """Run the Waldiez flow and return the results.
