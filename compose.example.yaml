@@ -11,6 +11,7 @@ volumes:
   runner-redis-data:
   runner-storage-data:
 
+
 x-podman:
   in_pod: false
 
@@ -48,8 +49,7 @@ services:
       - runner-postgres-data:/var/lib/postgresql/pgdata
     healthcheck:
       <<: *common-healthcheck
-      test:
-        ['CMD', 'pg_isready', '-U', '${POSTGRES_USER:-db_user}', '-d', '${POSTGRES_DB:-db_name}', '-p', '${PGPORT:-5432}']
+      test: [ 'CMD', 'pg_isready', '-U', '${POSTGRES_USER:-db_user}', '-d', '${POSTGRES_DB:-db_name}', '-p', '${PGPORT:-5432}' ]
     logging: *common-logging
 
   redis:
@@ -91,7 +91,7 @@ services:
 
   check-storage-permissions:
     image: waldiez/runner:latest
-    entrypoint: ["chown", "-R", "waldiez:waldiez", "/home/waldiez/app/waldiez_runner/storage"]
+    entrypoint: [ "chown", "-R", "waldiez:waldiez", "/home/waldiez/app/waldiez_runner/storage" ]
     volumes: &waldiez-runner-volumes
       - runner-storage-data:/home/waldiez/app/waldiez_runner/storage
     user: "root"
@@ -147,7 +147,7 @@ services:
       - WALDIEZ_RUNNER_KEEP_TASKS_FOR_DAYS=${WALDIEZ_RUNNER_KEEP_TASKS_FOR_DAYS:-0}
       - WALDIEZ_RUNNER_MAX_TASK_DURATION=${WALDIEZ_RUNNER_MAX_TASK_DURATION:-3600}
       - WALDIEZ_RUNNER_EXTRA_PACKAGES=${WALDIEZ_RUNNER_EXTRA_PACKAGES:-}
-      # - WALDIEZ_RUNNER_EXTRA_PACKAGES=chromadb docling>=2.15.1,<3 ag2[wikipedia]==0.9.9
+      # - WALDIEZ_RUNNER_EXTRA_PACKAGES=chromadb docling>=2.15.1,<3 ag2[wikipedia]
     depends_on:
       db:
         condition: service_healthy
@@ -172,7 +172,7 @@ services:
     container_name: waldiez-broker
     image: waldiez/runner:latest
     restart: unless-stopped
-    command: ["/home/waldiez/app/scripts/start.sh", "broker"]
+    command: [ "/home/waldiez/app/scripts/start.sh", "broker" ]
     init: true
     networks:
       - waldiez-internal
@@ -192,7 +192,7 @@ services:
     container_name: waldiez-scheduler
     image: waldiez/runner:latest
     restart: unless-stopped
-    command: ["/home/waldiez/app/scripts/start.sh", "scheduler"]
+    command: [ "/home/waldiez/app/scripts/start.sh", "scheduler" ]
     init: true
     networks:
       - waldiez-internal
