@@ -12,7 +12,7 @@ authors = [
   { name = "Christos Chatzigeorgiou", email = "chrihatz@waldiez.io"}
 ]
 readme = "README.md"
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.11"
 dynamic = ["version"]
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -22,13 +22,14 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Operating System :: OS Independent",
   "Intended Audience :: Science/Research",
   "Intended Audience :: Developers",
 ]
 dependencies = [
     "aiocsv==1.4.0",
-    "aiosqlite==0.21.0",
+    "aiosqlite==0.21.0",  # watch: https://github.com/omnilib/aiosqlite/issues/369
     "aiofiles==25.1.0",
     "aioftp==0.27.2",
     "aiohttp==3.13.2",
@@ -37,10 +38,10 @@ dependencies = [
     "asyncssh==2.21.1",
     "argon2-cffi==25.1.0",
     "bcrypt==5.0.0",
-    "boto3==1.42.7",
-    "fakeredis==2.32.1",
-    "fastapi[all]==0.124.2",
-    "fastapi-pagination==0.15.2",
+    "boto3==1.42.14",
+    "fakeredis==2.33.0",
+    "fastapi[all]==0.125.0",
+    "fastapi-pagination==0.15.4",
     "faststream[redis,cli]==0.6.4",
     "hiredis==3.3.0",
     "httpx<1",
@@ -59,21 +60,21 @@ dependencies = [
     "pysqlite3-binary==0.5.4; sys_platform == 'linux' and platform_machine != 'arm64' and platform_machine != 'aarch64' and platform_machine != 'ARM64' and platform_machine != 'AARCH64'",
     "python_dotenv==1.2.1",
     "puremagic==1.30",
-    "python-multipart==0.0.20",
+    "python-multipart==0.0.21",
     "redis>=6.4.0",
     "slowapi==0.1.9",
     "pydantic>=2.10",
     "python-ulid==3.1.0",
     "taskiq==0.12.1",
     "taskiq-dependencies==1.5.7",
-    "taskiq-redis==1.2.0",
+    "taskiq-redis==1.2.1",
     "tenacity<10.0.0",
     "trio==0.32.0",
     "typer>=0.18.0,<1",
     "uvicorn[standard]==0.38.0",
     "uvloop==0.22.1; sys_platform != 'win32'",
     "virtualenv==20.35.4",
-    "waldiez==0.6.11",
+    "waldiez @ git+https://github.com/waldiez/waldiez@dev",
     "zipstream==1.1.4",
 ]
 
@@ -83,6 +84,9 @@ repository = "https://github.com/waldiez/runner.git"
 
 [project.scripts]
 waldiez-runner = "waldiez_runner.cli:app"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.sdist]
 packages = ["waldiez_runner", "waldiez_runner.*"]
@@ -103,12 +107,12 @@ dev = [
     "isort==7.0.0",
     "locust==2.42.6",
     "lupa==2.6",
-    "mypy==1.19.0",
-    "prek==0.2.21",
+    "mypy==1.19.1",
+    "prek==0.2.23",
     "pydocstyle==6.3.0",
     "pylint==4.0.4",
-    "ruff==0.14.8",
-    "streamlit==1.52.1",
+    "ruff==0.14.10",
+    "streamlit==1.52.2",
     "streamlit-autorefresh==1.0.1",
     "types-aiofiles==25.1.0.20251011",
     "types-redis==4.6.0.20241004",
@@ -143,7 +147,7 @@ docs = [
   'mkdocs==1.6.1',
   'mkdocs-jupyter==0.25.1',
   'mkdocs-macros-plugin==1.5.0',
-  'mkdocs-material==9.7.0',
+  'mkdocs-material==9.7.1',
   'mkdocs-mermaid2-plugin==1.2.3',
   "mkdocs-minify-html-plugin==0.3.9;python_version <'3.13'",
   "mkdocs-minify-html-plugin==0.3.9;python_version >= '3.13' and sys_platform != 'win32'",

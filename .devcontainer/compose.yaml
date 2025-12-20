@@ -31,16 +31,15 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-db_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-db_password}
       POSTGRES_DB: ${POSTGRES_DB:-db_name}
-      PGDATA: /var/lib/postgresql/data
+      PGDATA: /var/lib/postgresql/pgdata
       PGPORT: '${PGPORT:-5432}'
     ports:
       - "${PGPORT:-5432}:${PGPORT:-5432}"
     volumes:
-      - runner-postgres-data:/var/lib/postgresql/data
+      - runner-postgres-data:/var/lib/postgresql/pgdata
     healthcheck:
       <<: *common-healthcheck
-      test:
-        ['CMD', 'pg_isready', '-U', '${POSTGRES_USER:-db_user}', '-d', '${POSTGRES_DB:-db_name}', '-p', '${PGPORT:-5432}']
+      test: [ 'CMD', 'pg_isready', '-U', 'db_user', '-d', 'db_name', '-p', '5432' ]
     logging: *common-logging
 
   redis:

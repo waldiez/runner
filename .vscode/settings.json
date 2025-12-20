@@ -4,6 +4,8 @@
     "python.envFile": "",
     "search.exclude": {
         "**/.venv": true,
+        "**/.hatch": true,
+        "**/.tox": true,
         "**/dist": true,
         "**/out": true
     },
@@ -170,6 +172,7 @@
         "DUPS",
         "Eeuo",
         "elif",
+        "envpython",
         "epel",
         "epytext",
         "excinfo",
@@ -348,6 +351,7 @@
         "setopt",
         "shellcheck",
         "shutil",
+        "SIGABRT",
         "signum",
         "skel",
         "sles",

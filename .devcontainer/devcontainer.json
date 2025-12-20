@@ -41,6 +41,8 @@
                 "python.envFile": "",
                 "search.exclude": {
                     "**/.venv": true,
+                    "**/.hatch": true,
+                    "**/.tox": true,
                     "**/dist": true,
                     "**/out": true
                 },
