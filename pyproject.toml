@@ -74,7 +74,7 @@ dependencies = [
     "uvicorn[standard]==0.38.0",
     "uvloop==0.22.1; sys_platform != 'win32'",
     "virtualenv==20.35.4",
-    "waldiez @ git+https://github.com/waldiez/waldiez@dev",
+    "waldiez==0.7.0",
     "zipstream==1.1.4",
 ]
 

@@ -2,4 +2,4 @@
 # Copyright (c) 2024 - 2025 Waldiez and contributors.
 """Version information for waldiez_runner."""
 
-__version__ = "0.6.11"
+__version__ = "0.7.0"
