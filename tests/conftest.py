@@ -195,6 +195,7 @@ async def db_tables_fixture(
         except OperationalError:  # tables already exist
             pass
     yield conn
+    await engine.dispose()
 
 
 @pytest.fixture(name="async_session", scope="session")
@@ -207,6 +208,7 @@ async def async_session_fixture(
     async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
     async with async_session_maker() as session:
         yield session
+    await engine.dispose()
 
 
 @pytest.fixture(name="fake_redis")

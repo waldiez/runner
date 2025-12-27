@@ -2,29 +2,29 @@ aiocsv==1.4.0
 aiofiles==25.1.0
 aioftp==0.27.2
 aiohttp==3.13.2
-aiosqlite==0.21.0
+aiosqlite==0.22.1
 alembic==1.17.2
 anyio==4.12.0
 argon2-cffi==25.1.0
-asyncssh==2.21.1
+asyncssh==2.22.0
 bcrypt==5.0.0
-boto3==1.42.14
+boto3==1.42.17
 fakeredis==2.33.0
 fastapi-pagination==0.15.4
-fastapi[all]==0.126.0
+fastapi[all]==0.127.1
 faststream[redis,cli]==0.6.4
 hiredis==3.3.0
 httpx<1
 nest-asyncio==1.6.0
 orjson==3.11.5
 psutil>=7.1.3
-psycopg>=3.2.12; sys_platform == 'win32' and platform_machine == 'AARCH64'
-psycopg>=3.2.12; sys_platform == 'win32' and platform_machine == 'ARM64'
-psycopg>=3.2.12; sys_platform == 'win32' and platform_machine == 'aarch64'
-psycopg>=3.2.12; sys_platform == 'win32' and platform_machine == 'arm64'
-psycopg[binary,pool]>=3.2.12; sys_platform == 'darwin'
-psycopg[binary,pool]>=3.2.12; sys_platform == 'linux'
-psycopg[binary,pool]>=3.2.12; sys_platform == 'win32' and platform_machine != 'arm64' and platform_machine != 'ARM64' and platform_machine != 'aarch64' and platform_machine != 'AARCH64'
+psycopg>=3.3.2; sys_platform == 'win32' and platform_machine == 'AARCH64'
+psycopg>=3.3.2; sys_platform == 'win32' and platform_machine == 'ARM64'
+psycopg>=3.3.2; sys_platform == 'win32' and platform_machine == 'aarch64'
+psycopg>=3.3.2; sys_platform == 'win32' and platform_machine == 'arm64'
+psycopg[binary,pool]>=3.3.2; sys_platform == 'darwin'
+psycopg[binary,pool]>=3.3.2; sys_platform == 'linux'
+psycopg[binary,pool]>=3.3.2; sys_platform == 'win32' and platform_machine != 'arm64' and platform_machine != 'ARM64' and platform_machine != 'aarch64' and platform_machine != 'AARCH64'
 puremagic==1.30
 pyJWT[crypto]==2.10.1
 pydantic-settings==2.12.0
@@ -44,5 +44,5 @@ typer>=0.18.0,<1
 uvicorn[standard]==0.38.0
 uvloop==0.22.1; sys_platform != 'win32'
 virtualenv==20.35.4
-waldiez==0.7.0
+waldiez @ git+https://github.com/waldiez/waldiez.git@dev
 zipstream==1.1.4

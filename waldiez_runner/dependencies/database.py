@@ -111,6 +111,9 @@ class DatabaseManager:
     async def close(self) -> None:
         """Close the database connection."""
         if self.engine:
+            if self.is_sqlite:
+                connection = await self.engine.raw_connection()
+                connection.close()
             await self.engine.dispose()
             LOG.info("Database connection closed.")
         self.engine = None
