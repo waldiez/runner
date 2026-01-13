@@ -1,4 +1,4 @@
 nest-asyncio==1.6.0
-faststream[redis,cli]==0.6.4
+faststream[redis,cli]==0.6.5
 python-dotenv==1.2.1
 waldiez==0.7.0

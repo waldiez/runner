@@ -1,18 +1,18 @@
 aiocsv==1.4.0
 aiofiles==25.1.0
 aioftp==0.27.2
-aiohttp==3.13.2
-aiosqlite==0.22.1
-alembic==1.17.2
-anyio==4.12.0
+aiohttp==3.13.3
+aiosqlite>=0.22.0
+alembic==1.18.0
+anyio==4.12.1
 argon2-cffi==25.1.0
 asyncssh==2.22.0
 bcrypt==5.0.0
-boto3==1.42.17
+boto3==1.42.26
 fakeredis==2.33.0
-fastapi-pagination==0.15.4
-fastapi[all]==0.127.1
-faststream[redis,cli]==0.6.4
+fastapi-pagination==0.15.6
+fastapi[all]==0.128.0
+faststream[redis,cli]==0.6.5
 hiredis==3.3.0
 httpx<1
 nest-asyncio==1.6.0
@@ -41,8 +41,8 @@ taskiq==0.12.1
 tenacity<10.0.0
 trio==0.32.0
 typer>=0.18.0,<1
-uvicorn[standard]==0.38.0
+uvicorn[standard]==0.40.0
 uvloop==0.22.1; sys_platform != 'win32'
-virtualenv==20.35.4
+virtualenv==20.36.1
 waldiez @ git+https://github.com/waldiez/waldiez.git@dev
 zipstream==1.1.4
