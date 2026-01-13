@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0.
-# Copyright (c) 2024 - 2025 Waldiez and contributors.
+# Copyright (c) 2024 - 2026 Waldiez and contributors.
 """Version information for waldiez_runner."""
 
-__version__ = "0.7.0"
+__version__ = "0.7.1"

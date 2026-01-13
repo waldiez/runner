@@ -5,7 +5,7 @@ repo_name: waldiez/runner
 repo_url: https://github.com/waldiez/runner
 edit_uri_template: "blob/main/docs/{path}"
 copyright: >
-  Copyright &copy; 2025 Waldiez & Contributors
+  Copyright &copy; 2026 Waldiez & Contributors
 
 theme:
   name: material

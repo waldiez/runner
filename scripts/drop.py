@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0.
-# Copyright (c) 2024 - 2025 Waldiez and contributors.
+# Copyright (c) 2024 - 2026 Waldiez and contributors.
 """Drop the tables and types in the database."""
 
 import os

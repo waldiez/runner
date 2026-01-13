@@ -44,5 +44,5 @@ typer>=0.18.0,<1
 uvicorn[standard]==0.40.0
 uvloop==0.22.1; sys_platform != 'win32'
 virtualenv==20.36.1
-waldiez @ git+https://github.com/waldiez/waldiez.git@dev
+waldiez==0.7.1
 zipstream==1.1.4
