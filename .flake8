@@ -14,6 +14,8 @@ select = B,C,E,F,W,T4,B9
 exclude =
     .git,
     .venv,
+    .tox,
+    .hatch,
     .local,
     __pycache__,
     build,
