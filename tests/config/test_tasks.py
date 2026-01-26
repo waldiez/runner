@@ -103,3 +103,27 @@ def test_get_max_task_duration_from_cli() -> None:
     """Test get_max_task_duration from cli arg."""
     sys.argv.extend(["--max-task-duration", "1001"])
     assert _tasks.get_max_task_duration() == 1001
+
+
+def test_get_skip_deps_no_env() -> None:
+    """Test get_skip_deps with no environment variables."""
+    os.environ.pop(f"{ENV_PREFIX}SKIP_DEPS", None)
+    assert _tasks.get_skip_deps() == _tasks.DEFAULT_SKIP_DEPS
+
+
+def test_get_skip_deps_with_env() -> None:
+    """Test get_skip_deps with environment variables."""
+    os.environ[f"{ENV_PREFIX}SKIP_DEPS"] = "false"
+    assert _tasks.get_skip_deps() is False
+
+
+def test_get_skip_deps_from_cli_on() -> None:
+    """Test get_skip_deps from truthy cli arg."""
+    sys.argv.extend(["--skip-deps"])
+    assert _tasks.get_skip_deps() is True
+
+
+def test_get_skip_deps_from_cli_off() -> None:
+    """Test get_skip_deps from faulty cli arg."""
+    sys.argv.extend(["--no-skip-deps"])
+    assert _tasks.get_skip_deps() is False

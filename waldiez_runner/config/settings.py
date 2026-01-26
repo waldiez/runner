@@ -79,6 +79,7 @@ from ._tasks import (
     get_keep_task_for_days,
     get_max_jobs,
     get_max_task_duration,
+    get_skip_deps,
 )
 
 LOG = logging.getLogger(__name__)
@@ -170,6 +171,7 @@ class Settings(BaseSettings):
     input_timeout: Annotated[int, Field(ge=1, le=3600)] = get_input_timeout()
     max_task_duration: int = get_max_task_duration()
     keep_task_for_days: int = get_keep_task_for_days()
+    skip_deps: bool = get_skip_deps()
 
     model_config = SettingsConfigDict(
         alias_generator=to_kebab,

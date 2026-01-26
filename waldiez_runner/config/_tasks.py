@@ -8,6 +8,7 @@ MAX_JOBS (int) # default: 5
 INPUT_TIMEOUT (int) # default: 180
 MAX_TASK_DURATION (int) # default: 60 * 60
 KEEP_TASKS_FOR_DAYS (int) # default: 0
+WALDIEZ_RUNNER_SKIP_DEPS (bool)  # default: False
 
 Command line arguments (no prefix)
 --------------------------------------------------
@@ -15,6 +16,7 @@ Command line arguments (no prefix)
 --input-timeout (int) # default: 180
 --max-task-duration (int)  # default: 3600
 --keep-tasks-for-days (int)  # default: 0
+--skip-deps | --no-skip-deps  # default: --no-skip-deps
 """
 
 from ._common import get_value
@@ -23,6 +25,7 @@ DEFAULT_INPUT_TIMEOUT = 180
 DEFAULT_DAYS_TO_KEEP_TASKS = 0
 DEFAULT_MAX_DURATION_SECS = 3600
 DEFAULT_MAX_JOBS = 5
+DEFAULT_SKIP_DEPS = False
 
 
 def get_max_jobs() -> int:
@@ -79,4 +82,20 @@ def get_max_task_duration() -> int:
         "MAX_TASK_DURATION",
         int,
         DEFAULT_MAX_DURATION_SECS,
+    )
+
+
+def get_skip_deps() -> bool:
+    """Get the 'skip-deps' config.
+
+    Returns
+    -------
+    bool
+        Whether we should skip installing deps before tasks.
+    """
+    return get_value(
+        "--skip-deps",
+        "SKIP_DEPS",
+        bool,
+        DEFAULT_SKIP_DEPS,
     )
