@@ -56,8 +56,9 @@ if "ws_stop_event" not in st.session_state:
 
 # a bit of styling
 # Theme toggle button in top-right corner
-st.html(
-    """
+
+# pylint: disable=invalid-name
+style_str = """
     <style>
     .stAppHeader {
         display: none;
@@ -70,7 +71,7 @@ st.html(
     }
     </style>
     """
-)
+st.html(style_str)
 
 if "current_theme" not in st.session_state:
     st.session_state["current_theme"] = "light"

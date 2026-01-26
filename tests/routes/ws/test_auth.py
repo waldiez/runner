@@ -56,7 +56,7 @@ async def test_get_ws_client_id_with_query_token(
         None,
     )
     websocket = MockWebSocket(
-        query_params={"access_token": "mock-query-token"},  # nosec B105
+        query_params={"access_token": "mock-query-token"},  # nosec
     )
     client_id, subprotocol = await get_ws_client_id(
         websocket,  # type: ignore
@@ -78,7 +78,7 @@ async def test_get_ws_client_id_with_cookie(
 ) -> None:
     """Test WebSocket authentication via cookie token."""
     websocket = MockWebSocket(
-        cookies={"access_token": "mock-cookie-token"},  # nosec B105
+        cookies={"access_token": "mock-cookie-token"},  # nosec
     )
     mock_get_client_id_from_token.return_value = (
         "test-client-id",
@@ -178,7 +178,7 @@ async def test_get_ws_client_id_no_auth(
 @pytest.mark.parametrize(
     "cookies, expected_token",
     [
-        ({"access_token": "cookie-token"}, "cookie-token"),  # nosec B105
+        ({"access_token": "cookie-token"}, "cookie-token"),  # nosec
         ({}, None),
     ],
 )
@@ -410,15 +410,15 @@ async def test_get_ws_client_id_external_auth_from_different_sources(
     websocket.state = MagicMock()
 
     # fmt: off
-    if token_source == "query_params":  # nosec B105
-        websocket.query_params = {"access_token": "external-token"}  # nosec B105 # noqa: E501
-    elif token_source == "cookie":  # nosec B105
-        websocket.cookies = {"access_token": "external-token"}  # nosec B105
-    elif token_source == "auth_header":  # nosec B105
-        websocket.headers = {"Authorization": "Bearer external-token"}  # nosec B105 # noqa: E501
-    elif token_source == "subprotocol":  # nosec B105
+    if token_source == "query_params":  # nosec
+        websocket.query_params = {"access_token": "external-token"}  # nosec # noqa: E501
+    elif token_source == "cookie":  # nosec
+        websocket.cookies = {"access_token": "external-token"}  # nosec
+    elif token_source == "auth_header":  # nosec
+        websocket.headers = {"Authorization": "Bearer external-token"}  # nosec # noqa: E501
+    elif token_source == "subprotocol":  # nosec
         websocket.headers = {
-            "Sec-WebSocket-Protocol": "tasks-api, external-token",  # nosec B105
+            "Sec-WebSocket-Protocol": "tasks-api, external-token",  # nosec
         }
     # fmt: on
     mock_get_client_id = AsyncMock(return_value=(None, None, "some error"))

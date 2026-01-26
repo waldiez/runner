@@ -41,6 +41,7 @@ async def execute_task(
     db_manager: DatabaseManager,
     debug: bool,
     max_duration: int,
+    skip_deps: bool,
 ) -> tuple[TaskStatus, dict[str, Any] | list[dict[str, Any]] | None]:
     """Execute the task in a virtual environment.
 
@@ -66,6 +67,8 @@ async def execute_task(
         Whether to run in debug mode.
     max_duration : int
         The task's max duration.
+    skip_deps : bool
+        Whether to skip installing dependencies before the task.
 
     Returns
     -------
@@ -86,6 +89,7 @@ async def execute_task(
             db_manager=db_manager,
             debug=debug,
             max_duration=max_duration,
+            skip_deps=skip_deps,
         )
         LOG.info("Task %s exited with code %s", task.id, exit_code)
         return interpret_exit_code(exit_code)
@@ -124,6 +128,7 @@ async def prepare_app_env(
     storage: Storage,
     task: TaskResponse,
     storage_root: Path,
+    skip_deps: bool | None = None,
 ) -> Path:
     """Prepare the app environment.
 
@@ -135,6 +140,8 @@ async def prepare_app_env(
         TaskResponse object.
     storage_root : Path
         Storage root directory.
+    skip_deps : bool, Optional
+        Skip installing dependencies before the task.
 
     Returns
     -------
@@ -168,16 +175,17 @@ async def prepare_app_env(
         LOG.warning("Failed to copy app directory %s", app_dir)
         raise RuntimeError("Failed to copy app directory") from err
     await storage.copy_file(task_file_src, str(app_dir / task.filename))
-    # Install dependencies
-    python_exec = get_venv_python_executable(venv_dir)
-    pip_args = [
-        "install",
-        "--upgrade-strategy",
-        "only-if-needed",
-        "-r",
-        "requirements.txt",
-    ]
-    await run_pip(python_exec, app_dir, pip_args)
+    if skip_deps is not True:
+        # Install dependencies
+        python_exec = get_venv_python_executable(venv_dir)
+        pip_args = [
+            "install",
+            "--upgrade-strategy",
+            "only-if-needed",
+            "-r",
+            "requirements.txt",
+        ]
+        await run_pip(python_exec, app_dir, pip_args)
     return venv_dir
 
 
@@ -243,7 +251,8 @@ async def run_pip(
         raise RuntimeError(f"pip failed (exit {rc}) with args: {args}")
 
 
-# pylint: disable=too-many-locals
+# pylint: disable=too-many-locals,too-many-arguments,
+# pylint: disable=too-many-positional-arguments
 async def run_app_in_venv(
     venv_root: Path,
     env_vars: dict[str, str],
@@ -256,6 +265,7 @@ async def run_app_in_venv(
     db_manager: DatabaseManager,
     debug: bool,
     max_duration: int,
+    skip_deps: bool,
 ) -> int:
     """Run the app in the venv.
 
@@ -283,6 +293,8 @@ async def run_app_in_venv(
         Whether to run in debug mode.
     max_duration : int
         The task's max duration.
+    skip_deps : bool
+        Whether to skip installing deps before the task.
 
     Returns
     -------
@@ -291,6 +303,7 @@ async def run_app_in_venv(
     """
     python_exec = get_venv_python_executable(venv_root)
     await write_dot_env(app_dir, env_vars)
+    skip_arg = "--skip-deps" if skip_deps else "--no-skip-deps"
     args = [
         str(python_exec),
         "-m",
@@ -301,6 +314,7 @@ async def run_app_in_venv(
         redis_url,
         "--input-timeout",
         str(input_timeout),
+        skip_arg,
         str(file_path),
     ]
     if debug:

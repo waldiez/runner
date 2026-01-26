@@ -234,10 +234,10 @@ def auth_fixture(httpx_mock: HTTPXMock) -> Auth:
         method="POST",
         url="http://localhost:8000/auth/token",
         json={
-            "access_token": "valid_access_token",  # nosec B105
+            "access_token": "valid_access_token",  # nosec
             "token_type": "bearer",
             "expires_in": 3600,
-            "refresh_token": "valid_refresh_token",  # nosec B105
+            "refresh_token": "valid_refresh_token",
             "refresh_expires_in": 86400,
         },
         status_code=200,

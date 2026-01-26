@@ -359,7 +359,9 @@ class RedisIOStream(IOStream):
         pubsub = self.redis.pubsub()
         pubsub.subscribe(self.input_response_channel)
         try:
-            while (time.time() - start_time) <= self.input_timeout:
+            while (
+                time.time() - start_time
+            ) <= self.input_timeout or self.input_timeout <= 0:
                 message = pubsub.get_message(ignore_subscribe_messages=True)
                 if not message:
                     time.sleep(0.1)

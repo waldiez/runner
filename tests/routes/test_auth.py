@@ -150,7 +150,7 @@ async def test_refresh_a_token_with_invalid_token(
     response = await client.post(
         "/auth/token/refresh/",
         json={
-            "refresh_token": "invalid",  # nosec B105
+            "refresh_token": "invalid",  # nosemgrep # nosec
             "audience": "tasks-api",
         },
     )

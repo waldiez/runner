@@ -112,9 +112,10 @@ async def run(params: TaskParams) -> None:
             waldiez=waldiez,
             output_path=output_path,
             input_timeout=params.input_timeout,
+            skip_deps=params.skip_deps,
         )
 
-        results = await flow_runner.run()
+        results = await flow_runner.run(skip_deps=params.skip_deps)
         task_status.update(check_results(results))
     except SystemExit:
         LOG.warning("Task %s was cancelled", params.task_id)

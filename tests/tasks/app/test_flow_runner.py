@@ -24,7 +24,8 @@ async def test_run_async_flow_success(monkeypatch: pytest.MonkeyPatch) -> None:
     runner_mock = AsyncMock()
     runner_mock.a_run.return_value = [{"result": 42}]
     monkeypatch.setattr(
-        f"{MODULE_TO_PATCH}.WaldiezRunner", lambda _: runner_mock
+        f"{MODULE_TO_PATCH}.WaldiezRunner",
+        lambda *args, **kwargs: runner_mock,
     )
     monkeypatch.setattr(
         f"{MODULE_TO_PATCH}.make_serializable_results",

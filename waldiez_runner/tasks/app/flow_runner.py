@@ -49,12 +49,14 @@ class FlowRunner:
         waldiez: Waldiez,
         output_path: str,
         input_timeout: int = 180,
+        skip_deps: bool | None = None,
     ) -> None:
         self.task_id = task_id
         self.redis_url = redis_url
         self.waldiez = waldiez
         self.output_path = output_path
         self.input_timeout = input_timeout
+        self.skip_deps = skip_deps
         self.status_channel = f"task:{task_id}:status"
         self.io_stream = RedisIOStream(
             redis_url=self.redis_url,
@@ -73,22 +75,39 @@ class FlowRunner:
         except Exception as error:  # pylint: disable=broad-exception-caught
             LOG.error(error)
 
-    async def run(self) -> list[dict[str, Any]] | dict[str, Any]:
+    async def run(
+        self,
+        skip_deps: bool | None = None,
+    ) -> list[dict[str, Any]] | dict[str, Any]:
         """Run the Waldiez flow and return the results.
+
+        Parameters
+        ----------
+        skip_deps : bool, Optional
+            Skip installing dependencies before the task. Defaults to false.
 
         Returns
         -------
         list[dict[str, Any]] | dict[str, Any]
             The results of the flow execution.
         """
+        if isinstance(skip_deps, bool):
+            self.skip_deps = skip_deps
         if not self.waldiez.is_async:
-            return await asyncio.to_thread(self.run_sync)
+            return await asyncio.to_thread(
+                self.run_sync, self.skip_deps is True
+            )
+
         with IOStream.set_default(self.io_stream):
             try:
-                runner = WaldiezRunner(self.waldiez)
+                runner = WaldiezRunner(
+                    self.waldiez, skip_deps=self.skip_deps is True
+                )
                 results = await runner.a_run(
                     output_path=self.output_path,
                     dot_env=self.dot_env_path,
+                    skip_deps=skip_deps,
+                    skip_symlinks=True,
                 )
                 return make_serializable_results(results)
             except BaseException as e:  # pylint: disable=broad-exception-caught
@@ -101,8 +120,16 @@ class FlowRunner:
             finally:
                 self.io_stream.close()
 
-    def run_sync(self) -> list[dict[str, Any]] | dict[str, Any]:
+    def run_sync(
+        self,
+        skip_deps: bool = False,
+    ) -> list[dict[str, Any]] | dict[str, Any]:
         """Run the Waldiez flow synchronously and return the results.
+
+        Parameters
+        ----------
+        skip_deps : bool, Optional
+            Skip installing dependencies before the task. Defaults to false.
 
         Returns
         -------
@@ -111,10 +138,12 @@ class FlowRunner:
         """
         with RedisIOStream.set_default(self.io_stream):
             try:
-                runner = WaldiezRunner(self.waldiez)
+                runner = WaldiezRunner(self.waldiez, skip_deps=skip_deps)
                 results = runner.run(
                     output_path=self.output_path,
                     dot_env=self.dot_env_path,
+                    skip_deps=skip_deps,
+                    skip_symlinks=True,
                 )
                 return make_serializable_results(results)
             except BaseException as e:  # pylint: disable=broad-exception-caught

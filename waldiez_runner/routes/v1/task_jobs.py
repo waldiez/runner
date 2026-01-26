@@ -22,6 +22,7 @@ async def trigger_run_task(
     db_manager: DatabaseManager,
     storage: Storage,
     env_vars: dict[str, str],
+    skip_deps: bool | None = None,
 ) -> None:
     """Trigger a task.
 
@@ -35,7 +36,8 @@ async def trigger_run_task(
         The storage dependency.
     env_vars : dict[str,str]
         The environment variables for the task
-
+    skip_deps : bool, Optional
+        Whether to skip installing dependencies before the task.
     Raises
     ------
     RuntimeError
@@ -52,6 +54,7 @@ async def trigger_run_task(
                 db_manager=db_manager,
                 storage=storage,
                 redis_manager=app_state.redis,
+                skip_deps=skip_deps,
             )
         )
         bg_task.add_done_callback(
@@ -62,7 +65,9 @@ async def trigger_run_task(
             )
         )
     else:
-        await run_task_job.kiq(task=task, env_vars=env_vars)
+        await run_task_job.kiq(
+            task=task, env_vars=env_vars, skip_deps=skip_deps
+        )
 
 
 async def trigger_delete_task(
@@ -114,6 +119,7 @@ async def schedule_task(
     db_manager: DatabaseManager,
     storage: Storage,
     env_vars: dict[str, str],
+    skip_deps: bool | None = None,
 ) -> None:
     """Schedule a task.
 
@@ -127,6 +133,8 @@ async def schedule_task(
         The storage service.
     env_vars : dict[str, str]
         The environment variables for the task.
+    skip_deps : bool, Optional
+        Whether to skip installing dependencies before the task.
 
     Raises
     ------

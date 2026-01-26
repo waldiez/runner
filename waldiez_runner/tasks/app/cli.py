@@ -51,9 +51,21 @@ def get_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--debug",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
         help="Enable debug mode.",
         default=False,
+    )
+    parser.add_argument(
+        "--skip-deps",
+        action=argparse.BooleanOptionalAction,
+        help="Skip installing dependencies",
+        default=False,
+    )
+    parser.add_argument(
+        "--message",
+        help="Initial message to pass to the flow.",
+        required=False,
+        default=None,
     )
     return parser
 
@@ -78,12 +90,16 @@ class TaskParams:
         redis_url: str,
         input_timeout: int,
         debug: bool = False,
+        skip_deps: bool = False,
+        message: str | None = None,
     ) -> None:
         self.file_path = file_path
         self.task_id = task_id
         self.redis_url = redis_url
         self.input_timeout = input_timeout
         self.debug = debug
+        self.skip_deps = skip_deps
+        self.message = message
         self.validate()
 
     def validate(self) -> None:
@@ -102,6 +118,8 @@ class TaskParams:
             raise ValueError("Redis URL cannot be empty.")
         if self.input_timeout <= 0:
             raise ValueError("Input timeout must be greater than 0.")
+        if not isinstance(self.message, str) or not self.message:
+            self.message = None
 
     @staticmethod
     def from_args(args: argparse.Namespace) -> "TaskParams":
@@ -121,15 +139,22 @@ class TaskParams:
             If the arguments are not valid.
         """
         input_timeout = DEFAULT_INPUT_TIMEOUT
-        if args.input_timeout is not None:
+        if hasattr(args, "input_timeout") and args.input_timeout is not None:
             input_timeout = int(args.input_timeout)
-
+        if not hasattr(args, "message"):
+            args.message = None
+        if not hasattr(args, "skip_deps") or not isinstance(
+            args.skip_deps, bool
+        ):
+            args.skip_deps = False
         return TaskParams(
             file_path=args.file,
             task_id=args.task_id,
             redis_url=args.redis_url,
             input_timeout=input_timeout,
             debug=args.debug,
+            skip_deps=args.skip_deps,
+            message=args.message,
         )
 
 

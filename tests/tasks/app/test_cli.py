@@ -80,6 +80,7 @@ def test_from_args_valid(tmp_path: Path) -> None:
         redis_url="redis://localhost",
         input_timeout=120,
         debug=True,
+        skip_deps=False,
     )
     params = TaskParams.from_args(args)  # type: ignore[arg-type]
     assert isinstance(params, TaskParams)
@@ -98,6 +99,7 @@ def test_from_args_applies_default_timeout(tmp_path: Path) -> None:
         redis_url="redis://localhost",
         input_timeout=None,
         debug=False,
+        skip_deps=False,
     )
     params = TaskParams.from_args(args)  # type: ignore[arg-type]
     assert params.input_timeout == DEFAULT_INPUT_TIMEOUT  # default fallback
@@ -149,6 +151,7 @@ def test_parse_args_valid(
             "--input-timeout",
             "999",
             "--debug",
+            "--no-skip-deps",
         ],
     )
     params = parse_args()

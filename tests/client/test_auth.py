@@ -309,8 +309,8 @@ def test_is_expired_invalid_datetime(auth: Auth) -> None:
         {
             "expires_at": "not-a-datetime",
             "refresh_expires_at": "still-not-a-date",
-            "access_token": "abc",  # nosec B105
-            "refresh_token": "def",  # nosec B105
+            "access_token": "abc",  # nosec
+            "refresh_token": "def",
             "token_type": "bearer",
             "audience": "tasks-api",
         }

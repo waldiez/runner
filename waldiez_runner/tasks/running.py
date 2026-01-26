@@ -34,6 +34,7 @@ APP_DIR = HERE / "app"
 async def run_task(
     task: TaskResponse,
     env_vars: dict[str, str],
+    skip_deps: bool | None = None,
     db_manager: DatabaseManager = TaskiqDepends(get_db_manager),
     storage: Storage = TaskiqDepends(get_storage),
     redis_manager: RedisManager = TaskiqDepends(get_redis_manager),
@@ -44,8 +45,10 @@ async def run_task(
     ----------
     task: Task
         Task object.
-    env_vars: dict[str, str]
+    env_vars : dict[str, str]
         Environment variables for the task.
+    skip_deps : bool, Optional
+        Whether to skip installing dependencies before the task.
     db_manager : DatabaseManager
         Database session manager dependency.
     storage : Storage
@@ -60,7 +63,9 @@ async def run_task(
     """
     temp_dir = Path(tempfile.mkdtemp(prefix="wlz-brk"))
     try:
-        venv_dir = await prepare_app_env(storage, task, temp_dir)
+        venv_dir = await prepare_app_env(
+            storage, task, temp_dir, skip_deps=skip_deps
+        )
     except BaseException as error:
         LOG.error("Failed to prepare the app env: %s", error)
         async with db_manager.session() as db_session:
@@ -93,6 +98,7 @@ async def run_task(
             db_manager=db_manager,
             debug=debug,
             max_duration=settings.max_task_duration,
+            skip_deps=skip_deps is True,
         )
         LOG.info("Task %s finished with status %s", task.id, status.value)
         LOG.debug("Task %s finished with results %s", task.id, results)
