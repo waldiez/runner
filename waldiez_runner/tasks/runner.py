@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (c) 2024 - 2026 Waldiez and contributors.
 
-# pylint: disable=broad-exception-caught, unused-argument
+# pylint: disable=broad-exception-caught,unused-argument
+# pylint: disable=too-many-arguments,too-many-positional-arguments
+
 """Handle running the task in a virtual environment."""
 
 import asyncio
@@ -42,6 +44,7 @@ async def execute_task(
     debug: bool,
     max_duration: int,
     skip_deps: bool,
+    message: str,
 ) -> tuple[TaskStatus, dict[str, Any] | list[dict[str, Any]] | None]:
     """Execute the task in a virtual environment.
 
@@ -69,6 +72,8 @@ async def execute_task(
         The task's max duration.
     skip_deps : bool
         Whether to skip installing dependencies before the task.
+    message : str
+        Optional initial message to pass to the task.
 
     Returns
     -------
@@ -90,6 +95,7 @@ async def execute_task(
             debug=debug,
             max_duration=max_duration,
             skip_deps=skip_deps,
+            message=message,
         )
         LOG.info("Task %s exited with code %s", task.id, exit_code)
         return interpret_exit_code(exit_code)
@@ -266,6 +272,7 @@ async def run_app_in_venv(
     debug: bool,
     max_duration: int,
     skip_deps: bool,
+    message: str,
 ) -> int:
     """Run the app in the venv.
 
@@ -295,6 +302,8 @@ async def run_app_in_venv(
         The task's max duration.
     skip_deps : bool
         Whether to skip installing deps before the task.
+    message : str
+        Optional initial message to pass to the task.
 
     Returns
     -------
@@ -317,6 +326,8 @@ async def run_app_in_venv(
         skip_arg,
         str(file_path),
     ]
+    if message:
+        args.extend(["--message", message])
     if debug:
         args.append("--debug")
 

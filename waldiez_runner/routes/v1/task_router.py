@@ -202,6 +202,7 @@ async def create_task(
     ),
     input_timeout: int = Form(180),
     skip_deps: bool | None = Form(None),
+    message: str | None = Form(None),
     schedule_type: Literal["once", "cron"] | None = Form(None),
     scheduled_time: datetime | None = Form(None),
     cron_expression: str | None = Form(None),
@@ -234,6 +235,8 @@ async def create_task(
         The timeout for input requests, by default 180
     skip_deps : bool, optional
         Whether to skip installing dependencies before the task.
+    message : str, optional
+        Optional initial message to pass to the task.
     schedule_type : Optional[Literal["once", "cron"]], optional
         The type of schedule, by default None
     scheduled_time : Optional[datetime], optional
@@ -337,6 +340,7 @@ async def create_task(
             db_manager=db_manager,
             storage=storage,
             skip_deps=skip_deps,
+            message=message,
         )
     if task.schedule_type is not None:
         await schedule_task(
@@ -345,6 +349,7 @@ async def create_task(
             storage=storage,
             env_vars=environment_vars,
             skip_deps=skip_deps,
+            message=message,
         )
     return task_response
 

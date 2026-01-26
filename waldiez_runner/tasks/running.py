@@ -35,6 +35,7 @@ async def run_task(
     task: TaskResponse,
     env_vars: dict[str, str],
     skip_deps: bool | None = None,
+    message: str | None = None,
     db_manager: DatabaseManager = TaskiqDepends(get_db_manager),
     storage: Storage = TaskiqDepends(get_storage),
     redis_manager: RedisManager = TaskiqDepends(get_redis_manager),
@@ -49,6 +50,8 @@ async def run_task(
         Environment variables for the task.
     skip_deps : bool, Optional
         Whether to skip installing dependencies before the task.
+    message : str
+        Optional initial message to pass to the task.
     db_manager : DatabaseManager
         Database session manager dependency.
     storage : Storage
@@ -99,6 +102,7 @@ async def run_task(
             debug=debug,
             max_duration=settings.max_task_duration,
             skip_deps=skip_deps is True,
+            message=message or "",
         )
         LOG.info("Task %s finished with status %s", task.id, status.value)
         LOG.debug("Task %s finished with results %s", task.id, results)

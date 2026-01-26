@@ -23,6 +23,7 @@ async def trigger_run_task(
     storage: Storage,
     env_vars: dict[str, str],
     skip_deps: bool | None = None,
+    message: str | None = None,
 ) -> None:
     """Trigger a task.
 
@@ -38,6 +39,9 @@ async def trigger_run_task(
         The environment variables for the task
     skip_deps : bool, Optional
         Whether to skip installing dependencies before the task.
+    message : str, Optional
+        Optional initial message to pass to the task.
+
     Raises
     ------
     RuntimeError
@@ -55,6 +59,7 @@ async def trigger_run_task(
                 storage=storage,
                 redis_manager=app_state.redis,
                 skip_deps=skip_deps,
+                message=message,
             )
         )
         bg_task.add_done_callback(
@@ -66,7 +71,10 @@ async def trigger_run_task(
         )
     else:
         await run_task_job.kiq(
-            task=task, env_vars=env_vars, skip_deps=skip_deps
+            task=task,
+            env_vars=env_vars,
+            skip_deps=skip_deps,
+            message=message,
         )
 
 
@@ -120,6 +128,7 @@ async def schedule_task(
     storage: Storage,
     env_vars: dict[str, str],
     skip_deps: bool | None = None,
+    message: str | None = None,
 ) -> None:
     """Schedule a task.
 
@@ -135,6 +144,8 @@ async def schedule_task(
         The environment variables for the task.
     skip_deps : bool, Optional
         Whether to skip installing dependencies before the task.
+    message : str
+        Optional initial message to pass to the task.
 
     Raises
     ------
