@@ -2,6 +2,7 @@
 # Copyright (c) 2024 - 2026 Waldiez and contributors.
 
 """Tests for the logging configuration."""
+
 # pylint: disable=missing-return-doc,missing-param-doc,missing-raises-doc
 
 import os

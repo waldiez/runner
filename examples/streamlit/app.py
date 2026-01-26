@@ -2,7 +2,9 @@
 
 # pyright: reportPrivateUsage=false,reportPrivateImportUsage=false
 # pyright: reportUnknownMemberType=false,reportArgumentType=false
-# pyright: reportUnknownArgumentType=false
+# pyright: reportUnknownArgumentType=false,reportUnknownVariableType=false
+# pyright: reportMissingTypeStubs=false,reportInvalidTypeForm=false
+
 import json
 import os
 import sys
@@ -190,10 +192,12 @@ process_messages()
 
 # --- UI ---
 st.title("Waldiez Runner - Streamlit Demo")
-st.markdown(
+# pylint: disable=invalid-name
+md_body = (
     "This demo shows how to authenticate, "
     "upload a `.waldiez` file, and stream its output in real-time."
 )
+st.markdown(md_body)
 
 # --- Step 1: Authentication ---
 with st.expander("1. Authentication (Tasks management API)", expanded=True):
@@ -236,7 +240,7 @@ if st.session_state.client:
                 )
                 task = st.session_state.client.create_task(task_req)
                 st.session_state.task = task
-                st.session_state.messages.clear()  # pyright: ignore[]
+                st.session_state.messages.clear()
                 st.session_state.messages_queue.queue.clear()
                 st.success(f"Task submitted: {task.id}")
             except Exception as e:

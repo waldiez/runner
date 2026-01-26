@@ -3,14 +3,14 @@ aiofiles==25.1.0
 aioftp==0.27.2
 aiohttp==3.13.3
 aiosqlite>=0.22.0
-alembic==1.18.0
+alembic==1.18.1
 anyio==4.12.1
 argon2-cffi==25.1.0
 asyncssh==2.22.0
 bcrypt==5.0.0
-boto3==1.42.26
+boto3==1.42.34
 fakeredis==2.33.0
-fastapi-pagination==0.15.6
+fastapi-pagination==0.15.7
 fastapi[all]==0.128.0
 faststream[redis,cli]==0.6.5
 hiredis==3.3.0
@@ -30,7 +30,7 @@ pyJWT[crypto]==2.10.1
 pydantic-settings==2.12.0
 pydantic>=2.10
 pysqlite3-binary==0.5.4; sys_platform == 'linux' and platform_machine != 'arm64' and platform_machine != 'aarch64' and platform_machine != 'ARM64' and platform_machine != 'AARCH64'
-python-multipart==0.0.21
+python-multipart==0.0.22
 python-ulid==3.1.0
 python_dotenv==1.2.1
 redis>=6.4.0

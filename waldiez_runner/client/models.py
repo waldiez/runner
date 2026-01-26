@@ -2,6 +2,7 @@
 # Copyright (c) 2024 - 2026 Waldiez and contributors.
 
 """Models for the client and task responses."""
+
 # we prefer to repeat these, instead of importing them
 # from the core module. (e.g. make "clients" folder independent)
 

@@ -5,6 +5,7 @@
 # Copyright (c) 2024 - 2026 Waldiez and contributors.
 
 """Test waldiez_runner.config._auth."""
+
 # pylint: disable=missing-return-doc,missing-param-doc,missing-yield-doc
 
 import os
