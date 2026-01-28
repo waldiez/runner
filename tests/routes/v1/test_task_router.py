@@ -401,6 +401,48 @@ async def test_create_task_active_flow_task(
 
 
 @pytest.mark.anyio
+async def test_create_task_active_flow_task_force(
+    client: AsyncClient,
+    async_session: AsyncSession,
+    client_id: str,
+    storage_service: LocalStorage,
+) -> None:
+    """Test creating a task with an active task with the same flow ID."""
+    file_content = b'{"key": "value"}'
+    file_name = f"test_file{VALID_EXTENSION}"
+    flow_content_hash = hashlib.md5(
+        file_content, usedforsecurity=False
+    ).hexdigest()
+    file_name_hash = hashlib.md5(
+        file_name.encode("utf-8"), usedforsecurity=False
+    ).hexdigest()[:8]
+    flow_hash = f"{flow_content_hash}-{file_name_hash}"
+    task = Task(
+        client_id=client_id,
+        flow_id=flow_hash,
+        status=TaskStatus.RUNNING,
+        filename=file_name,
+    )
+    async_session.add(task)
+    await async_session.commit()
+    await async_session.refresh(task)
+
+    task_folder_path = storage_service.root_dir / client_id / str(task.id)
+    task_folder_path.mkdir(parents=True, exist_ok=True)
+    (task_folder_path / file_name).write_text(file_content.decode())
+
+    file = {
+        "file": (
+            file_name,
+            file_content,
+            VALID_CONTENT_TYPE,
+        )
+    }
+    response = await client.post("/tasks", files=file, data={"force": True})
+    assert response.status_code == 200
+
+
+@pytest.mark.anyio
 async def test_create_task_max_tasks(
     client: AsyncClient,
     settings: Settings,
