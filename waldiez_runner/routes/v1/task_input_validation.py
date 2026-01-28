@@ -7,6 +7,7 @@
 import asyncio
 import hashlib
 import os
+import secrets
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
@@ -112,6 +113,7 @@ async def validate_task_input(
     client_id: str,
     storage: Storage,
     max_jobs: int,
+    force: bool,
     schedule_type: Literal["once", "cron"] | None = None,
 ) -> tuple[str, str, str, dict[str, str]]:
     """Validate the uploaded file.
@@ -134,6 +136,9 @@ async def validate_task_input(
         The storage service.
     max_jobs : int
         The upper limit for concurrent running tasks/jobs (<=0 means no limit)
+    force : bool, optional
+        Whether to force running even if a task with the same flow has already
+        started, by default False
     schedule_type : Optional[Literal["once", "cron"]], optional
         The type of schedule, by default None
 
@@ -186,22 +191,36 @@ async def validate_task_input(
     filename_hash = hashlib.md5(
         filename.encode("utf-8"), usedforsecurity=False
     ).hexdigest()[:8]
-    file_hash = f"{file_hash}-{filename_hash}"
+    base_flow_id = f"{file_hash}-{filename_hash}"
+
     active_task = next(
-        (task for task in active_tasks.items if task.flow_id == file_hash), None
+        (task for task in active_tasks.items if task.flow_id == base_flow_id),
+        None,
     )
-    if active_task:
+
+    if active_task and not force:
         await storage.delete_file(saved_path)
         raise HTTPException(
             status_code=400,
             detail=(
-                f"A task with the same file already exists. "
-                f"Task ID: {active_task.id}, "
-                f"status: {active_task.get_status()}"
+                "A task with the same file already exists. "
+                f"Task ID: {active_task.id}, status: {active_task.get_status()}"
             ),
         )
+
+    flow_id = base_flow_id
+
+    if active_task and force:
+        # Make this run unique
+        nonce = secrets.token_hex(4)
+        flow_id = f"{base_flow_id}-{nonce}"
+
+        # File is already saved: move it aside to a unique filename
+        new_path = _move_to_random_name(Path(saved_path))
+        saved_path = str(new_path)
+
     environment_vars = get_env_vars(env_vars)
-    return file_hash, filename, saved_path, environment_vars
+    return flow_id, filename, saved_path, environment_vars
 
 
 async def validate_waldiez_flow(flow_path: str) -> None:
@@ -224,3 +243,50 @@ async def validate_waldiez_flow(flow_path: str) -> None:
             status_code=422,
             detail=str(error),
         ) from error
+
+
+def _move_exclusive(src: Path, dest_dir: Path, dest_name: str) -> Path:
+    """Move src -> dest_dir/dest_name without overwriting anything.
+
+    Safe path allocation:
+      - Try atomic os.link (fails if dest exists), then unlink src
+      - Fallback to rename if link isn't possible (e.g., cross-device)
+    """
+    src = Path(src)
+    dest_dir = Path(dest_dir)
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    dest = dest_dir / dest_name
+
+    # ensure we never overwrite
+    if dest.exists():
+        raise FileExistsError(str(dest))
+
+    try:
+        # atomic "claim": fails if dest exists
+        os.link(src, dest)
+        src.unlink()
+        return dest
+    except OSError:
+        # likely cross-device or filesystem that doesn't
+        # support hard links
+        # still safe because dest is unique/nonexistent
+        src.rename(dest)
+        return dest
+
+
+def _move_to_random_name(src: Path, *, max_tries: int = 50) -> Path:
+    dest_dir = src.parent
+    suffix = src.suffix
+
+    for _ in range(max_tries):
+        nonce = secrets.token_hex(6)  # 12 hex chars
+        dest_name = f"{src.stem}-{nonce}{suffix}"
+        try:
+            return _move_exclusive(src, dest_dir, dest_name)
+        except FileExistsError:
+            continue
+
+    # extremely unlikely
+    nonce = secrets.token_hex(16)
+    return _move_exclusive(src, dest_dir, f"{src.stem}-{nonce}{suffix}")

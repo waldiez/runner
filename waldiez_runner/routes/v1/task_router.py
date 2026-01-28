@@ -208,6 +208,7 @@ async def create_task(
     cron_expression: str | None = Form(None),
     expires_at: datetime | None = Form(None),
     trigger_now: bool = Form(False),
+    force: bool = Form(False),
 ) -> TaskResponse:
     """Create a task.
 
@@ -247,6 +248,9 @@ async def create_task(
         The expiration time for the task, by default None
     trigger_now : bool, optional
         Whether to also trigger the task now (if cron), by default False
+    force : bool, optional
+        Whether to force running even if a task with the same flow has already
+        started, by default False
 
     Returns
     -------
@@ -288,6 +292,7 @@ async def create_task(
         client_id=client_id,
         storage=storage,
         max_jobs=settings.max_jobs,
+        force=force,
         schedule_type=schedule_type,
     )
     try:
