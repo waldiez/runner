@@ -24,7 +24,7 @@ from fastapi import (
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi_pagination import Page
 from pydantic import ValidationError
-from starlette import status
+from starlette import status as http_status
 from typing_extensions import Literal
 
 from waldiez_runner.config import Settings
@@ -47,6 +47,7 @@ from waldiez_runner.dependencies.context import (
 from waldiez_runner.models import TaskStatus
 from waldiez_runner.schemas.task import (
     InputResponse,
+    TaskCountResponse,
     TaskCreate,
     TaskResponse,
     TaskUpdate,
@@ -90,6 +91,10 @@ async def get_client_tasks(
     client_id: Annotated[str, Depends(validate_tasks_audience)],
     db: Annotated[DatabaseManager, Depends(get_db_manager)],
     search: Annotated[str | None, Query(description="A term to search")] = None,
+    status: Annotated[
+        TaskStatus | None,
+        Query(description="Filter by task status"),
+    ] = None,
     order_by: Annotated[
         TaskSort | None,
         Query(description="The field to sort the results"),
@@ -107,6 +112,8 @@ async def get_client_tasks(
         The client ID.
     db : DatabaseManager
         The database session manager.
+    status : TaskStatus | None
+        The task status to filter the tasks.
     search : str | None
         A search term to filter the tasks.
     order_by : str | None
@@ -125,6 +132,7 @@ async def get_client_tasks(
             session,
             client_id,
             params=params,
+            status=status,
             search=search,
             order_by=order_by,
             descending=order_type == "desc",
@@ -140,6 +148,10 @@ async def get_client_tasks(
 async def get_all_tasks(
     _: Annotated[str, Depends(validate_admin_audience)],
     db: Annotated[DatabaseManager, Depends(get_db_manager)],
+    status: Annotated[
+        TaskStatus | None,
+        Query(description="Filter by task status"),
+    ] = None,
     search: Annotated[str | None, Query(description="A term to search")] = None,
     order_by: Annotated[
         TaskSort | None,
@@ -156,6 +168,8 @@ async def get_all_tasks(
     ----------
     db : DatabaseManager
         The database session manager.
+    status : TaskStatus | None
+        The task status to filter the tasks.
     search : str | None
         A search term to filter the tasks.
     order_by : str | None
@@ -173,6 +187,7 @@ async def get_all_tasks(
         return await TaskService.get_all_tasks(
             session,
             params=params,
+            status=status,
             search=search,
             order_by=order_by,
             descending=order_type == "desc",
@@ -267,13 +282,13 @@ async def create_task(
 
     if not file and not file_url and not filename:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail="Either file, file_url or filename must be provided",
         )
     provided = sum(bool(item) for item in [file, file_url, filename])
     if provided > 1:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail=(
                 "Only one of `file`, `file_url` or `filename` can be provided"
             ),
@@ -405,7 +420,88 @@ async def upload_task_workflow(
     except HTTPException:
         await storage.delete_file(save_path)
         raise
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+
+@task_router.get("/tasks/count/", include_in_schema=False)
+@task_router.get(
+    "/tasks/count",
+    summary="Count tasks.",
+    description="Get the number of tasks, optionally filtered by status.",
+    response_model=TaskCountResponse,
+)
+async def count_tasks(
+    client_id: Annotated[str, Depends(validate_tasks_audience)],
+    db: Annotated[DatabaseManager, Depends(get_db_manager)],
+    status: Annotated[
+        TaskStatus | None, Query(description="Filter by task status")
+    ] = None,
+    active_only: Annotated[
+        bool, Query(description="Only get active tasks")
+    ] = False,
+    inactive_only: Annotated[
+        bool, Query(description="Only get inactive tasks")
+    ] = False,
+    search: Annotated[str | None, Query(min_length=1)] = None,
+) -> TaskCountResponse:
+    """Get the number of tasks, optionally filtered by status.
+
+    Parameters
+    ----------
+    client_id : str
+        The client ID.
+    db : DatabaseManager
+        The database session manager.
+    status : TaskStatus | None
+        Optional task status to filter by.
+    active_only : bool
+        If True, count only active tasks.
+    inactive_only : bool
+        If True, count only inactive tasks.
+    search : str | None
+        Optional search term to filter tasks.
+
+    Returns
+    -------
+    TaskCountResponse
+        The count of tasks.
+
+    Raises
+    ------
+    HTTPException
+        If the request is invalid or cannot be served.
+    """
+    if active_only and inactive_only:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="active_only and inactive_only cannot both be true",
+        )
+    try:
+        async with db.session() as session:
+            count = await TaskService.count_client_tasks(
+                session,
+                client_id=client_id,
+                status=status,
+                active_only=active_only,
+                inactive_only=inactive_only,
+                search=search,
+            )
+            return TaskCountResponse(count=count)
+    except ValueError as error:
+        # Service-level validation errors => 400
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+    except HTTPException:
+        # If something below raises an HTTPException, preserve it
+        raise
+    except BaseException as error:
+        LOG.error("Error counting tasks: %s", error)
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
+        ) from error
 
 
 @task_router.get("/tasks/{task_id}/", include_in_schema=False)
@@ -451,7 +547,7 @@ async def get_task(
         task = await TaskService.get_task(session, task_id=task_id)
     if task is None or (not is_admin and task.client_id != client_id):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+            status_code=http_status.HTTP_404_NOT_FOUND, detail="Task not found"
         )
     return TaskResponse.model_validate(task)
 
@@ -559,17 +655,17 @@ async def on_input_request(
             task = await TaskService.get_task(session, task_id=task_id)
     except BaseException as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail=f"Task {task_id} not found",
         ) from e
     if task is None or task.client_id != client_id:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail=f"Task {task_id} not found",
         )
     if task.status != TaskStatus.WAITING_FOR_INPUT:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail="Invalid input request",
         )
     if message.request_id != task.input_request_id:
@@ -579,7 +675,7 @@ async def on_input_request(
             task.input_request_id,
         )
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail="Invalid input request",
         )
     background_tasks.add_task(
@@ -587,7 +683,7 @@ async def on_input_request(
         task_id=task_id,
         message=message,
     )
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 
 
 @task_router.get(
@@ -860,7 +956,7 @@ async def delete_tasks(
     if not ids:
         # Require specific task IDs to prevent accidental deletion of all tasks
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail="Task IDs must be specified for deletion",
         )
 

@@ -21,21 +21,38 @@ from waldiez_runner.models.task_status import TaskStatus
 from waldiez_runner.schemas.task import TaskCreate, TaskResponse, TaskUpdate
 
 
-def task_transformer(items: Sequence[Task]) -> Sequence[TaskResponse]:
+def task_transformer(
+    items: Sequence[Task],
+    skip_results: bool = False,
+) -> Sequence[TaskResponse]:
     """Transform tasks to responses.
 
     Parameters
     ----------
     items : Sequence[Task]
         List of tasks.
+    skip_results : bool, Optional
+        Skip returning the results (avoid large payloads).
 
     Returns
     -------
     Sequence[TaskResponse]
         List of task responses.
     """
-    # return [TaskResponse.from_orm(task) for task in items]
-    return [TaskResponse.model_validate(task) for task in items]
+    entries: list[TaskResponse] = []
+    for task in items:
+        entry = TaskResponse.model_validate(task)
+        if skip_results:
+            entry.results = None
+        entries.append(entry)
+    return entries
+
+
+def _task_transformer_skip_results(
+    items: Sequence[Task],
+) -> Sequence[TaskResponse]:
+    """Transform tasks to responses."""
+    return task_transformer(items, skip_results=True)
 
 
 # noinspection DuplicatedCode
@@ -43,6 +60,7 @@ async def get_client_tasks(
     session: AsyncSession,
     client_id: str,
     params: Params,
+    status: TaskStatus | None = None,
     search: str | None = None,
     order_by: str | None = None,
     descending: bool = False,
@@ -59,6 +77,8 @@ async def get_client_tasks(
         Pagination parameters.
     search : str | None
         Optional search term.
+    status : TaskStatus | None
+        The task status to filter the tasks.
     order_by : str | None
         Optional field to order by.
     descending : bool
@@ -78,6 +98,8 @@ async def get_client_tasks(
     query = select(Task).where(
         Task.client_id == client_id, Task.deleted_at.is_(None)
     )
+    if status is not None:
+        query = query.where(Task.status == status)
     if search:
         # a simple ilike
         query = query.where(
@@ -103,7 +125,7 @@ async def get_client_tasks(
         session,
         query,
         params=params,
-        transformer=task_transformer,
+        transformer=_task_transformer_skip_results,
     )
     return page
 
@@ -112,6 +134,7 @@ async def get_client_tasks(
 async def get_all_tasks(
     session: AsyncSession,
     params: Params,
+    status: TaskStatus | None = None,
     search: str | None = None,
     order_by: str | None = None,
     descending: bool = False,
@@ -124,6 +147,8 @@ async def get_all_tasks(
         SQLAlchemy async session.
     params : Params
         Pagination parameters.
+    status : TaskStatus | None
+        The task status to filter the tasks.
     search : str | None
         Optional search term.
     order_by : str | None
@@ -143,6 +168,8 @@ async def get_all_tasks(
     """
 
     query = select(Task).where(Task.deleted_at.is_(None))
+    if status is not None:
+        query = query.where(Task.status == status)
     if search:
         # a simple ilike
         query = query.where(
@@ -168,7 +195,7 @@ async def get_all_tasks(
         session,
         query,
         params=params,
-        transformer=task_transformer,
+        transformer=_task_transformer_skip_results,
     )
     return page
 
@@ -760,3 +787,80 @@ async def get_stuck_tasks(
         params=params,
     )
     return page
+
+
+async def count_client_tasks(
+    session: AsyncSession,
+    client_id: str,
+    status: TaskStatus | None = None,
+    active_only: bool = False,
+    inactive_only: bool = False,
+    search: str | None = None,
+) -> int:
+    """Count tasks for a client, optionally filtered.
+
+    Parameters
+    ----------
+    session : AsyncSession
+        SQLAlchemy async session.
+    client_id : str
+        Client ID.
+    status : TaskStatus | None
+        Optional exact status filter.
+    active_only : bool
+        If True, count only active tasks (not completed/cancelled/failed).
+    inactive_only : bool
+        If True, count only inactive tasks (completed/cancelled/failed).
+    search : str | None
+        Optional search term (filename or status text).
+
+    Returns
+    -------
+    int
+        Count of tasks.
+
+    Raises
+    ------
+        ValueError
+            If the request is invalid.
+    """
+    if active_only and inactive_only:
+        raise ValueError("active_only and inactive_only cannot both be True")
+
+    filters: list[Any] = [
+        Task.client_id == client_id,
+        Task.deleted_at.is_(None),
+    ]
+
+    if status is not None:
+        filters.append(Task.status == status)
+
+    if active_only:
+        filters.append(
+            Task.status.notin_(
+                [TaskStatus.COMPLETED, TaskStatus.CANCELLED, TaskStatus.FAILED]
+            )
+        )
+
+    if inactive_only:
+        filters.append(
+            Task.status.in_(
+                [TaskStatus.COMPLETED, TaskStatus.CANCELLED, TaskStatus.FAILED]
+            )
+        )
+
+    if search:
+        filters.append(
+            or_(
+                Task.filename.ilike(f"%{search}%"),
+                cast(Task.status, String).ilike(f"%{search}%"),
+            )
+        )
+
+    count_query = (
+        select(sqlalchemy.sql.functions.count(Task.id))
+        .select_from(Task)
+        .where(*filters)
+    )
+    result = await session.execute(count_query)
+    return int(result.scalar_one())

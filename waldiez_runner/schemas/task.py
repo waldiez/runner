@@ -136,3 +136,9 @@ class InputResponse(BaseModel):
 
     request_id: str
     data: str
+
+
+class TaskCountResponse(BaseModel):
+    """Task count response model."""
+
+    count: int

@@ -4,6 +4,7 @@
 
 from ._task_service import (
     count_active_tasks,
+    count_client_tasks,
     count_pending_tasks,
     create_task,
     delete_client_flow_task,
@@ -34,6 +35,7 @@ class TaskService:
     """Task service."""
 
     count_active_tasks = staticmethod(count_active_tasks)
+    count_client_tasks = staticmethod(count_client_tasks)
     count_pending_tasks = staticmethod(count_pending_tasks)
     create_task = staticmethod(create_task)
     delete_client_flow_task = staticmethod(delete_client_flow_task)

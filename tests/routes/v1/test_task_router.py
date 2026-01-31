@@ -1326,3 +1326,150 @@ async def test_upload_invalid_workflow(
     # (should be cleaned up after validation failure)
     expected_path = storage_service.root_dir / client_id / "invalid.waldiez"
     assert not expected_path.exists()
+
+
+@pytest.mark.anyio
+async def test_count_tasks_basic(
+    client: AsyncClient,
+    async_session: AsyncSession,
+    client_id: str,
+    create_task: CreateTaskCallable,
+) -> None:
+    """Count tasks without filters."""
+    task1, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        flow_id="flow_a",
+        status=TaskStatus.PENDING,
+        filename="count_basic_1",
+    )
+    task2, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        flow_id="flow_b",
+        status=TaskStatus.COMPLETED,
+        filename="count_basic_2",
+    )
+
+    response = await client.get("/tasks/count")
+
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    assert data["count"] == 2
+    await async_session.delete(task1)
+    await async_session.delete(task2)
+    await async_session.commit()
+
+
+@pytest.mark.anyio
+async def test_count_tasks_status_filter(
+    client: AsyncClient,
+    async_session: AsyncSession,
+    client_id: str,
+    create_task: CreateTaskCallable,
+) -> None:
+    """Count tasks filtered by status."""
+    task1, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        flow_id="flow_a",
+        status=TaskStatus.PENDING,
+        filename="count_status_pending_1",
+    )
+    task2, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        flow_id="flow_b",
+        status=TaskStatus.COMPLETED,
+        filename="count_status_completed_1",
+    )
+
+    response = await client.get("/tasks/count", params={"status": "PENDING"})
+
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    assert data["count"] == 1
+    await async_session.delete(task1)
+    await async_session.delete(task2)
+    await async_session.commit()
+
+
+@pytest.mark.anyio
+async def test_count_tasks_active_inactive_filters(
+    client: AsyncClient,
+    async_session: AsyncSession,
+    client_id: str,
+    create_task: CreateTaskCallable,
+) -> None:
+    """Count tasks using active_only/inactive_only flags."""
+    # active
+    task1, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        flow_id="flow_a",
+        status=TaskStatus.PENDING,
+        filename="count_active_1",
+    )
+    task2, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        flow_id="flow_b",
+        status=TaskStatus.RUNNING,
+        filename="count_active_2",
+    )
+    # inactive
+    task3, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        flow_id="flow_c",
+        status=TaskStatus.COMPLETED,
+        filename="count_inactive_1",
+    )
+
+    resp_active = await client.get("/tasks/count", params={"active_only": True})
+    assert resp_active.status_code == HTTP_200_OK
+    assert resp_active.json()["count"] == 2
+
+    resp_inactive = await client.get(
+        "/tasks/count", params={"inactive_only": True}
+    )
+    assert resp_inactive.status_code == HTTP_200_OK
+    assert resp_inactive.json()["count"] == 1
+    await async_session.delete(task1)
+    await async_session.delete(task2)
+    await async_session.delete(task3)
+    await async_session.commit()
+
+
+@pytest.mark.anyio
+async def test_get_tasks_status_filter(
+    client: AsyncClient,
+    async_session: AsyncSession,
+    client_id: str,
+    create_task: CreateTaskCallable,
+) -> None:
+    """Test getting tasks filtered by status."""
+    task1, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        flow_id="flow_status_1",
+        status=TaskStatus.PENDING,
+        filename="status_pending",
+    )
+    task2, _ = await create_task(
+        async_session,
+        client_id=client_id,
+        flow_id="flow_status_2",
+        status=TaskStatus.COMPLETED,
+        filename="status_completed",
+    )
+
+    response = await client.get("/tasks", params={"status": "PENDING"})
+
+    assert response.status_code == HTTP_200_OK
+    items = response.json()["items"]
+    assert len(items) == 1
+    assert items[0]["status"] == "PENDING"
+    await async_session.delete(task1)
+    await async_session.delete(task2)
+    await async_session.commit()
