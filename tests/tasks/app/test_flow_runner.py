@@ -32,7 +32,7 @@ async def test_run_async_flow_success(monkeypatch: pytest.MonkeyPatch) -> None:
         lambda x: x,
     )
 
-    fr = FlowRunner("task1", "redis://...", waldiez, "out.py", 120)
+    fr = FlowRunner("task1", "redis://...", waldiez, "out.py", None, 120)
     fr.io_stream = MagicMock()
 
     result = await fr.run()
@@ -57,7 +57,7 @@ async def test_run_sync_flow(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(f"{MODULE_TO_PATCH}.asyncio.to_thread", fake_to_thread)
 
-    fr = FlowRunner("task1", "redis://...", waldiez, "out.py", 120)
+    fr = FlowRunner("task1", "redis://...", waldiez, "out.py", None, 120)
     fr.run_sync = MagicMock(return_value=[{"result": "ok"}])  # type: ignore
     result = await fr.run()
     assert result == [{"result": "ok"}]
@@ -75,7 +75,7 @@ def test_run_sync_error(monkeypatch: pytest.MonkeyPatch) -> None:
         lambda _: MagicMock(run=MagicMock(side_effect=RuntimeError("Boom!"))),
     )
 
-    fr = FlowRunner("task1", "redis://...", waldiez, "out.py", 120)
+    fr = FlowRunner("task1", "redis://...", waldiez, "out.py", None, 120)
     results = fr.run_sync()
     assert "error" in results
 

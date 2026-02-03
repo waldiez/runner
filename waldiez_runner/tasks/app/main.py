@@ -113,6 +113,7 @@ async def run(params: TaskParams) -> None:
             output_path=output_path,
             input_timeout=params.input_timeout,
             skip_deps=params.skip_deps,
+            message=params.message,
         )
 
         results = await flow_runner.run(skip_deps=params.skip_deps)

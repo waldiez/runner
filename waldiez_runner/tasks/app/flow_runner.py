@@ -48,6 +48,7 @@ class FlowRunner:
         redis_url: str,
         waldiez: Waldiez,
         output_path: str,
+        message: str | None = None,
         input_timeout: int = 180,
         skip_deps: bool | None = None,
     ) -> None:
@@ -57,6 +58,7 @@ class FlowRunner:
         self.output_path = output_path
         self.input_timeout = input_timeout
         self.skip_deps = skip_deps
+        self.message = message
         self.status_channel = f"task:{task_id}:status"
         self.io_stream = RedisIOStream(
             redis_url=self.redis_url,
@@ -101,13 +103,16 @@ class FlowRunner:
         with IOStream.set_default(self.io_stream):
             try:
                 runner = WaldiezRunner(
-                    self.waldiez, skip_deps=self.skip_deps is True
+                    self.waldiez,
+                    skip_deps=self.skip_deps is True,
+                    message=self.message,
                 )
                 results = await runner.a_run(
                     output_path=self.output_path,
                     dot_env=self.dot_env_path,
                     skip_deps=skip_deps,
                     skip_symlinks=True,
+                    message=self.message,
                 )
                 return make_serializable_results(results)
             except BaseException as e:  # pylint: disable=broad-exception-caught
