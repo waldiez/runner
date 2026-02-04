@@ -143,12 +143,17 @@ class FlowRunner:
         """
         with RedisIOStream.set_default(self.io_stream):
             try:
-                runner = WaldiezRunner(self.waldiez, skip_deps=skip_deps)
+                runner = WaldiezRunner(
+                    self.waldiez,
+                    skip_deps=skip_deps,
+                    message=self.message,
+                )
                 results = runner.run(
                     output_path=self.output_path,
                     dot_env=self.dot_env_path,
                     skip_deps=skip_deps,
                     skip_symlinks=True,
+                    message=self.message,
                 )
                 return make_serializable_results(results)
             except BaseException as e:  # pylint: disable=broad-exception-caught
